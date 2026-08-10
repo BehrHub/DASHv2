@@ -157,6 +157,7 @@ ACTION_ITEMS = [
     {"event": 94, "who": "Food Lion \u2014 Scaggsville", "wo": DASH, "status": "Breakdown pending", "amount": None, "action": "Await payment breakdown", "flag": "missing"},
     {"event": 91, "who": "Marshalls \u2014 Frederick", "wo": "5924273", "status": "Payment breakdown confirmed", "amount": 180.00, "action": "Await ACH", "flag": "ok"},
     {"event": 92, "who": "Dunkin' \u2014 Owings Mills", "wo": "5900744", "status": "Payment breakdown confirmed", "amount": 292.50, "action": "Await ACH", "flag": "ok"},
+    {"event": 95, "who": "Marshalls \u2014 Clinton", "wo": DASH, "status": "Breakdown pending", "amount": None, "action": "Await payment breakdown", "flag": "missing"},
 ]
 
 LEDGER_CSS = """

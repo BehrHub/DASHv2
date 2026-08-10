@@ -121,6 +121,7 @@ def _real_timeline() -> pd.DataFrame:
         ("Dunkin'", "Maryland", "Completed", 292.5, "Yes", "2026-08-03", "Owings Mills, MD"),
         ("Food Lion", "Maryland", "Completed", 0, "No", "2026-08-04", "Essex, MD"),
         ("Food Lion", "Maryland", "Completed", 0, "No", "2026-08-05", "Scaggsville, MD"),
+        ("Marshalls", "Maryland", "Completed", 0, "No", "2026-08-07", "Clinton, MD"),
     ]
 
     return pd.DataFrame(
@@ -139,15 +140,16 @@ def _real_timeline() -> pd.DataFrame:
 
 
 def _real_pipeline() -> pd.DataFrame:
-    # Pulled directly from the Pipeline sheet of the same workbook.
-    # 6 real scheduled events as of 2026-08-05.
+    # Live scheduled list as of 2026-08-09 — supersedes the entries that
+    # have since been completed (those are now Events 91-95 in Timeline).
     rows = [
-        ("Dunkin'", "Timonium, MD", "Scheduled", "2026-08-04"),
+        ("TJ Maxx", "Frederick, MD", "Scheduled", "2026-08-10"),
+        ("Dunkin'", "Rockville, MD", "Scheduled", "2026-08-12"),
+        ("Dunkin'", "Rockville, MD", "Scheduled", "2026-08-13"),
+        ("Dunkin'", "Chevy Chase, MD", "Scheduled", "2026-08-17"),
+        ("Dunkin'", "Silver Spring, MD", "Scheduled", "2026-08-18"),
         ("Marshalls", "Owings Mills, MD", "Scheduled", "2026-08-24"),
         ("Marshalls", "Annapolis, MD", "Scheduled", "2026-08-27"),
-        ("Marshalls", "Frederick, MD", "Scheduled", "2026-08-03"),
-        ("Dunkin'", "Owings Mills, MD", "Scheduled", "2026-08-03"),
-        ("Food Lion", "Essex, MD", "Scheduled", "2026-08-03"),
     ]
 
     return pd.DataFrame(
