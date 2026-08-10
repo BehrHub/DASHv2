@@ -1246,6 +1246,75 @@ div[data-testid="stHorizontalBlock"] button {
   padding: 7px 2px !important;
 }
 
+/* Icon-above-label nav tabs, ported from the production dashboard's
+   visual style. Deliberately kept on the existing st.button() click
+   mechanism rather than switching to <a href> links — real <a> tags
+   rendered inside a components.html() iframe were spawning new tabs
+   on iOS Safari, which is the exact bug this app moved away from
+   earlier. Only the visual styling is ported, not the link markup. */
+div.st-key-nav_main button,
+div.st-key-nav_addevent button,
+div.st-key-nav_journey button,
+div.st-key-nav_clienthub button,
+div.st-key-nav_ledger button {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  min-height: 52px !important;
+  padding: 6px 4px 9px !important;
+  border-radius: 13px !important;
+  position: relative !important;
+  font-size: 8.5px !important;
+  line-height: 1.15 !important;
+  opacity: 0.86;
+}
+div.st-key-nav_main button::after,
+div.st-key-nav_addevent button::after,
+div.st-key-nav_journey button::after,
+div.st-key-nav_clienthub button::after,
+div.st-key-nav_ledger button::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  width: 26px;
+  height: 2px;
+  border-radius: 999px;
+  transform: translateX(-50%) scaleX(0.7);
+  opacity: 0.45;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+div.st-key-nav_main button { border-color: rgba(244, 114, 182, 0.4) !important; }
+div.st-key-nav_main button::after { background: #f472b6; }
+div.st-key-nav_addevent button { border-color: rgba(249, 115, 22, 0.4) !important; }
+div.st-key-nav_addevent button::after { background: #f97316; }
+div.st-key-nav_journey button { border-color: rgba(220, 38, 38, 0.4) !important; }
+div.st-key-nav_journey button::after { background: #dc2626; }
+div.st-key-nav_clienthub button { border-color: rgba(45, 212, 191, 0.4) !important; }
+div.st-key-nav_clienthub button::after { background: #2dd4bf; }
+div.st-key-nav_ledger button { border-color: rgba(56, 189, 248, 0.4) !important; }
+div.st-key-nav_ledger button::after { background: #38bdf8; }
+
+/* Active tab: fuller underline + brighter opacity */
+div.st-key-nav_main button[data-testid="stBaseButton-primary"],
+div.st-key-nav_addevent button[data-testid="stBaseButton-primary"],
+div.st-key-nav_journey button[data-testid="stBaseButton-primary"],
+div.st-key-nav_clienthub button[data-testid="stBaseButton-primary"],
+div.st-key-nav_ledger button[data-testid="stBaseButton-primary"] {
+  opacity: 1;
+}
+div.st-key-nav_main button[data-testid="stBaseButton-primary"]::after,
+div.st-key-nav_addevent button[data-testid="stBaseButton-primary"]::after,
+div.st-key-nav_journey button[data-testid="stBaseButton-primary"]::after,
+div.st-key-nav_clienthub button[data-testid="stBaseButton-primary"]::after,
+div.st-key-nav_ledger button[data-testid="stBaseButton-primary"]::after {
+  opacity: 1;
+  transform: translateX(-50%) scaleX(1);
+  width: 34px;
+}
+
 /* Streamlit wraps every st.markdown() call in a block with default
    vertical margin, even ones that only inject a <style> tag with no
    visible content. That leaves stray empty gaps wherever CSS is

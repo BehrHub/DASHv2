@@ -39,20 +39,17 @@ def render_header(active: str, show_money_toggle: bool = False) -> None:
                 st.rerun()
     cols = st.columns(5)
     labels = [
-        ("MAIN", "main"),
-        ("EVENTS", "addevent"),
-        ("JOURNEY", "journey"),
-        ("CLIENTS", "clienthub"),
-        ("LEDGER", "ledger"),
+        ("\U0001F3C1", "MAIN", "main"),
+        ("\u2795", "EVENTS", "addevent"),
+        ("\U0001F3CE\uFE0F", "JOURNEY", "journey"),
+        ("\U0001F465", "CLIENTS", "clienthub"),
+        ("\U0001F4D3", "LEDGER", "ledger"),
     ]
-    for col, (label, view) in zip(cols, labels):
+    for col, (icon, label, view) in zip(cols, labels):
         with col:
-            if view is None:
-                st.button(label, key=f"nav_{label}", disabled=True, width="stretch")
-                continue
             is_active = view == active
             if st.button(
-                label,
+                f"{icon}\n{label}",
                 key=f"nav_{view}",
                 type="primary" if is_active else "secondary",
                 width="stretch",
@@ -78,6 +75,12 @@ def main() -> None:
     view = st.query_params.get("view", "main")
     show_money_toggle = view in ("main", "clienthub", "ledger")
     render_header(view, show_money_toggle)
+    if view == "clienthub":
+        st.markdown(
+            "<style>div.st-key-gross_toggle_btn button "
+            "{ position: relative; left: 2px; top: 5px; }</style>",
+            unsafe_allow_html=True,
+        )
     gross_view = bool(st.session_state.get("gross_annual_view", False))
 
     if view == "journey":
