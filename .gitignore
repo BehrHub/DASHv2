@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.DS_Store
+
+# Session-added events are transient runtime state, not source-controlled
+# data — same treatment on the Mac mini and on Streamlit Cloud. On Cloud
+# specifically, this file lives on the container's local disk and will
+# NOT survive a redeploy (a fresh git push rebuilds the container from
+# scratch). Export/back up before pushing any code change.
+session_data.json
