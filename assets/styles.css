@@ -1269,6 +1269,16 @@ div.st-key-nav_ledger button {
   font-size: 8.5px !important;
   line-height: 1.15 !important;
   opacity: 0.86;
+  /* The global button rule sets nowrap+ellipsis, which was collapsing
+     the icon+label onto one line and truncating it ("JOURNE..."). */
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  /* Streamlit's own primary/secondary button theme colors were still
+     showing through (solid pink fill on the active tab) since nothing
+     had explicitly overridden background before. */
+  background: linear-gradient(180deg, rgba(20, 34, 55, 0.5), rgba(8, 17, 31, 0.75)) !important;
+  color: #aebdd1 !important;
 }
 div.st-key-nav_main button::after,
 div.st-key-nav_addevent button::after,
@@ -1297,14 +1307,22 @@ div.st-key-nav_clienthub button::after { background: #2dd4bf; }
 div.st-key-nav_ledger button { border-color: rgba(56, 189, 248, 0.4) !important; }
 div.st-key-nav_ledger button::after { background: #38bdf8; }
 
-/* Active tab: fuller underline + brighter opacity */
+/* Active tab: brighter background, white text, fuller underline —
+   replaces Streamlit's own solid pink primary-button fill entirely. */
 div.st-key-nav_main button[data-testid="stBaseButton-primary"],
 div.st-key-nav_addevent button[data-testid="stBaseButton-primary"],
 div.st-key-nav_journey button[data-testid="stBaseButton-primary"],
 div.st-key-nav_clienthub button[data-testid="stBaseButton-primary"],
 div.st-key-nav_ledger button[data-testid="stBaseButton-primary"] {
   opacity: 1;
+  color: #f8fafc !important;
+  background: linear-gradient(180deg, rgba(30, 45, 68, 0.85), rgba(9, 19, 34, 0.95)) !important;
 }
+div.st-key-nav_main button[data-testid="stBaseButton-primary"] { border-color: rgba(244, 114, 182, 0.75) !important; }
+div.st-key-nav_addevent button[data-testid="stBaseButton-primary"] { border-color: rgba(249, 115, 22, 0.75) !important; }
+div.st-key-nav_journey button[data-testid="stBaseButton-primary"] { border-color: rgba(220, 38, 38, 0.75) !important; }
+div.st-key-nav_clienthub button[data-testid="stBaseButton-primary"] { border-color: rgba(45, 212, 191, 0.75) !important; }
+div.st-key-nav_ledger button[data-testid="stBaseButton-primary"] { border-color: rgba(56, 189, 248, 0.75) !important; }
 div.st-key-nav_main button[data-testid="stBaseButton-primary"]::after,
 div.st-key-nav_addevent button[data-testid="stBaseButton-primary"]::after,
 div.st-key-nav_journey button[data-testid="stBaseButton-primary"]::after,
