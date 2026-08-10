@@ -78,7 +78,7 @@ def main() -> None:
     if show_money_toggle:
         st.markdown(
             "<style>div.st-key-gross_toggle_btn button "
-            "{ position: relative; left: 13px; top: 11px; }</style>",
+            "{ position: relative; left: 13px; top: 13px; }</style>",
             unsafe_allow_html=True,
         )
     gross_view = bool(st.session_state.get("gross_annual_view", False))
