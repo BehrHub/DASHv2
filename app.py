@@ -78,7 +78,7 @@ def main() -> None:
     if view == "clienthub":
         st.markdown(
             "<style>div.st-key-gross_toggle_btn button "
-            "{ position: relative; left: 2px; top: 5px; }</style>",
+            "{ position: relative; left: 10px; top: 9px; }</style>",
             unsafe_allow_html=True,
         )
     gross_view = bool(st.session_state.get("gross_annual_view", False))
