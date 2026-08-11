@@ -1249,7 +1249,13 @@ div[data-testid="stHorizontalBlock"] button {
 /* The nav row grew taller once buttons stack icon-above-label, which
    left a visibly bigger gap before whatever comes next on the page
    (Upcoming Events, Journey's START card, the ticker, etc.) than
-   there used to be. Pull the next block up to close that gap. */
+   there used to be. Pull the next block up to close that gap.
+   Targeting at the stElementContainer wrapper level (not directly on
+   stHorizontalBlock) since that's the actual level Streamlit uses for
+   sibling spacing between top-level blocks. */
+div[data-testid="stElementContainer"]:has(> div[data-testid="stHorizontalBlock"]) + div[data-testid="stElementContainer"] {
+  margin-top: -18px !important;
+}
 div[data-testid="stHorizontalBlock"] + div {
   margin-top: -10px !important;
 }

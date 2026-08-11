@@ -29,6 +29,25 @@ and wipes anything in `session_data.json` that wasn't baked into the
 committed source data.** Before pushing any code change, export/back
 up whatever's been added live since the last deploy first.
 
+## Debugging protocol
+
+When a reported bug doesn't resolve after a fix:
+
+- **Max two rounds of asking the user to check something** (screenshot,
+  terminal output, browser refresh) before switching approach entirely.
+- **By the third attempt, stop asking and self-diagnose instead.** Pull
+  the actual file/output directly and verify against it — don't
+  theorize about what might be wrong on the user's end when the actual
+  source of truth (the code, the deployed file, the real data) is
+  checkable directly.
+- **When something partially worked and something didn't, isolate the
+  difference precisely** — check exactly which specific file(s) the
+  working part touched vs. the non-working part, rather than re-sending
+  everything again and hoping.
+- Think structurally about what changed (git conflict resolution scope,
+  which files were actually included in a fix, deploy timing) instead
+  of defaulting to "try a hard refresh" as the first explanation.
+
 ## Project structure
 
 ```
