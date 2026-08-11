@@ -1252,12 +1252,14 @@ div[data-testid="stHorizontalBlock"] button {
    row didn't work — the exact DOM nesting wasn't verifiable from here
    and both guesses missed. Going at the actual known source instead:
    Streamlit's own flex `gap` on the main vertical block controls
-   spacing between every top-level element on the page uniformly. */
+   spacing between every top-level element on the page uniformly.
+   0.35rem was too tight (BARRISTER/gross button crowded the nav row
+   right below them) — bumping up modestly as a first step. */
 div[data-testid="stVerticalBlock"] {
-  gap: 0.35rem !important;
+  gap: 0.5rem !important;
 }
 div[data-testid="stMainBlockContainer"] div[data-testid="stVerticalBlockBorderWrapper"] > div {
-  gap: 0.35rem !important;
+  gap: 0.5rem !important;
 }
 
 /* Icon-above-label nav tabs, ported from the production dashboard's
