@@ -24,7 +24,7 @@ def _month_index(date: pd.Timestamp, career_start: pd.Timestamp) -> int:
 
 def _compute_summary_and_months(
     timeline: pd.DataFrame, gross_view: bool = False
-) -> tuple[list[tuple[str, str]], list[dict], list[dict]]:
+) -> tuple[list[tuple[str, str]], list[dict], list[dict], list[dict]]:
     working = timeline.copy()
     working["__date"] = pd.to_datetime(working["Service Date"], errors="coerce")
     working["__amount"] = pd.to_numeric(working["Amount"], errors="coerce").fillna(0)
@@ -59,26 +59,18 @@ def _compute_summary_and_months(
 
     career_months = _compute_career_months(dated)
     calendar_months = _compute_calendar_months(dated)
+    eras = _compute_eras(dated)
 
-    return summary, career_months, calendar_months
+    return summary, career_months, calendar_months, eras
 
 
 def _compute_career_months(dated: pd.DataFrame) -> list[dict]:
     """30-ish-day cycles anchored to the career start date (e.g. Apr 20 -
     May 19, May 20 - Jun 19, ...). This is the original Ledger view.
-
-    The final bonus period (beyond the last cycle with real data) is
-    special-cased as "Speed Era" — a fixed since-June-30 snapshot
-    marking when production ramped up (new contracts signed), rather
-    than continuing the standard 30-day cycle math. It deliberately
-    overlaps earlier cycle periods since it's a standalone "since X"
-    view, not meant to be a clean non-overlapping bucket.
     """
     months: list[dict] = []
     if dated.empty:
         return months
-
-    SPEED_ERA_START = pd.Timestamp("2026-06-30")
 
     career_start = dated["__date"].min().normalize()
     dated = dated.assign(__month_idx=dated["__date"].apply(lambda d: _month_index(d, career_start)))
@@ -87,23 +79,14 @@ def _compute_career_months(dated: pd.DataFrame) -> list[dict]:
     # live "current period" card — it'll show real zeros until dated
     # events actually land in that window.
     cycle_count = latest_month_idx + 2
-    speed_era_index = cycle_count - 1
 
     for i in range(cycle_count):
-        if i == speed_era_index:
-            start = SPEED_ERA_START
-            end = pd.Timestamp.now().normalize()
-            label = "Speed Era"
-            subset = dated[dated["__date"] >= SPEED_ERA_START]
-            start_label = start.strftime("%b %d")
-            end_label = "Current"
-        else:
-            start = career_start + pd.DateOffset(months=i)
-            end = career_start + pd.DateOffset(months=i + 1) - pd.Timedelta(days=1)
-            label = f"Month {i + 1}"
-            subset = dated[dated["__month_idx"] == i]
-            start_label = start.strftime("%b %d")
-            end_label = end.strftime("%b %d")
+        start = career_start + pd.DateOffset(months=i)
+        end = career_start + pd.DateOffset(months=i + 1) - pd.Timedelta(days=1)
+        label = f"Month {i + 1}"
+        subset = dated[dated["__month_idx"] == i]
+        start_label = start.strftime("%b %d")
+        end_label = end.strftime("%b %d")
         events = len(subset)
         confirmed = int((subset["Verified?"] == "Yes").sum())
         missing = events - confirmed
@@ -117,6 +100,40 @@ def _compute_career_months(dated: pd.DataFrame) -> list[dict]:
             "revenue": revenue, "avg": avg,
         })
     return months
+
+
+def _compute_eras(dated: pd.DataFrame) -> list[dict]:
+    """Named career eras — same card shape as Month/Calendar views, just
+    a different, business-meaningful grouping instead of fixed-length
+    cycles. Currently only "Speed Era" (since Jun 30, marking the
+    production ramp-up from new contracts) has a confirmed definition.
+    Add more named eras here once their start dates are confirmed.
+    """
+    eras: list[dict] = []
+    if dated.empty:
+        return eras
+
+    ERA_DEFINITIONS = [
+        ("Speed Era", pd.Timestamp("2026-06-30"), None),
+    ]
+
+    for label, start, end in ERA_DEFINITIONS:
+        end_ts = end if end is not None else pd.Timestamp.now().normalize()
+        subset = dated[(dated["__date"] >= start) & (dated["__date"] <= end_ts)]
+        end_label = end.strftime("%b %d") if end is not None else "Current"
+        events = len(subset)
+        confirmed = int((subset["Verified?"] == "Yes").sum())
+        missing = events - confirmed
+        revenue = float(subset.loc[subset["Verified?"] == "Yes", "__amount"].sum())
+        avg = revenue / confirmed if confirmed else 0.0
+        eras.append({
+            "label": label,
+            "start": start.strftime("%b %d"),
+            "end": end_label,
+            "events": events, "confirmed": confirmed, "missing": missing,
+            "revenue": revenue, "avg": avg,
+        })
+    return eras
 
 
 def _compute_calendar_months(dated: pd.DataFrame) -> list[dict]:
@@ -239,7 +256,7 @@ def _build_month_cards(months: list[dict], gross_view: bool = False) -> str:
 
 
 def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
-    summary, career_months, calendar_months = _compute_summary_and_months(timeline, gross_view)
+    summary, career_months, calendar_months, eras = _compute_summary_and_months(timeline, gross_view)
 
     kpi_html = "".join(
         f'<div class="ledger-kpi"><div class="ledger-kpi-val">{escape(val)}</div>'
@@ -249,6 +266,7 @@ def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
 
     career_cards = _build_month_cards(career_months, gross_view)
     calendar_cards = _build_month_cards(calendar_months, gross_view)
+    era_cards = _build_month_cards(eras, gross_view)
 
     action_html = "".join(
         f'<div class="action-item flag-{item["flag"]}">'
@@ -279,10 +297,12 @@ def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
           <div class="month-view-tabs">
             <div class="month-view-tab is-active" data-view="career">CAREER</div>
             <div class="month-view-tab" data-view="calendar">CALENDAR</div>
+            <div class="month-view-tab" data-view="eras">ERAS</div>
           </div>
         </div>
         <div class="month-view is-active" data-view="career">{career_cards}</div>
         <div class="month-view" data-view="calendar">{calendar_cards}</div>
+        <div class="month-view" data-view="eras">{era_cards}</div>
       </div>
 
       <div class="ledger-panel">
@@ -307,5 +327,5 @@ def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     </body></html>
     """
 
-    height = 320 + 220 + max(len(career_months), len(calendar_months)) * 190 + len(ACTION_ITEMS) * 175
+    height = 320 + 220 + max(len(career_months), len(calendar_months), len(eras)) * 190 + len(ACTION_ITEMS) * 175
     components.html(html, height=height, scrolling=False)
