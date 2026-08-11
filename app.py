@@ -40,8 +40,8 @@ def render_header(active: str, show_money_toggle: bool = False) -> None:
     cols = st.columns(5)
     labels = [
         ("\U0001F3C1", "MAIN", "main"),
-        ("\u2795", "EVENTS", "addevent"),
         ("\U0001F3CE\uFE0F", "JOURNEY", "journey"),
+        ("\u2795", "EVENTS", "addevent"),
         ("\U0001F465", "CLIENTS", "clienthub"),
         ("\U0001F4D3", "LEDGER", "ledger"),
     ]
@@ -75,10 +75,10 @@ def main() -> None:
     view = st.query_params.get("view", "main")
     show_money_toggle = view in ("main", "clienthub", "ledger")
     render_header(view, show_money_toggle)
-    if view == "clienthub":
+    if show_money_toggle:
         st.markdown(
             "<style>div.st-key-gross_toggle_btn button "
-            "{ position: relative; left: 2px; top: 5px; }</style>",
+            "{ position: relative; left: 13px; top: 13px; }</style>",
             unsafe_allow_html=True,
         )
     gross_view = bool(st.session_state.get("gross_annual_view", False))

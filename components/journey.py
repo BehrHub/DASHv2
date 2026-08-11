@@ -175,6 +175,9 @@ JOURNEY_CSS = """
 .journey-achievement-line.is-debut { color: #7dd3fc; }
 .journey-achievement-line.is-milestone { color: #ffe8a3; }
 .journey-stop { position: relative; z-index: 1; display: grid; grid-template-columns: 54px 1fr; gap: .72rem; align-items: stretch; margin-left: .2rem; padding: .62rem .72rem; border: 1px solid rgba(var(--month-accent-rgb, 244,114,182), .5); border-radius: 16px; background: linear-gradient(145deg, rgba(var(--month-accent-rgb, 244,114,182), .12), rgba(13,17,26,.97)); box-shadow: 0 9px 22px rgba(0,0,0,.2), inset 0 0 0 1px rgba(var(--month-accent-rgb, 244,114,182), .15); }
+/* Trial styling for stops #1 and #2, ahead of deciding on the rest. */
+.journey-stop-test-white { border: 1px solid rgba(255,255,255,.4) !important; background: linear-gradient(145deg, rgba(255,255,255,.16), rgba(20,26,38,.92)) !important; backdrop-filter: blur(6px); box-shadow: 0 9px 22px rgba(0,0,0,.2), inset 0 0 0 1px rgba(255,255,255,.18) !important; }
+.journey-stop-test-blue { border: 1px solid rgba(56,189,248,.45) !important; background: linear-gradient(145deg, rgba(56,189,248,.18), rgba(13,20,32,.94)) !important; backdrop-filter: blur(6px); box-shadow: 0 9px 22px rgba(0,0,0,.2), inset 0 0 0 1px rgba(56,189,248,.2) !important; }
 .journey-stop::before { content: ""; position: absolute; left: -1.02rem; top: 50%; width: 13px; height: 13px; transform: translateY(-50%); border: 2px solid #05070b; border-radius: 999px; background: var(--stop-accent, #f472b6); box-shadow: 0 0 0 3px rgba(244,114,182,.2); }
 .journey-number { display: flex; align-items: center; justify-content: center; border-radius: 12px; background: linear-gradient(180deg, #171325, #0b0d16); border: 1px solid rgba(255,255,255,.14); color: var(--month-accent, #f472b6); font-size: .72rem; font-weight: 850; text-transform: uppercase; text-align: center; line-height: 1.05; }
 .journey-content { position: relative; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 46%); gap: .9rem; align-items: start; }
@@ -301,8 +304,14 @@ def render_barrister_journey(timeline: pd.DataFrame) -> None:
         month_accent, month_accent_rgb = MONTH_COLORS.get(month_num, MONTH_COLORS[1])
         stop_accent = JURISDICTION_COLORS.get(state_key, JURISDICTION_COLORS["Pennsylvania / Other"])
 
+        test_class = ""
+        if number == 1:
+            test_class = " journey-stop-test-white"
+        elif number == 2:
+            test_class = " journey-stop-test-blue"
+
         pieces.append(
-            '<div class="journey-stop" '
+            f'<div class="journey-stop{test_class}" '
             f'style="--stop-accent:{escape(stop_accent, quote=True)};--month-accent:{escape(month_accent, quote=True)};--month-accent-rgb:{escape(month_accent_rgb, quote=True)}" '
             f'data-visit="{escape(str(number))}" data-client="{escape(client, quote=True)}" '
             f'data-location="{escape(location or "Location not provided", quote=True)}" '

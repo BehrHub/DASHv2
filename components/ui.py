@@ -104,7 +104,6 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     if jurisdictions:
         leader_j = jurisdictions[0]
         jurisdiction_summary = (
-            f'<span class="pink-highlight">{jurisdiction_count} Jurisdictions</span> \u2022 '
             f'<span class="pink-highlight">{escape(str(leader_j["name"]))}</span> leads with '
             f'<span class="pink-highlight">{int(leader_j["events"]):,}</span> events'
         )
@@ -215,7 +214,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     .frosted-panel{{background:radial-gradient(circle at 100% -10%,rgba(244,114,182,.08),transparent 42%),rgba(23,27,40,.55);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:20px;position:relative;overflow:hidden;box-shadow:0 15px 35px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.1)}}
     .section-header{{margin-bottom:15px;position:relative;z-index:2}}
     .section-title{{font-size:13px;font-weight:800;letter-spacing:1.5px;color:#fff;text-transform:uppercase}}
-    .section-sub{{font-size:11.5px;color:#b8c4d9;margin-top:3px;line-height:1.5}}
+    .section-sub{{font-size:11.5px;font-weight:800;letter-spacing:.3px;color:#b8c4d9;margin-top:3px;line-height:1.5;text-transform:uppercase}}
     .pink-highlight{{color:#f472b6;font-weight:700}}
     .leaderboard-tower{{display:flex;flex-direction:column;gap:8px}}
     .tower-block{{display:grid;grid-template-columns:20px minmax(0,1fr) 32px;align-items:center;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.01));border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}}
@@ -226,9 +225,9 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     .territory-split{{display:grid;grid-template-columns:minmax(140px,.9fr) minmax(0,1.1fr);align-items:center;gap:8px;position:relative}}
     .neon-pipe-bg{{position:absolute;top:20px;right:-20px;width:80%;height:60px;pointer-events:none;z-index:1}}
     .chart-section{{display:flex;justify-content:center;position:relative;z-index:2}}
-    .arc-container{{width:140px;height:140px;position:relative;display:flex;align-items:center;justify-content:center}}
-    .total-number{{position:absolute;font-size:48px;font-weight:900;color:#ffc700;filter:drop-shadow(0 0 20px rgba(255,199,0,.5));line-height:1}}
-    .arc-svg{{transform:rotate(-90deg)}} .arc-base{{fill:none;stroke:rgba(255,255,255,.05);stroke-width:10}} .arc-segment{{fill:none;stroke-width:10;stroke-linecap:butt}}
+    .arc-container{{width:189px;height:189px;position:relative;display:flex;align-items:center;justify-content:center}}
+    .total-number{{position:absolute;font-size:48px;font-weight:900;background:linear-gradient(135deg,#ffffff,#c4cad4 40%,#8b93a1 60%,#ffffff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 20px rgba(200,205,214,.55));line-height:1}}
+    .arc-svg{{transform:rotate(-90deg)}} .arc-base{{fill:none;stroke:rgba(255,255,255,.05);stroke-width:13.5}} .arc-segment{{fill:none;stroke-width:13.5;stroke-linecap:butt}}
     .jurisdiction-list{{display:flex;flex-direction:column;gap:10px;position:relative;z-index:2}}
     .juris-item{{display:grid;grid-template-columns:20px minmax(0,1fr) 46px;align-items:center;background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.05);border-radius:50px;padding:8px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}}
     .color-dot{{width:10px;height:10px;border-radius:50%}}
@@ -249,7 +248,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
       .gauge-lbl{{font-size:9px}}
       .frosted-panel{{padding:16px 14px}}
       .territory-split{{grid-template-columns:132px minmax(0,1fr)}}
-      .arc-container{{width:128px;height:128px}}
+      .arc-container{{width:173px;height:173px}}
       .total-number{{font-size:42px}}
       .jurisdiction-list{{gap:7px}}
       .juris-item{{grid-template-columns:16px minmax(0,1fr) 42px;padding:7px 9px}}
@@ -337,7 +336,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
         <div class="territory-split">
           <div class="chart-section">
             <div class="arc-container">
-              <svg class="arc-svg" width="100" height="100" viewBox="0 0 36 36">
+              <svg class="arc-svg" width="135" height="135" viewBox="0 0 36 36">
                 <path class="arc-base" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
                 {''.join(arc_paths)}
               </svg>
@@ -1061,7 +1060,7 @@ def render_refined_data_views(metrics: ExecutiveMetrics) -> None:
     .frosted-panel{{background:radial-gradient(circle at 100% -10%,rgba(244,114,182,.08),transparent 42%),rgba(23,27,40,.55);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:20px;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 15px 35px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.1)}}
     .section-header{{margin-bottom:15px;position:relative;z-index:2}}
     .section-title{{font-size:13px;font-weight:800;letter-spacing:1.5px;color:#fff;text-transform:uppercase}}
-    .section-sub{{font-size:11.5px;color:#b8c4d9;margin-top:3px;line-height:1.5}}
+    .section-sub{{font-size:11.5px;font-weight:800;letter-spacing:.3px;color:#b8c4d9;margin-top:3px;line-height:1.5;text-transform:uppercase}}
     .pink-highlight{{color:#f472b6;font-weight:700}}
     .leaderboard-tower{{display:flex;flex-direction:column;gap:8px}}
     .tower-block{{display:grid;grid-template-columns:20px minmax(0,1fr) 32px;align-items:center;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.01));border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}}
@@ -1072,16 +1071,16 @@ def render_refined_data_views(metrics: ExecutiveMetrics) -> None:
     .territory-split{{display:grid;grid-template-columns:minmax(140px,.9fr) minmax(0,1.1fr);align-items:center;gap:8px;position:relative}}
     .neon-pipe-bg{{position:absolute;top:20px;right:-20px;width:80%;height:60px;pointer-events:none;z-index:1}}
     .chart-section{{display:flex;justify-content:center;position:relative;z-index:2}}
-    .arc-container{{width:140px;height:140px;position:relative;display:flex;align-items:center;justify-content:center}}
-    .total-number{{position:absolute;font-size:48px;font-weight:900;color:#ffc700;filter:drop-shadow(0 0 20px rgba(255,199,0,.5));line-height:1}}
-    .arc-svg{{transform:rotate(-90deg)}} .arc-base{{fill:none;stroke:rgba(255,255,255,.05);stroke-width:10}} .arc-segment{{fill:none;stroke-width:10;stroke-linecap:butt}}
+    .arc-container{{width:189px;height:189px;position:relative;display:flex;align-items:center;justify-content:center}}
+    .total-number{{position:absolute;font-size:48px;font-weight:900;background:linear-gradient(135deg,#ffffff,#c4cad4 40%,#8b93a1 60%,#ffffff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 20px rgba(200,205,214,.55));line-height:1}}
+    .arc-svg{{transform:rotate(-90deg)}} .arc-base{{fill:none;stroke:rgba(255,255,255,.05);stroke-width:13.5}} .arc-segment{{fill:none;stroke-width:13.5;stroke-linecap:butt}}
     .jurisdiction-list{{display:flex;flex-direction:column;gap:10px;position:relative;z-index:2}}
     .juris-item{{display:grid;grid-template-columns:20px minmax(0,1fr) 46px;align-items:center;background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.05);border-radius:50px;padding:8px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}}
     .color-dot{{width:10px;height:10px;border-radius:50%}}
     .juris-name{{overflow:hidden;font-size:11.5px;font-weight:800;color:#c5d0e0;text-transform:uppercase;padding:0 10px;text-overflow:ellipsis;white-space:nowrap}}
     .juris-pct{{font-size:12px;font-weight:900;color:#fff;text-align:right}}
     .empty-state{{color:#b8c4d9;font-size:12.5px;padding:12px;text-align:center}}
-    @media(max-width:520px){{body{{padding:4px 0 10px}}.frosted-panel{{padding:16px 14px}}.territory-split{{grid-template-columns:132px minmax(0,1fr)}}.arc-container{{width:128px;height:128px}}.total-number{{font-size:42px}}.jurisdiction-list{{gap:7px}}.juris-item{{grid-template-columns:16px minmax(0,1fr) 42px;padding:7px 9px}}.juris-name{{padding:0 6px;font-size:10.5px}}.juris-pct{{font-size:11px}}}}
+    @media(max-width:520px){{body{{padding:4px 0 10px}}.frosted-panel{{padding:16px 14px}}.territory-split{{grid-template-columns:132px minmax(0,1fr)}}.arc-container{{width:173px;height:173px}}.total-number{{font-size:42px}}.jurisdiction-list{{gap:7px}}.juris-item{{grid-template-columns:16px minmax(0,1fr) 42px;padding:7px 9px}}.juris-name{{padding:0 6px;font-size:10.5px}}.juris-pct{{font-size:11px}}}}
     </style></head>
     <body>
       <div class="frosted-panel">
@@ -1108,7 +1107,7 @@ def render_refined_data_views(metrics: ExecutiveMetrics) -> None:
         <div class="territory-split">
           <div class="chart-section">
             <div class="arc-container">
-              <svg class="arc-svg" width="100" height="100" viewBox="0 0 36 36">
+              <svg class="arc-svg" width="135" height="135" viewBox="0 0 36 36">
                 <path class="arc-base" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
                 {''.join(arc_paths)}
               </svg>

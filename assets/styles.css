@@ -1246,6 +1246,14 @@ div[data-testid="stHorizontalBlock"] button {
   padding: 7px 2px !important;
 }
 
+/* The nav row grew taller once buttons stack icon-above-label, which
+   left a visibly bigger gap before whatever comes next on the page
+   (Upcoming Events, Journey's START card, the ticker, etc.) than
+   there used to be. Pull the next block up to close that gap. */
+div[data-testid="stHorizontalBlock"] + div {
+  margin-top: -10px !important;
+}
+
 /* Icon-above-label nav tabs, ported from the production dashboard's
    visual style. Deliberately kept on the existing st.button() click
    mechanism rather than switching to <a href> links — real <a> tags
@@ -1269,6 +1277,16 @@ div.st-key-nav_ledger button {
   font-size: 8.5px !important;
   line-height: 1.15 !important;
   opacity: 0.86;
+  /* The global button rule sets nowrap+ellipsis, which was collapsing
+     the icon+label onto one line and truncating it ("JOURNE..."). */
+  white-space: pre-line !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  /* Streamlit's own primary/secondary button theme colors were still
+     showing through (solid pink fill on the active tab) since nothing
+     had explicitly overridden background before. */
+  background: linear-gradient(180deg, rgba(20, 34, 55, 0.5), rgba(8, 17, 31, 0.75)) !important;
+  color: #aebdd1 !important;
 }
 div.st-key-nav_main button::after,
 div.st-key-nav_addevent button::after,
@@ -1286,25 +1304,33 @@ div.st-key-nav_ledger button::after {
   opacity: 0.45;
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
-div.st-key-nav_main button { border-color: rgba(244, 114, 182, 0.4) !important; }
+div.st-key-nav_main button { border-color: rgba(244, 114, 182, 0.55) !important; }
 div.st-key-nav_main button::after { background: #f472b6; }
 div.st-key-nav_addevent button { border-color: rgba(249, 115, 22, 0.4) !important; }
 div.st-key-nav_addevent button::after { background: #f97316; }
 div.st-key-nav_journey button { border-color: rgba(220, 38, 38, 0.4) !important; }
 div.st-key-nav_journey button::after { background: #dc2626; }
-div.st-key-nav_clienthub button { border-color: rgba(45, 212, 191, 0.4) !important; }
-div.st-key-nav_clienthub button::after { background: #2dd4bf; }
-div.st-key-nav_ledger button { border-color: rgba(56, 189, 248, 0.4) !important; }
-div.st-key-nav_ledger button::after { background: #38bdf8; }
+div.st-key-nav_clienthub button { border-color: rgba(234, 179, 8, 0.4) !important; }
+div.st-key-nav_clienthub button::after { background: #eab308; }
+div.st-key-nav_ledger button { border-color: rgba(34, 197, 94, 0.4) !important; }
+div.st-key-nav_ledger button::after { background: #22c55e; }
 
-/* Active tab: fuller underline + brighter opacity */
+/* Active tab: brighter background, white text, fuller underline —
+   replaces Streamlit's own solid pink primary-button fill entirely. */
 div.st-key-nav_main button[data-testid="stBaseButton-primary"],
 div.st-key-nav_addevent button[data-testid="stBaseButton-primary"],
 div.st-key-nav_journey button[data-testid="stBaseButton-primary"],
 div.st-key-nav_clienthub button[data-testid="stBaseButton-primary"],
 div.st-key-nav_ledger button[data-testid="stBaseButton-primary"] {
   opacity: 1;
+  color: #f8fafc !important;
+  background: linear-gradient(180deg, rgba(30, 45, 68, 0.85), rgba(9, 19, 34, 0.95)) !important;
 }
+div.st-key-nav_main button[data-testid="stBaseButton-primary"] { border-color: rgba(244, 114, 182, 0.85) !important; }
+div.st-key-nav_addevent button[data-testid="stBaseButton-primary"] { border-color: rgba(249, 115, 22, 0.75) !important; }
+div.st-key-nav_journey button[data-testid="stBaseButton-primary"] { border-color: rgba(220, 38, 38, 0.75) !important; }
+div.st-key-nav_clienthub button[data-testid="stBaseButton-primary"] { border-color: rgba(234, 179, 8, 0.75) !important; }
+div.st-key-nav_ledger button[data-testid="stBaseButton-primary"] { border-color: rgba(34, 197, 94, 0.75) !important; }
 div.st-key-nav_main button[data-testid="stBaseButton-primary"]::after,
 div.st-key-nav_addevent button[data-testid="stBaseButton-primary"]::after,
 div.st-key-nav_journey button[data-testid="stBaseButton-primary"]::after,
@@ -1341,13 +1367,18 @@ div[data-testid="stElementContainer"]:has(style) {
    header taller only on pages that show it, which is why those pages
    had noticeably more top space than Events/Journey. */
 div.st-key-gross_toggle_btn button {
-  border-radius: 999px !important;
+  border-radius: 8px !important;
   width: 26px !important;
   height: 26px !important;
   padding: 0 !important;
   font-size: 12px !important;
   min-width: 0 !important;
   line-height: 1 !important;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+div.st-key-gross_toggle_btn button[data-testid="stBaseButton-primary"] {
+  box-shadow: 0 0 12px 2px rgba(255, 255, 255, 0.75) !important;
+  border-color: rgba(255, 255, 255, 0.9) !important;
 }
 div.st-key-gross_toggle_btn {
   display: flex;

@@ -98,7 +98,7 @@ FORM_CSS = """
 }
 .upcoming-title, .modify-title { font-size: 13px; font-weight: 800; letter-spacing: 1.2px; color: #f9a8d4; text-transform: uppercase; margin: 4px 0 10px; }
 .upcoming-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-.upcoming-item { display: flex; flex-direction: column; justify-content: center; padding: 9px 11px; background: rgba(15,23,42,.6); border: 1px solid rgba(255,255,255,.06); border-radius: 10px; font-size: 12px; text-align: left; min-height: 50px; }
+.upcoming-item { display: flex; flex-direction: column; justify-content: center; padding: 9px 11px; border-radius: 10px; font-size: 12px; text-align: left; min-height: 50px; }
 .upcoming-client { color: #fff; font-weight: 800; font-size: 14.5px; }
 .upcoming-meta { color: #7dd3fc; font-size: 13px; margin-top: 2px; }
 .upcoming-date-cell { display: flex; align-items: center; justify-content: center; height: 44px; color: #f9a8d4; font-weight: 900; font-size: 14px; white-space: nowrap; text-shadow: 0 0 10px rgba(244,114,182,.6); }
