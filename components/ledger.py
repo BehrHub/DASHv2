@@ -152,12 +152,13 @@ def _compute_calendar_months(dated: pd.DataFrame) -> list[dict]:
 # simplified real Timeline schema — kept as a static, manually-verified
 # list rather than computed, unlike Summary/Monthly Breakdown above.
 ACTION_ITEMS = [
-    {"event": 76, "who": "Marshalls \u2014 Owings Mills", "wo": "5906834", "status": "ACH confirmed; review flag", "amount": 120.00, "action": "Retain review flag; payment deposited", "flag": "review"},
-    {"event": 93, "who": "Food Lion \u2014 Essex", "wo": "5927446", "status": "Breakdown pending", "amount": None, "action": "Await payment breakdown", "flag": "missing"},
-    {"event": 94, "who": "Food Lion \u2014 Scaggsville", "wo": DASH, "status": "Breakdown pending", "amount": None, "action": "Await payment breakdown", "flag": "missing"},
-    {"event": 91, "who": "Marshalls \u2014 Frederick", "wo": "5924273", "status": "Payment breakdown confirmed", "amount": 180.00, "action": "Await ACH", "flag": "ok"},
-    {"event": 92, "who": "Dunkin' \u2014 Owings Mills", "wo": "5900744", "status": "Payment breakdown confirmed", "amount": 292.50, "action": "Await ACH", "flag": "ok"},
-    {"event": 95, "who": "Marshalls \u2014 Clinton", "wo": DASH, "status": "Breakdown pending", "amount": None, "action": "Await payment breakdown", "flag": "missing"},
+    {"event": 77, "who": "Marshalls \u2014 Towson", "wo": "5906849", "status": "ACH confirmed", "amount": 130.00, "action": "Historical gap closed", "flag": "ok"},
+    {"event": 91, "who": "Marshalls \u2014 Frederick", "wo": "5924273", "status": "Confirmed", "amount": 180.00, "action": "Locked", "flag": "ok"},
+    {"event": 92, "who": "Dunkin' \u2014 Owings Mills", "wo": "5900744", "status": "Confirmed", "amount": 292.50, "action": "Locked", "flag": "ok"},
+    {"event": 93, "who": "Food Lion \u2014 Essex", "wo": "5927446", "status": "Confirmed", "amount": 123.75, "action": "Manual authoritative update", "flag": "ok"},
+    {"event": 94, "who": "Food Lion \u2014 Scaggsville", "wo": DASH, "status": "Confirmed", "amount": 161.24, "action": "Manual authoritative update", "flag": "ok"},
+    {"event": 95, "who": "Marshalls \u2014 Clinton", "wo": "5930832", "status": "Confirmed", "amount": 200.00, "action": "Manual authoritative update", "flag": "ok"},
+    {"event": 96, "who": "TJ Maxx \u2014 Prince Frederick", "wo": "5931220", "status": "Confirmed", "amount": 183.33, "action": "Manual authoritative update", "flag": "ok"},
 ]
 
 LEDGER_CSS = """

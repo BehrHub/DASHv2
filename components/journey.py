@@ -262,7 +262,7 @@ def render_barrister_journey(timeline: pd.DataFrame) -> None:
         f'data-unique-cities="{escape(str(unique_cities))}" data-known-revenue="{escape(format_currency(known_revenue))}">'
         '<button id="journeyReplayCar" class="journey-replay-car" type="button" aria-label="Pause or resume career replay"><span class="journey-car-icon">\U0001F3CE\uFE0F</span><span id="journeyAchievementBadge" class="journey-achievement-badge">+CLIENT</span></button>'
         '<div id="journeyReplaySummary" class="journey-replay-summary" aria-live="polite"></div>'
-        '<div class="journey-start"><span>START \U0001F3C1</span><button id="journeyFuelButton" class="journey-fuel-button" type="button" aria-label="Start or restart career replay" title="Start or restart career replay">\u26FD</button></div>'
+        '<div class="journey-start journey-stop-test-white"><span>START \U0001F3C1</span><button id="journeyFuelButton" class="journey-fuel-button" type="button" aria-label="Start or restart career replay" title="Start or restart career replay">\u26FD</button></div>'
     ]
 
     for index, row in enumerate(chronological.to_dict("records"), start=1):
@@ -304,11 +304,7 @@ def render_barrister_journey(timeline: pd.DataFrame) -> None:
         month_accent, month_accent_rgb = MONTH_COLORS.get(month_num, MONTH_COLORS[1])
         stop_accent = JURISDICTION_COLORS.get(state_key, JURISDICTION_COLORS["Pennsylvania / Other"])
 
-        test_class = ""
-        if number == 1:
-            test_class = " journey-stop-test-white"
-        elif number == 2:
-            test_class = " journey-stop-test-blue"
+        test_class = " journey-stop-test-blue" if month_num == 4 else ""
 
         pieces.append(
             f'<div class="journey-stop{test_class}" '
