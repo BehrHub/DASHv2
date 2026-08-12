@@ -65,10 +65,18 @@ def _client_details(timeline: pd.DataFrame) -> dict[str, dict]:
                 "confirmed": row["Verified?"] == "Yes",
             })
 
+        dated_sorted = dated.sort_values("__date")
+        if len(dated_sorted) >= 2:
+            gaps = dated_sorted["__date"].diff().dropna().dt.days
+            cadence_days = float(gaps.mean()) if not gaps.empty else None
+        else:
+            cadence_days = None
+
         details[str(client)] = {
             "visits": visits,
             "total_revenue": total_revenue,
             "avg_per_visit": total_revenue / len(confirmed) if len(confirmed) else 0.0,
+            "cadence_days": cadence_days,
             "locations": LOCATION_COUNT_OVERRIDES.get(str(client), int(locations.nunique())),
             "states": sorted(group["State/Region"].dropna().astype(str).unique().tolist()),
             "first_visit": int(group["__visit_num"].min()),
@@ -129,9 +137,16 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     directory = list(metrics.data_views.get("client_directory", []))
     top = directory[:3]
     rest = directory[3:]
-    maximum = max((int(item["events"]) for item in directory), default=1)
     ranked = {index + 1: item for index, item in enumerate(top)}
     details = _client_details(timeline)
+
+    ranked_by_avg = sorted(
+        (n for n, d in details.items() if d["avg_per_visit"] > 0),
+        key=lambda n: details[n]["avg_per_visit"],
+        reverse=True,
+    )
+    avg_revenue_rank = {name: i + 1 for i, name in enumerate(ranked_by_avg)}
+    total_ranked = len(ranked_by_avg)
 
     podium = []
     podium_panels = []
@@ -161,15 +176,29 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     for rank, item in enumerate(rest, start=4):
         name = str(item["client"])
         visits = int(item["events"])
-        width = visits / maximum * 100 if maximum else 0
+        detail = details.get(name, {})
+        avg_visit_raw = detail.get("avg_per_visit", 0.0)
+        avg_visit_display = gross_up(avg_visit_raw) if gross_view else avg_visit_raw
+        avg_visit_label = f"\uFF04{avg_visit_display:,.0f}" if avg_visit_raw else DASH
+        cadence = detail.get("cadence_days")
+        cadence_label = f"{cadence:.0f}d" if cadence is not None else DASH
+        rev_rank = avg_revenue_rank.get(name)
+        rev_rank_label = f"#{rev_rank}/{total_ranked}" if rev_rank else DASH
         row_html = (
             f'<div class="client-row" data-client="{escape(name.casefold())}" data-target="detail-{escape(name.casefold())}">'
+            '<div class="row-top">'
             f'<div class="row-rank">{rank}</div>'
             f'<div class="row-info"><div class="row-avatar">{escape(_client_initials(name))}</div>'
             f'<div class="row-name">{escape(name)}</div></div>'
-            f'<div class="mini-progress-bg"><div class="mini-progress-fill" style="width:{width:.1f}%"></div></div>'
-            f'<div class="row-visits">{visits:,}</div>'
-            '<div class="row-chevron">\u203A</div></div>'
+            '<div class="row-chevron">\u203A</div>'
+            '</div>'
+            '<div class="row-stats">'
+            f'<div class="row-stat"><div class="row-stat-val">{visits}</div><div class="row-stat-lbl">VISITS</div></div>'
+            f'<div class="row-stat"><div class="row-stat-val">{escape(avg_visit_label)}</div><div class="row-stat-lbl">AVG/VISIT</div></div>'
+            f'<div class="row-stat"><div class="row-stat-val">{escape(cadence_label)}</div><div class="row-stat-lbl">CADENCE</div></div>'
+            f'<div class="row-stat"><div class="row-stat-val">{escape(rev_rank_label)}</div><div class="row-stat-lbl">$ RANK</div></div>'
+            '</div>'
+            '</div>'
         )
         panel_html = _detail_panel_html(name, details[name], gross_view) if name in details else ""
         rows.append(row_html + panel_html)
@@ -182,14 +211,14 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     .client-header-title{{font-size:13px;font-weight:900;letter-spacing:1.5px}}.client-overline{{margin-top:2px;color:#ec4899;font-size:9px;font-weight:700}}
     .podium-grid{{display:grid;grid-template-columns:1fr 1.1fr 1fr;gap:8px;align-items:end;margin:20px 0 25px}}.podium-card{{background:rgba(15,20,32,.6);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:12px 8px;text-align:center;position:relative;cursor:pointer}}.podium-card:hover{{border-color:rgba(244,114,182,.35)}}.podium-card.is-open{{border-color:#f472b6;box-shadow:0 0 16px rgba(244,114,182,.25)}}.podium-card.rank-1{{background:linear-gradient(180deg,rgba(244,114,182,.15),rgba(15,20,32,.8));border-color:rgba(244,114,182,.5);box-shadow:0 0 20px rgba(244,114,182,.2);padding-top:20px}}
     .podium-badge{{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#0d0f17;border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:2px 8px;font-size:9px;font-weight:900;color:#64748b;white-space:nowrap}}.rank-1 .podium-badge{{border-color:#f472b6;color:#f472b6}}.podium-name{{font-size:11px;font-weight:800;margin-top:6px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}.podium-count{{font-size:20px;font-weight:900;color:#38bdf8}}.rank-1 .podium-count{{font-size:26px;color:#f472b6}}.podium-label{{font-size:8px;font-weight:700;color:#64748b}}
-    .search-box{{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px 12px;font-size:10px;color:#d7deea;outline:none;margin-bottom:12px}}.client-list{{display:flex;flex-direction:column;gap:6px}}.client-row{{display:grid;grid-template-columns:24px minmax(0,1fr) 80px 40px 16px;align-items:center;background:rgba(15,20,32,.4);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:8px 12px;cursor:pointer}}.client-row:hover{{border-color:rgba(244,114,182,.3)}}.row-rank{{font-size:10px;font-weight:800;color:#64748b}}.row-info{{min-width:0;display:flex;align-items:center;gap:8px}}.row-avatar{{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#38bdf8}}.row-name{{overflow:hidden;font-size:11px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}}.mini-progress-bg{{height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}}.mini-progress-fill{{height:100%;background:linear-gradient(90deg,#38bdf8,#f472b6)}}.row-visits{{font-size:12px;font-weight:800;text-align:right}}.row-chevron{{font-size:14px;color:#64748b;text-align:center;transition:transform .2s ease}}.client-row.is-open .row-chevron{{transform:rotate(90deg);color:#f472b6}}.empty-directory{{padding:12px;color:#64748b;font-size:10px;text-align:center}}
+    .search-box{{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px 12px;font-size:10px;color:#d7deea;outline:none;margin-bottom:12px}}.client-list{{display:flex;flex-direction:column;gap:6px}}.client-row{{display:flex;flex-direction:column;gap:8px;background:rgba(15,20,32,.4);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:9px 12px;cursor:pointer}}.client-row:hover{{border-color:rgba(244,114,182,.3)}}.row-top{{display:grid;grid-template-columns:20px minmax(0,1fr) 16px;align-items:center;gap:8px}}.row-rank{{font-size:10px;font-weight:800;color:#64748b}}.row-info{{min-width:0;display:flex;align-items:center;gap:8px}}.row-avatar{{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#38bdf8;flex-shrink:0}}.row-name{{overflow:hidden;font-size:11px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}}.row-stats{{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)}}.row-stat{{text-align:center}}.row-stat-val{{font-size:12px;font-weight:800;color:#e5edf9;line-height:1.2}}.row-stat-lbl{{font-size:7.5px;font-weight:700;letter-spacing:.4px;color:#64748b;text-transform:uppercase;margin-top:1px}}.row-chevron{{font-size:14px;color:#64748b;text-align:center;transition:transform .2s ease}}.client-row.is-open .row-chevron{{transform:rotate(90deg);color:#f472b6}}.empty-directory{{padding:12px;color:#64748b;font-size:10px;text-align:center}}
     .client-detail-panel{{display:none;margin-top:6px;padding:14px;background:rgba(15,20,32,.6);border:1px solid rgba(244,114,182,.25);border-radius:14px}}.client-detail-panel.is-visible{{display:block}}
     .podium-detail-wrap{{margin-bottom:12px}}
     .detail-stat-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}}.detail-stat{{background:rgba(255,255,255,.04);border-radius:10px;padding:8px 4px;text-align:center}}.detail-stat-val{{font-size:14px;font-weight:900;color:#f472b6}}.detail-stat-lbl{{font-size:7px;font-weight:800;color:#94a3b8;letter-spacing:.3px;margin-top:2px}}
     .detail-meta-row{{display:flex;flex-wrap:wrap;gap:10px;font-size:9.5px;color:#94a3b8;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.06)}}.detail-meta-row strong{{color:#e2e8f0}}
     .detail-visit-title{{font-size:9px;font-weight:800;letter-spacing:.6px;color:#7dd3fc;margin-bottom:8px}}.detail-visit-list{{display:flex;flex-direction:column;gap:5px;max-height:260px;overflow-y:auto}}
     .detail-visit-row{{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:8px;background:rgba(255,255,255,.03);border-radius:8px;padding:6px 8px}}.detail-visit-num{{font-size:9px;font-weight:800;color:#64748b}}.detail-visit-date{{font-size:10px;font-weight:700;color:#fff}}.detail-visit-loc{{font-size:9px;color:#7dd3fc;margin-top:1px}}.detail-visit-amt{{font-size:10.5px;font-weight:800;color:#34d399;white-space:nowrap}}
-    @media(max-width:520px){{.client-card-container{{padding:16px 14px}}.client-row{{grid-template-columns:20px minmax(0,1fr) 62px 32px 14px;padding:8px 9px}}.detail-stat-grid{{grid-template-columns:repeat(2,1fr)}}}}
+    @media(max-width:520px){{.client-card-container{{padding:16px 14px}}.client-row{{padding:8px 9px}}.row-stat-val{{font-size:11px}}.detail-stat-grid{{grid-template-columns:repeat(2,1fr)}}}}
     </style></head><body><div class="client-card-container"><div class="client-header-title">CLIENT STANDINGS</div><div class="client-overline">\u25cf TOP PERFORMERS &amp; DIRECTORY</div><div class="podium-grid">{''.join(podium)}</div><div class="podium-detail-wrap">{''.join(podium_panels)}</div><input id="client-search" type="search" class="search-box" placeholder="Search current client directory..."><div class="client-list">{''.join(rows)}</div></div><script>
     const q=document.getElementById('client-search');
     const clickable=[...document.querySelectorAll('.client-row,.podium-card')];
@@ -212,5 +241,5 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
       }});
     }});
     </script></body></html>"""
-    height = 326 + max(len(rest), 1) * 50 + 480
+    height = 326 + max(len(rest), 1) * 78 + 480
     components.html(html, height=height, scrolling=False)
