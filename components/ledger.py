@@ -95,13 +95,13 @@ def _compute_summary_and_months(
     revenue_label = "Confirmed Revenue"
     avg_day_label = "Avg Revenue / Day"
 
+    payments_flagged = 1  # not modeled in the simplified Timeline schema; see ACTION_ITEMS
+
     summary = [
         (revenue_label, _money(displayed_revenue)),
         (avg_day_label, _money(displayed_avg_day)),
-        ("Completed Events", f"{completed_events}"),
-        ("Confirmed EV w/ Rev", f"{events_confirmed}"),
-        ("Payments Missing", f"{breakdowns_missing}"),
-        ("Payments Flagged", "1"),  # not modeled in the simplified Timeline schema; see ACTION_ITEMS
+        ("Confirmed EV w/ Rev", f"{events_confirmed} ({completed_events})"),
+        ("Pay Missing/Flagged", f"{breakdowns_missing}/{payments_flagged}"),
     ]
 
     career_months = _compute_career_months(dated)
@@ -256,7 +256,7 @@ body{color:#fff}
 .month-stat { background: rgba(15,23,42,.5); border-radius: 10px; padding: 8px 4px; text-align: center; }
 .month-stat-val { font-size: 18px; font-weight: 900; color: #fff; }
 .month-stat-lbl { font-size: 9px; font-weight: 800; color: #b8c4d9; letter-spacing: .4px; margin-top: 2px; }
-.month-revenue-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.month-revenue-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .month-revenue-item { background: rgba(244,114,182,.08); border: 1px solid rgba(244,114,182,.2); border-radius: 10px; padding: 8px 10px; text-align: center; }
 .month-revenue-val { font-size: 17px; font-weight: 900; color: #f9a8d4; text-shadow: 0 0 8px rgba(244,114,182,.4); }
 .month-revenue-lbl { font-size: 9px; font-weight: 800; color: #c5d0e0; letter-spacing: .4px; margin-top: 2px; }
@@ -286,6 +286,7 @@ body{color:#fff}
 def _build_month_cards(months: list[dict], gross_view: bool = False) -> str:
     revenue_lbl = "REVENUE"
     avg_lbl = "AVG / EVENT"
+    avg_day_lbl = "AVG REV/DAY"
     return "".join(
         '<div class="month-card">'
         '<div class="month-card-head">'
@@ -300,6 +301,7 @@ def _build_month_cards(months: list[dict], gross_view: bool = False) -> str:
         '<div class="month-revenue-row">'
         f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(annualize_gross(m["revenue"], MONTHS_PER_YEAR) if gross_view else m["revenue"]))}</div><div class="month-revenue-lbl">{revenue_lbl}</div></div>'
         f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(gross_up(m["avg"]) if gross_view else m["avg"]))}</div><div class="month-revenue-lbl">{avg_lbl}</div></div>'
+        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(annualize_gross((m["revenue"] / m["days_worked"]) if m["days_worked"] else 0.0, DAYS_PER_YEAR) if gross_view else ((m["revenue"] / m["days_worked"]) if m["days_worked"] else 0.0)))}</div><div class="month-revenue-lbl">{avg_day_lbl}</div></div>'
         '</div></div>'
         for m in months
     )

@@ -96,7 +96,7 @@ FORM_CSS = """
     border-radius: 14px; padding: 10px 16px; margin-bottom: 12px;
     color: #34d399; font-size: 12px; font-weight: 700;
 }
-.upcoming-title, .modify-title { font-size: 13px; font-weight: 800; letter-spacing: 1.2px; color: #f9a8d4; text-transform: uppercase; margin: 4px 0 10px; }
+.upcoming-title, .modify-title { font-size: 16px; font-weight: 900; letter-spacing: .5px; color: #fff; text-transform: uppercase; margin: 4px 0 10px; }
 .upcoming-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
 .upcoming-item { display: flex; flex-direction: column; justify-content: center; padding: 9px 11px; border-radius: 10px; font-size: 12px; text-align: left; min-height: 50px; }
 .upcoming-client { color: #fff; font-weight: 800; font-size: 14.5px; }
