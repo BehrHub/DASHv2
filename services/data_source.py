@@ -123,6 +123,9 @@ def _real_timeline() -> pd.DataFrame:
         ("Food Lion", "Maryland", "Completed", 161.24, "Yes", "2026-08-05", "Scaggsville, MD"),
         ("Marshalls", "Maryland", "Completed", 200, "Yes", "2026-08-07", "Clinton, MD"),
         ("TJ Maxx", "Maryland", "Completed", 183.33, "Yes", "2026-08-10", "Prince Frederick, MD"),
+        ("Marshalls", "Virginia", "Completed", None, "No", "2026-08-11", "Alexandria, VA"),
+        ("Dunkin'", "Maryland", "Completed", None, "No", "2026-08-12", "Rockville, MD"),
+        ("Food Lion", "Maryland", "Completed", None, "No", "2026-08-12", "Middle River, MD"),
     ]
 
     return pd.DataFrame(

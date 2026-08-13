@@ -86,7 +86,11 @@ def main() -> None:
     if view == "journey":
         render_barrister_journey(snapshot.sheets["Timeline"])
     elif view == "addevent":
-        render_add_event(snapshot.sheets["Timeline"], snapshot.sheets["Pipeline"])
+        render_add_event(
+            snapshot.sheets["Timeline"],
+            snapshot.sheets["Pipeline"],
+            snapshot.sheets.get("State Coverage"),
+        )
     elif view == "clienthub":
         render_client_standings(metrics, snapshot.sheets["Timeline"], gross_view)
     elif view == "ledger":

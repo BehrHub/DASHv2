@@ -225,7 +225,7 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     html = f"""<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>
     *{{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}}html,body{{width:100%;overflow:hidden;background:transparent}}body{{color:#fff}}
     .client-card-container{{background:radial-gradient(circle at 50% -20%,rgba(244,114,182,.08),transparent 44%),rgba(23,27,40,.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:20px;box-shadow:0 15px 35px rgba(0,0,0,.5)}}
-    .client-header-title{{font-size:16px;font-weight:900;letter-spacing:.5px;color:#fff}}.client-overline{{margin-top:2px;color:#ec4899;font-size:9px;font-weight:700}}
+    .client-header-title{{font-size:16px;font-weight:900;letter-spacing:.5px;color:#fff;margin-bottom:12px}}.client-overline{{margin-top:2px;color:#ec4899;font-size:9px;font-weight:700}}
     .tier-pill{{display:inline-flex;align-items:center;justify-content:center;padding:2px 7px;border-radius:999px;font-size:9.5px;font-weight:900;letter-spacing:.4px;white-space:nowrap;flex-shrink:0}}
     .tier-diamond{{background:linear-gradient(135deg,#e0f7ff,#7dd3fc,#e0f7ff);color:#0c2a3a;box-shadow:0 0 8px rgba(125,211,252,.6)}}
     .tier-platinum{{background:linear-gradient(135deg,#f4f7fb,#c7d2dc);color:#1e293b;box-shadow:0 0 6px rgba(199,210,220,.5)}}

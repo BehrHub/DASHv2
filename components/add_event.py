@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from html import escape
+from io import BytesIO
 
 import pandas as pd
 import streamlit as st
@@ -104,6 +105,22 @@ FORM_CSS = """
 .upcoming-date-cell { display: flex; align-items: center; justify-content: center; height: 44px; color: #f9a8d4; font-weight: 900; font-size: 14px; white-space: nowrap; text-shadow: 0 0 10px rgba(244,114,182,.6); }
 .upcoming-empty { color: #64748b; font-size: 12px; }
 div[data-testid="stButton"] button[kind="secondary"] { padding: 4px 0 !important; }
+.download-panel {
+    background: radial-gradient(circle at 100% -10%, rgba(52,211,153,.1), transparent 42%), rgba(23,27,40,.55);
+    border: 1px solid rgba(52,211,153,.32);
+    border-radius: 20px;
+    padding: 18px 20px;
+    margin-top: 4px;
+    box-shadow: 0 15px 35px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.1);
+}
+.download-title { font-size: 16px; font-weight: 900; letter-spacing: .5px; color: #fff; text-transform: uppercase; margin-bottom: 4px; }
+.download-sub { font-size: 12px; color: #b8c4d9; margin-bottom: 14px; }
+div[data-testid="stDownloadButton"] button {
+    width: 100%; background: linear-gradient(135deg, rgba(52,211,153,.18), rgba(52,211,153,.06));
+    border: 1px solid rgba(52,211,153,.5); border-radius: 12px; color: #6ee7b7;
+    font-weight: 900; letter-spacing: .5px; text-transform: uppercase; font-size: 12.5px;
+    padding: 10px 0;
+}
 </style>
 """
 
@@ -400,7 +417,49 @@ def _render_modify(timeline: pd.DataFrame, pipeline: pd.DataFrame, known_locatio
             st.rerun()
 
 
-def render_add_event(timeline: pd.DataFrame, pipeline: pd.DataFrame) -> None:
+def _build_master_workbook(
+    timeline: pd.DataFrame, pipeline: pd.DataFrame, state_coverage: pd.DataFrame | None
+) -> bytes:
+    """Builds the current live Timeline/Pipeline/State Coverage sheets into
+    a real .xlsx in memory, matching the workbook the app is otherwise
+    driven by, so it can be downloaded, saved, and handed back for edits.
+    """
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        timeline.to_excel(writer, sheet_name="Timeline", index=False)
+        pipeline.to_excel(writer, sheet_name="Pipeline", index=False)
+        if state_coverage is not None and not state_coverage.empty:
+            state_coverage.to_excel(writer, sheet_name="State Coverage", index=False)
+    return buffer.getvalue()
+
+
+def _render_download(
+    timeline: pd.DataFrame, pipeline: pd.DataFrame, state_coverage: pd.DataFrame | None
+) -> None:
+    st.markdown('<div class="download-panel">', unsafe_allow_html=True)
+    st.markdown('<div class="download-title">Download Master Workbook</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="download-sub">Exports the current live Timeline, Pipeline, '
+        'and State Coverage as a real .xlsx file.</div>',
+        unsafe_allow_html=True,
+    )
+    workbook_bytes = _build_master_workbook(timeline, pipeline, state_coverage)
+    file_name = f"Barrister_Master_{date.today().isoformat()}.xlsx"
+    st.download_button(
+        label="⬇ Download Barrister_Master.xlsx",
+        data=workbook_bytes,
+        file_name=file_name,
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        width="stretch",
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+def render_add_event(
+    timeline: pd.DataFrame,
+    pipeline: pd.DataFrame,
+    state_coverage: pd.DataFrame | None = None,
+) -> None:
     st.markdown(FORM_CSS, unsafe_allow_html=True)
 
     known_locations = _known_locations(timeline)
@@ -411,3 +470,5 @@ def render_add_event(timeline: pd.DataFrame, pipeline: pd.DataFrame) -> None:
     _render_form(known_locations)
 
     _render_modify(timeline, pipeline, known_locations)
+
+    _render_download(timeline, pipeline, state_coverage)
