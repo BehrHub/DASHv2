@@ -141,14 +141,17 @@ def _real_timeline() -> pd.DataFrame:
 
 
 def _real_pipeline() -> pd.DataFrame:
-    # Matches the Pipeline sheet of the 2026-08-10 workbook exactly. The
-    # other scheduled entries from the prior pull (TJ Maxx, and 4 Dunkin'
-    # visits) have since completed or aren't in this workbook's Pipeline
-    # sheet — going with what the workbook actually shows rather than
-    # carrying forward assumptions from the last pull.
+    # Live scheduled list as of 2026-08-12, confirmed dates/locations
+    # directly from bravo echo (relative dates resolved against
+    # "today" = 2026-08-12: tomorrow = 8/13, Monday = 8/17).
     rows = [
+        ("Dunkin'", "West Friendship, MD", "Scheduled", "2026-08-13"),
+        ("Hebrew Home GW", "North Bethesda, MD", "Scheduled", "2026-08-13"),
+        ("Senator A. Alsobrooks", "Largo, MD", "Scheduled", "2026-08-17"),
         ("Marshalls", "Owings Mills, MD", "Scheduled", "2026-08-24"),
         ("Marshalls", "Annapolis, MD", "Scheduled", "2026-08-27"),
+        ("Dunkin'", "Rockville, MD", "Scheduled", "2026-09-01"),
+        ("Dunkin'", "Silver Spring, MD", "Scheduled", "2026-09-02"),
     ]
 
     return pd.DataFrame(
