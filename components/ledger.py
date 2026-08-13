@@ -22,9 +22,56 @@ def _month_index(date: pd.Timestamp, career_start: pd.Timestamp) -> int:
     return months_diff
 
 
+def _compute_l5wk(dated: pd.DataFrame) -> list[dict]:
+    """Last 5 weeks (4 prior + current), using the same career-relative
+    week numbering as the Performance Trends chart (W1 = first ISO week
+    with data), so W-labels match exactly across the app.
+    """
+    weeks: list[dict] = []
+    if dated.empty:
+        return weeks
+
+    career_start = dated["__date"].min()
+    start_iso = career_start.isocalendar()
+    start_index = start_iso.year * 52 + start_iso.week
+
+    today = pd.Timestamp.now().normalize()
+    # Monday of the current ISO week, walking backward in real calendar
+    # time (not reverse-engineering year/week from a combined index,
+    # which isn't a safe inversion near year boundaries since ISO years
+    # have 52 or 53 weeks).
+    this_monday = today - pd.Timedelta(days=today.weekday())
+
+    iso = dated["__date"].dt.isocalendar()
+    week_index = iso["year"] * 52 + iso["week"]
+
+    for offset in range(4, -1, -1):
+        week_start = this_monday - pd.Timedelta(weeks=offset)
+        week_end = week_start + pd.Timedelta(days=6)
+        wk_iso = week_start.isocalendar()
+        wk_index = wk_iso.year * 52 + wk_iso.week
+        wk_number = wk_index - start_index + 1
+        is_current = offset == 0
+        label = f"W{wk_number}*" if is_current else f"W{wk_number}"
+        subset = dated[week_index == wk_index]
+        events = len(subset)
+        confirmed = int((subset["Verified?"] == "Yes").sum())
+        missing = events - confirmed
+        revenue = float(subset.loc[subset["Verified?"] == "Yes", "__amount"].sum())
+        avg = revenue / confirmed if confirmed else 0.0
+        weeks.append({
+            "label": label,
+            "start": week_start.strftime("%b %d"),
+            "end": week_end.strftime("%b %d"),
+            "events": events, "confirmed": confirmed, "missing": missing,
+            "revenue": revenue, "avg": avg,
+        })
+    return weeks
+
+
 def _compute_summary_and_months(
     timeline: pd.DataFrame, gross_view: bool = False
-) -> tuple[list[tuple[str, str]], list[dict], list[dict], list[dict]]:
+) -> tuple[list[tuple[str, str]], list[dict], list[dict], list[dict], list[dict]]:
     working = timeline.copy()
     working["__date"] = pd.to_datetime(working["Service Date"], errors="coerce")
     working["__amount"] = pd.to_numeric(working["Amount"], errors="coerce").fillna(0)
@@ -61,7 +108,9 @@ def _compute_summary_and_months(
     calendar_months = _compute_calendar_months(dated)
     eras = _compute_eras(dated)
 
-    return summary, career_months, calendar_months, eras
+    l5wk = _compute_l5wk(dated)
+
+    return summary, career_months, calendar_months, eras, l5wk
 
 
 def _compute_career_months(dated: pd.DataFrame) -> list[dict]:
@@ -114,6 +163,8 @@ def _compute_eras(dated: pd.DataFrame) -> list[dict]:
         return eras
 
     ERA_DEFINITIONS = [
+        ("Introduction Phase", pd.Timestamp("2026-04-20"), pd.Timestamp("2026-05-25")),
+        ("Momentum Era", pd.Timestamp("2026-05-26"), pd.Timestamp("2026-06-29")),
         ("Speed Era", pd.Timestamp("2026-06-30"), None),
     ]
 
@@ -256,7 +307,7 @@ def _build_month_cards(months: list[dict], gross_view: bool = False) -> str:
 
 
 def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
-    summary, career_months, calendar_months, eras = _compute_summary_and_months(timeline, gross_view)
+    summary, career_months, calendar_months, eras, l5wk = _compute_summary_and_months(timeline, gross_view)
 
     kpi_html = "".join(
         f'<div class="ledger-kpi"><div class="ledger-kpi-val">{escape(val)}</div>'
@@ -267,6 +318,7 @@ def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     career_cards = _build_month_cards(career_months, gross_view)
     calendar_cards = _build_month_cards(calendar_months, gross_view)
     era_cards = _build_month_cards(eras, gross_view)
+    l5wk_cards = _build_month_cards(l5wk, gross_view)
 
     action_html = "".join(
         f'<div class="action-item flag-{item["flag"]}">'
@@ -298,11 +350,13 @@ def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
             <div class="month-view-tab is-active" data-view="career">CAREER</div>
             <div class="month-view-tab" data-view="calendar">CALENDAR</div>
             <div class="month-view-tab" data-view="eras">ERAS</div>
+            <div class="month-view-tab" data-view="l5wk">L5WK</div>
           </div>
         </div>
         <div class="month-view is-active" data-view="career">{career_cards}</div>
         <div class="month-view" data-view="calendar">{calendar_cards}</div>
         <div class="month-view" data-view="eras">{era_cards}</div>
+        <div class="month-view" data-view="l5wk">{l5wk_cards}</div>
       </div>
 
       <div class="ledger-panel">
@@ -327,5 +381,5 @@ def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     </body></html>
     """
 
-    height = 320 + 220 + max(len(career_months), len(calendar_months), len(eras)) * 190 + len(ACTION_ITEMS) * 175
+    height = 320 + 220 + max(len(career_months), len(calendar_months), len(eras), len(l5wk)) * 190 + len(ACTION_ITEMS) * 175
     components.html(html, height=height, scrolling=False)

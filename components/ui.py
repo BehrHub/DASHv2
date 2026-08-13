@@ -11,7 +11,7 @@ import streamlit.components.v1 as components
 from services.metrics import ExecutiveMetrics, _compact_money
 from services.money_view import annualize_gross, gross_up, DAYS_PER_YEAR
 from components.trends import build_trends_fragment, TRENDS_CSS_RULES
-from components.journey import JURISDICTION_COLORS, jurisdiction_group
+from components.journey import JURISDICTION_COLORS, TERRITORY_CENTER_COLOR, jurisdiction_group
 
 
 PALETTE = [
@@ -226,7 +226,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     .neon-pipe-bg{{position:absolute;top:20px;right:-20px;width:80%;height:60px;pointer-events:none;z-index:1}}
     .chart-section{{display:flex;justify-content:center;position:relative;z-index:2}}
     .arc-container{{width:189px;height:189px;position:relative;display:flex;align-items:center;justify-content:center}}
-    .total-number{{position:absolute;font-size:48px;font-weight:900;background:linear-gradient(135deg,#ffffff,#c4cad4 40%,#8b93a1 60%,#ffffff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 20px rgba(200,205,214,.55));line-height:1}}
+    .total-number{{position:absolute;font-size:48px;font-weight:900;color:{TERRITORY_CENTER_COLOR};filter:drop-shadow(0 0 18px rgba(232,220,195,.55));line-height:1}}
     .arc-svg{{transform:rotate(-90deg)}} .arc-base{{fill:none;stroke:rgba(255,255,255,.05);stroke-width:13.5}} .arc-segment{{fill:none;stroke-width:13.5;stroke-linecap:butt}}
     .jurisdiction-list{{display:flex;flex-direction:column;gap:10px;position:relative;z-index:2}}
     .juris-item{{display:grid;grid-template-columns:20px minmax(0,1fr) 46px;align-items:center;background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.05);border-radius:50px;padding:8px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}}
@@ -1072,7 +1072,7 @@ def render_refined_data_views(metrics: ExecutiveMetrics) -> None:
     .neon-pipe-bg{{position:absolute;top:20px;right:-20px;width:80%;height:60px;pointer-events:none;z-index:1}}
     .chart-section{{display:flex;justify-content:center;position:relative;z-index:2}}
     .arc-container{{width:189px;height:189px;position:relative;display:flex;align-items:center;justify-content:center}}
-    .total-number{{position:absolute;font-size:48px;font-weight:900;background:linear-gradient(135deg,#ffffff,#c4cad4 40%,#8b93a1 60%,#ffffff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 20px rgba(200,205,214,.55));line-height:1}}
+    .total-number{{position:absolute;font-size:48px;font-weight:900;color:{TERRITORY_CENTER_COLOR};filter:drop-shadow(0 0 18px rgba(232,220,195,.55));line-height:1}}
     .arc-svg{{transform:rotate(-90deg)}} .arc-base{{fill:none;stroke:rgba(255,255,255,.05);stroke-width:13.5}} .arc-segment{{fill:none;stroke-width:13.5;stroke-linecap:butt}}
     .jurisdiction-list{{display:flex;flex-direction:column;gap:10px;position:relative;z-index:2}}
     .juris-item{{display:grid;grid-template-columns:20px minmax(0,1fr) 46px;align-items:center;background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.05);border-radius:50px;padding:8px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}}

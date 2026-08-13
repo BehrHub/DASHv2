@@ -195,9 +195,9 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
             '</div>'
             '<div class="row-stats">'
             f'<div class="row-stat"><div class="row-stat-val">{visits}</div><div class="row-stat-lbl">VISITS</div></div>'
-            f'<div class="row-stat"><div class="row-stat-val">{escape(avg_visit_label)}</div><div class="row-stat-lbl">AVG/VISIT</div></div>'
+            f'<div class="row-stat"><div class="row-stat-val">{escape(avg_visit_label)}</div><div class="row-stat-lbl">/VISIT</div></div>'
             f'<div class="row-stat"><div class="row-stat-val">{escape(median_label)}</div><div class="row-stat-lbl">MEDIAN</div></div>'
-            f'<div class="row-stat"><div class="row-stat-val">{escape(rev_rank_label)}</div><div class="row-stat-lbl">$ RANK</div></div>'
+            f'<div class="row-stat"><div class="row-stat-val">{escape(rev_rank_label)}</div><div class="row-stat-lbl">RANK</div></div>'
             '</div>'
             '</div>'
         )
@@ -209,15 +209,15 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     legend_html = (
         '<div class="tier-legend">'
         '<div class="tier-legend-item"><span class="tier-pill tier-diamond">DIAMOND</span><span>\uFF04'
-        '200+/VISIT AVG</span></div>'
+        '200+/VISIT</span></div>'
         '<div class="tier-legend-item"><span class="tier-pill tier-platinum">PLATINUM</span><span>\uFF04'
-        '150+/VISIT AVG</span></div>'
+        '150+/VISIT</span></div>'
         '<div class="tier-legend-item"><span class="tier-pill tier-gold">GOLD</span><span>\uFF04'
-        '125+/VISIT AVG</span></div>'
+        '125+/VISIT</span></div>'
         '<div class="tier-legend-item"><span class="tier-pill tier-silver">SILVER</span><span>\uFF04'
-        '100+/VISIT AVG</span></div>'
+        '100+/VISIT</span></div>'
         '<div class="tier-legend-item"><span class="tier-pill tier-bronze">BRONZE</span><span>\uFF04'
-        '75+/VISIT AVG</span></div>'
+        '75+/VISIT</span></div>'
         '<div class="tier-legend-item"><span class="tier-pill tier-wooden">WOOD</span><span>ALL OTHERS</span></div>'
         '</div>'
     )
@@ -226,7 +226,7 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     *{{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}}html,body{{width:100%;overflow:hidden;background:transparent}}body{{color:#fff}}
     .client-card-container{{background:radial-gradient(circle at 50% -20%,rgba(244,114,182,.08),transparent 44%),rgba(23,27,40,.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:20px;box-shadow:0 15px 35px rgba(0,0,0,.5)}}
     .client-header-title{{font-size:13px;font-weight:900;letter-spacing:1.5px}}.client-overline{{margin-top:2px;color:#ec4899;font-size:9px;font-weight:700}}
-    .tier-pill{{display:inline-flex;align-items:center;justify-content:center;padding:2px 7px;border-radius:999px;font-size:7.5px;font-weight:900;letter-spacing:.4px;white-space:nowrap;flex-shrink:0}}
+    .tier-pill{{display:inline-flex;align-items:center;justify-content:center;padding:2px 7px;border-radius:999px;font-size:9.5px;font-weight:900;letter-spacing:.4px;white-space:nowrap;flex-shrink:0}}
     .tier-diamond{{background:linear-gradient(135deg,#e0f7ff,#7dd3fc,#e0f7ff);color:#0c2a3a;box-shadow:0 0 8px rgba(125,211,252,.6)}}
     .tier-platinum{{background:linear-gradient(135deg,#f4f7fb,#c7d2dc);color:#1e293b;box-shadow:0 0 6px rgba(199,210,220,.5)}}
     .tier-gold{{background:linear-gradient(135deg,#ffe58a,#d4a017);color:#3a2600;box-shadow:0 0 6px rgba(212,160,23,.5)}}
@@ -234,14 +234,14 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     .tier-bronze{{background:linear-gradient(135deg,#e3a565,#b6702f);color:#2c1300;box-shadow:0 0 6px rgba(182,112,47,.4)}}
     .tier-wooden{{background:linear-gradient(135deg,#8a5a34,#5c3a20);color:#fbe9d4;box-shadow:0 0 6px rgba(92,58,32,.4)}}
     .tier-legend{{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 8px;margin-bottom:14px;max-height:1.5rem}}
-    .tier-legend-item{{display:flex;align-items:center;gap:4px;font-size:7px;font-weight:800;letter-spacing:.2px;color:#94a3b8;text-transform:uppercase;line-height:1}}
-    .search-box{{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px 12px;font-size:10px;color:#d7deea;outline:none;margin-bottom:12px}}.client-list{{display:flex;flex-direction:column;gap:6px}}.client-row{{display:flex;flex-direction:column;gap:8px;background:rgba(15,20,32,.4);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:9px 12px;cursor:pointer}}.client-row:hover{{border-color:rgba(244,114,182,.3)}}.row-top{{display:grid;grid-template-columns:20px minmax(0,1fr) auto 16px;align-items:center;gap:8px}}.row-rank{{font-size:10px;font-weight:800;color:#64748b}}.row-info{{min-width:0;display:flex;align-items:center;gap:8px}}.row-avatar{{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#38bdf8;flex-shrink:0}}.row-name{{overflow:hidden;font-size:11px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}}.row-stats{{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)}}.row-stat{{text-align:center}}.row-stat-val{{font-size:12px;font-weight:800;color:#e5edf9;line-height:1.2}}.row-stat-lbl{{font-size:7.5px;font-weight:700;letter-spacing:.4px;color:#64748b;text-transform:uppercase;margin-top:1px}}.row-chevron{{font-size:14px;color:#64748b;text-align:center;transition:transform .2s ease}}.client-row.is-open .row-chevron{{transform:rotate(90deg);color:#f472b6}}.empty-directory{{padding:12px;color:#64748b;font-size:10px;text-align:center}}
+    .tier-legend-item{{display:flex;align-items:center;gap:4px;font-size:9px;font-weight:800;letter-spacing:.2px;color:#94a3b8;text-transform:uppercase;line-height:1}}
+    .search-box{{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px 12px;font-size:12px;color:#d7deea;outline:none;margin-bottom:12px}}.client-list{{display:flex;flex-direction:column;gap:6px}}.client-row{{display:flex;flex-direction:column;gap:8px;background:rgba(15,20,32,.4);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:9px 12px;cursor:pointer}}.client-row:hover{{border-color:rgba(244,114,182,.3)}}.row-top{{display:grid;grid-template-columns:20px minmax(0,1fr) auto 16px;align-items:center;gap:8px}}.row-rank{{font-size:12px;font-weight:800;color:#64748b}}.row-info{{min-width:0;display:flex;align-items:center;gap:8px}}.row-avatar{{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#38bdf8;flex-shrink:0}}.row-name{{overflow:hidden;font-size:13px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}}.row-stats{{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)}}.row-stat{{text-align:center}}.row-stat-val{{font-size:17px;font-weight:800;color:#e5edf9;line-height:1.2}}.row-stat-lbl{{font-size:9.5px;font-weight:700;letter-spacing:.4px;color:#64748b;text-transform:uppercase;margin-top:1px}}.row-chevron{{font-size:16px;color:#64748b;text-align:center;transition:transform .2s ease}}.client-row.is-open .row-chevron{{transform:rotate(90deg);color:#f472b6}}.empty-directory{{padding:12px;color:#64748b;font-size:12px;text-align:center}}
     .client-detail-panel{{display:none;margin-top:6px;padding:14px;background:rgba(15,20,32,.6);border:1px solid rgba(244,114,182,.25);border-radius:14px}}.client-detail-panel.is-visible{{display:block}}
-    .detail-stat-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}}.detail-stat{{background:rgba(255,255,255,.04);border-radius:10px;padding:8px 4px;text-align:center}}.detail-stat-val{{font-size:14px;font-weight:900;color:#f472b6}}.detail-stat-lbl{{font-size:7px;font-weight:800;color:#94a3b8;letter-spacing:.3px;margin-top:2px}}
-    .detail-meta-row{{display:flex;flex-wrap:wrap;gap:10px;font-size:9.5px;color:#94a3b8;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.06)}}.detail-meta-row strong{{color:#e2e8f0}}
-    .detail-visit-title{{font-size:9px;font-weight:800;letter-spacing:.6px;color:#7dd3fc;margin-bottom:8px}}.detail-visit-list{{display:flex;flex-direction:column;gap:5px;max-height:260px;overflow-y:auto}}
-    .detail-visit-row{{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:8px;background:rgba(255,255,255,.03);border-radius:8px;padding:6px 8px}}.detail-visit-num{{font-size:9px;font-weight:800;color:#64748b}}.detail-visit-date{{font-size:10px;font-weight:700;color:#fff}}.detail-visit-loc{{font-size:9px;color:#7dd3fc;margin-top:1px}}.detail-visit-amt{{font-size:10.5px;font-weight:800;color:#34d399;white-space:nowrap}}
-    @media(max-width:520px){{.client-card-container{{padding:16px 14px}}.client-row{{padding:8px 9px}}.row-stat-val{{font-size:11px}}.detail-stat-grid{{grid-template-columns:repeat(2,1fr)}}}}
+    .detail-stat-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}}.detail-stat{{background:rgba(255,255,255,.04);border-radius:10px;padding:8px 4px;text-align:center}}.detail-stat-val{{font-size:16px;font-weight:900;color:#f472b6}}.detail-stat-lbl{{font-size:9px;font-weight:800;color:#94a3b8;letter-spacing:.3px;margin-top:2px}}
+    .detail-meta-row{{display:flex;flex-wrap:wrap;gap:10px;font-size:11.5px;color:#94a3b8;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.06)}}.detail-meta-row strong{{color:#e2e8f0}}
+    .detail-visit-title{{font-size:11px;font-weight:800;letter-spacing:.6px;color:#7dd3fc;margin-bottom:8px}}.detail-visit-list{{display:flex;flex-direction:column;gap:5px;max-height:260px;overflow-y:auto}}
+    .detail-visit-row{{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:8px;background:rgba(255,255,255,.03);border-radius:8px;padding:6px 8px}}.detail-visit-num{{font-size:11px;font-weight:800;color:#64748b}}.detail-visit-date{{font-size:12px;font-weight:700;color:#fff}}.detail-visit-loc{{font-size:11px;color:#7dd3fc;margin-top:1px}}.detail-visit-amt{{font-size:12.5px;font-weight:800;color:#34d399;white-space:nowrap}}
+    @media(max-width:520px){{.client-card-container{{padding:16px 14px}}.client-row{{padding:8px 9px}}.row-stat-val{{font-size:13px}}.detail-stat-grid{{grid-template-columns:repeat(2,1fr)}}}}
     </style></head><body><div class="client-card-container"><div class="client-header-title">CLIENT STANDINGS</div>{legend_html}<input id="client-search" type="search" class="search-box" placeholder="Search current client directory..."><div class="client-list">{''.join(rows)}</div></div><script>
     const q=document.getElementById('client-search');
     const clickable=[...document.querySelectorAll('.client-row')];
