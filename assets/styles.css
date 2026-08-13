@@ -1204,17 +1204,6 @@ body,
     0 0 4px rgba(103, 232, 249, 0.9),
     0 0 12px rgba(34, 211, 238, 0.7),
     0 0 24px rgba(34, 211, 238, 0.4);
-  padding-bottom: 2px;
-}
-.app-header-word::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 12%;
-  bottom: 0;
-  height: 1.5px;
-  background: linear-gradient(90deg, #67e8f9, rgba(103, 232, 249, 0));
-  box-shadow: 0 0 6px rgba(103, 232, 249, 0.8);
 }
 div[data-testid="stButton"] button {
   border-radius: 20px !important;
