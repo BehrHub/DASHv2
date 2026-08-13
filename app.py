@@ -24,7 +24,8 @@ def render_header(active: str, show_money_toggle: bool = False) -> None:
     title_col, toggle_col = st.columns([5, 1])
     with title_col:
         st.markdown(
-            '<div class="app-header-word-row"><div class="app-header-word">BARRISTER</div></div>',
+            '<div class="app-header-word-row"><a class="app-header-word" '
+            'href="https://dashv2.streamlit.app" target="_self">BARRISTER</a></div>',
             unsafe_allow_html=True,
         )
     with toggle_col:

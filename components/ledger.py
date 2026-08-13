@@ -350,8 +350,8 @@ def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
           <div class="month-view-tabs">
             <div class="month-view-tab is-active" data-view="career">CAREER</div>
             <div class="month-view-tab" data-view="calendar">CALENDAR</div>
-            <div class="month-view-tab" data-view="eras">ERAS</div>
             <div class="month-view-tab" data-view="l5wk">L5WK</div>
+            <div class="month-view-tab" data-view="eras">ERAS</div>
           </div>
         </div>
         <div class="month-view is-active" data-view="career">{career_cards}</div>

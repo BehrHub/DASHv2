@@ -141,6 +141,17 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     avg_revenue_rank = {name: i + 1 for i, name in enumerate(ranked_by_avg)}
     total_ranked = len(ranked_by_avg)
 
+    # Primary sort: event count descending (as already ordered by the
+    # directory). Tie-break: revenue rank ascending, so among clients
+    # with the same visit count, the higher-earning one lists first.
+    directory = sorted(
+        directory,
+        key=lambda item: (
+            -int(item["events"]),
+            avg_revenue_rank.get(str(item["client"]), total_ranked + 1),
+        ),
+    )
+
     # Tiers are purely avg-revenue/visit based, same metric for every
     # client, no visit-count special-casing. Silver's actual cutoff
     # (98) is intentionally a bit below its displayed label (100) —
@@ -169,6 +180,12 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
         "wooden": '<span class="tier-pill tier-wooden">WOOD</span>',
     }
 
+    RANK_MEDAL = {
+        1: ("rank-medal rank-gold", "1"),
+        2: ("rank-medal rank-silver", "2"),
+        3: ("rank-medal rank-bronze", "3"),
+    }
+
     rows = []
     for rank, item in enumerate(directory, start=1):
         name = str(item["client"])
@@ -184,10 +201,11 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
         rev_rank_label = f"#{rev_rank}/{total_ranked}" if rev_rank else DASH
         tier = _tier_for(name)
         pill_html = TIER_PILL[tier]
+        medal_cls, medal_label = RANK_MEDAL.get(rank, ("", str(rank)))
         row_html = (
             f'<div class="client-row" data-client="{escape(name.casefold())}" data-target="detail-{escape(name.casefold())}">'
             '<div class="row-top">'
-            f'<div class="row-rank">{rank}</div>'
+            f'<div class="row-rank {medal_cls}">{medal_label}</div>'
             f'<div class="row-info"><div class="row-avatar">{escape(_client_initials(name))}</div>'
             f'<div class="row-name">{escape(name)}</div></div>'
             f'{pill_html}'
@@ -235,7 +253,7 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     .tier-wooden{{background:linear-gradient(135deg,#8a5a34,#5c3a20);color:#fbe9d4;box-shadow:0 0 6px rgba(92,58,32,.4)}}
     .tier-legend{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 8px;margin-bottom:26px}}
     .tier-legend-item{{display:flex;align-items:center;gap:4px;font-size:9px;font-weight:800;letter-spacing:.2px;color:#94a3b8;text-transform:uppercase;line-height:1}}
-    .search-box{{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px 12px;font-size:12px;color:#d7deea;outline:none;margin-bottom:12px}}.client-list{{display:flex;flex-direction:column;gap:6px}}.client-row{{display:flex;flex-direction:column;gap:8px;background:rgba(15,20,32,.4);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:9px 12px;cursor:pointer}}.client-row:hover{{border-color:rgba(244,114,182,.3)}}.row-top{{display:grid;grid-template-columns:20px minmax(0,1fr) auto 16px;align-items:center;gap:8px}}.row-rank{{font-size:12px;font-weight:800;color:#64748b}}.row-info{{min-width:0;display:flex;align-items:center;gap:8px}}.row-avatar{{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#38bdf8;flex-shrink:0}}.row-name{{overflow:hidden;font-size:13px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}}.row-stats{{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)}}.row-stat{{text-align:center}}.row-stat-val{{font-size:17px;font-weight:800;color:#e5edf9;line-height:1.2}}.row-stat-lbl{{font-size:9.5px;font-weight:700;letter-spacing:.4px;color:#64748b;text-transform:uppercase;margin-top:1px}}.row-chevron{{font-size:16px;color:#64748b;text-align:center;transition:transform .2s ease}}.client-row.is-open .row-chevron{{transform:rotate(90deg);color:#f472b6}}.empty-directory{{padding:12px;color:#64748b;font-size:12px;text-align:center}}
+    .search-box{{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px 12px;font-size:12px;color:#d7deea;outline:none;margin-bottom:12px}}.client-list{{display:flex;flex-direction:column;gap:6px}}.client-row{{display:flex;flex-direction:column;gap:8px;background:rgba(15,20,32,.4);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:9px 12px;cursor:pointer}}.client-row:hover{{border-color:rgba(244,114,182,.3)}}.row-top{{display:grid;grid-template-columns:20px minmax(0,1fr) auto 16px;align-items:center;gap:8px}}.row-rank{{font-size:12px;font-weight:800;color:#64748b;text-align:center}}.row-rank.rank-medal{{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;box-shadow:0 2px 6px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.55)}}.row-rank.rank-gold{{background:linear-gradient(135deg,#fff6d8,#e8b923 55%,#a9760a);color:#3a2600}}.row-rank.rank-silver{{background:linear-gradient(135deg,#f4f7fb,#c3cad4 55%,#8b95a1);color:#20242b}}.row-rank.rank-bronze{{background:linear-gradient(135deg,#f2c199,#c97a3d 55%,#7c4a20);color:#2a1608}}.row-info{{min-width:0;display:flex;align-items:center;gap:8px}}.row-avatar{{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#38bdf8;flex-shrink:0}}.row-name{{overflow:hidden;font-size:13px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}}.row-stats{{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)}}.row-stat{{text-align:center}}.row-stat-val{{font-size:17px;font-weight:800;color:#e5edf9;line-height:1.2}}.row-stat-lbl{{font-size:9.5px;font-weight:700;letter-spacing:.4px;color:#64748b;text-transform:uppercase;margin-top:1px}}.row-chevron{{font-size:16px;color:#64748b;text-align:center;transition:transform .2s ease}}.client-row.is-open .row-chevron{{transform:rotate(90deg);color:#f472b6}}.empty-directory{{padding:12px;color:#64748b;font-size:12px;text-align:center}}
     .client-detail-panel{{display:none;margin-top:6px;padding:14px;background:rgba(15,20,32,.6);border:1px solid rgba(244,114,182,.25);border-radius:14px}}.client-detail-panel.is-visible{{display:block}}
     .detail-stat-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}}.detail-stat{{background:rgba(255,255,255,.04);border-radius:10px;padding:8px 4px;text-align:center}}.detail-stat-val{{font-size:16px;font-weight:900;color:#f472b6}}.detail-stat-lbl{{font-size:9px;font-weight:800;color:#94a3b8;letter-spacing:.3px;margin-top:2px}}
     .detail-meta-row{{display:flex;flex-wrap:wrap;gap:10px;font-size:11.5px;color:#94a3b8;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.06)}}.detail-meta-row strong{{color:#e2e8f0}}
