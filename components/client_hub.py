@@ -209,15 +209,15 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     legend_html = (
         '<div class="tier-legend">'
         '<div class="tier-legend-item"><span class="tier-pill tier-diamond">DIAMOND</span><span>\uFF04'
-        '200+/VISIT</span></div>'
+        '200+</span></div>'
         '<div class="tier-legend-item"><span class="tier-pill tier-platinum">PLATINUM</span><span>\uFF04'
-        '150+/VISIT</span></div>'
+        '150+</span></div>'
         '<div class="tier-legend-item"><span class="tier-pill tier-gold">GOLD</span><span>\uFF04'
-        '125+/VISIT</span></div>'
+        '125+</span></div>'
         '<div class="tier-legend-item"><span class="tier-pill tier-silver">SILVER</span><span>\uFF04'
-        '100+/VISIT</span></div>'
+        '100+</span></div>'
         '<div class="tier-legend-item"><span class="tier-pill tier-bronze">BRONZE</span><span>\uFF04'
-        '75+/VISIT</span></div>'
+        '75+</span></div>'
         '<div class="tier-legend-item"><span class="tier-pill tier-wooden">WOOD</span><span>ALL OTHERS</span></div>'
         '</div>'
     )
@@ -233,7 +233,7 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     .tier-silver{{background:linear-gradient(135deg,#f1f5f9,#a8b3c2);color:#1e293b;box-shadow:0 0 6px rgba(168,179,194,.4)}}
     .tier-bronze{{background:linear-gradient(135deg,#e3a565,#b6702f);color:#2c1300;box-shadow:0 0 6px rgba(182,112,47,.4)}}
     .tier-wooden{{background:linear-gradient(135deg,#8a5a34,#5c3a20);color:#fbe9d4;box-shadow:0 0 6px rgba(92,58,32,.4)}}
-    .tier-legend{{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 8px;margin-bottom:14px;max-height:1.5rem}}
+    .tier-legend{{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 8px;margin-bottom:26px;max-height:1.5rem}}
     .tier-legend-item{{display:flex;align-items:center;gap:4px;font-size:9px;font-weight:800;letter-spacing:.2px;color:#94a3b8;text-transform:uppercase;line-height:1}}
     .search-box{{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px 12px;font-size:12px;color:#d7deea;outline:none;margin-bottom:12px}}.client-list{{display:flex;flex-direction:column;gap:6px}}.client-row{{display:flex;flex-direction:column;gap:8px;background:rgba(15,20,32,.4);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:9px 12px;cursor:pointer}}.client-row:hover{{border-color:rgba(244,114,182,.3)}}.row-top{{display:grid;grid-template-columns:20px minmax(0,1fr) auto 16px;align-items:center;gap:8px}}.row-rank{{font-size:12px;font-weight:800;color:#64748b}}.row-info{{min-width:0;display:flex;align-items:center;gap:8px}}.row-avatar{{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#38bdf8;flex-shrink:0}}.row-name{{overflow:hidden;font-size:13px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}}.row-stats{{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)}}.row-stat{{text-align:center}}.row-stat-val{{font-size:17px;font-weight:800;color:#e5edf9;line-height:1.2}}.row-stat-lbl{{font-size:9.5px;font-weight:700;letter-spacing:.4px;color:#64748b;text-transform:uppercase;margin-top:1px}}.row-chevron{{font-size:16px;color:#64748b;text-align:center;transition:transform .2s ease}}.client-row.is-open .row-chevron{{transform:rotate(90deg);color:#f472b6}}.empty-directory{{padding:12px;color:#64748b;font-size:12px;text-align:center}}
     .client-detail-panel{{display:none;margin-top:6px;padding:14px;background:rgba(15,20,32,.6);border:1px solid rgba(244,114,182,.25);border-radius:14px}}.client-detail-panel.is-visible{{display:block}}
@@ -264,5 +264,5 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
       }});
     }});
     </script></body></html>"""
-    height = 380 + max(len(directory), 1) * 78
+    height = 480 + max(len(directory), 1) * 90
     components.html(html, height=height, scrolling=False)

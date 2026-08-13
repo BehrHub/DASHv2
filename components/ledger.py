@@ -56,14 +56,14 @@ def _compute_l5wk(dated: pd.DataFrame) -> list[dict]:
         subset = dated[week_index == wk_index]
         events = len(subset)
         confirmed = int((subset["Verified?"] == "Yes").sum())
-        missing = events - confirmed
+        days_worked = int(subset["__date"].dt.normalize().nunique())
         revenue = float(subset.loc[subset["Verified?"] == "Yes", "__amount"].sum())
         avg = revenue / confirmed if confirmed else 0.0
         weeks.append({
             "label": label,
             "start": week_start.strftime("%b %d"),
             "end": week_end.strftime("%b %d"),
-            "events": events, "confirmed": confirmed, "missing": missing,
+            "events": events, "confirmed": confirmed, "days_worked": days_worked,
             "revenue": revenue, "avg": avg,
         })
     return weeks
@@ -138,14 +138,14 @@ def _compute_career_months(dated: pd.DataFrame) -> list[dict]:
         end_label = end.strftime("%b %d")
         events = len(subset)
         confirmed = int((subset["Verified?"] == "Yes").sum())
-        missing = events - confirmed
+        days_worked = int(subset["__date"].dt.normalize().nunique())
         revenue = float(subset.loc[subset["Verified?"] == "Yes", "__amount"].sum())
         avg = revenue / confirmed if confirmed else 0.0
         months.append({
             "label": label,
             "start": start_label,
             "end": end_label,
-            "events": events, "confirmed": confirmed, "missing": missing,
+            "events": events, "confirmed": confirmed, "days_worked": days_worked,
             "revenue": revenue, "avg": avg,
         })
     return months
@@ -174,14 +174,14 @@ def _compute_eras(dated: pd.DataFrame) -> list[dict]:
         end_label = end.strftime("%b %d") if end is not None else "Current"
         events = len(subset)
         confirmed = int((subset["Verified?"] == "Yes").sum())
-        missing = events - confirmed
+        days_worked = int(subset["__date"].dt.normalize().nunique())
         revenue = float(subset.loc[subset["Verified?"] == "Yes", "__amount"].sum())
         avg = revenue / confirmed if confirmed else 0.0
         eras.append({
             "label": label,
             "start": start.strftime("%b %d"),
             "end": end_label,
-            "events": events, "confirmed": confirmed, "missing": missing,
+            "events": events, "confirmed": confirmed, "days_worked": days_worked,
             "revenue": revenue, "avg": avg,
         })
     return eras
@@ -202,14 +202,14 @@ def _compute_calendar_months(dated: pd.DataFrame) -> list[dict]:
         end = period.end_time.normalize()
         events = len(subset)
         confirmed = int((subset["Verified?"] == "Yes").sum())
-        missing = events - confirmed
+        days_worked = int(subset["__date"].dt.normalize().nunique())
         revenue = float(subset.loc[subset["Verified?"] == "Yes", "__amount"].sum())
         avg = revenue / confirmed if confirmed else 0.0
         months.append({
             "label": start.strftime("%B"),
             "start": start.strftime("%b %d"),
             "end": end.strftime("%b %d"),
-            "events": events, "confirmed": confirmed, "missing": missing,
+            "events": events, "confirmed": confirmed, "days_worked": days_worked,
             "revenue": revenue, "avg": avg,
         })
     return months
@@ -255,7 +255,6 @@ body{color:#fff}
 .month-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
 .month-stat { background: rgba(15,23,42,.5); border-radius: 10px; padding: 8px 4px; text-align: center; }
 .month-stat-val { font-size: 18px; font-weight: 900; color: #fff; }
-.month-stat.is-missing .month-stat-val { color: #fb7185; }
 .month-stat-lbl { font-size: 9px; font-weight: 800; color: #b8c4d9; letter-spacing: .4px; margin-top: 2px; }
 .month-revenue-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .month-revenue-item { background: rgba(244,114,182,.08); border: 1px solid rgba(244,114,182,.2); border-radius: 10px; padding: 8px 10px; text-align: center; }
@@ -296,7 +295,7 @@ def _build_month_cards(months: list[dict], gross_view: bool = False) -> str:
         '<div class="month-stat-grid">'
         f'<div class="month-stat"><div class="month-stat-val">{m["events"]}</div><div class="month-stat-lbl">EVENTS</div></div>'
         f'<div class="month-stat"><div class="month-stat-val">{m["confirmed"]}</div><div class="month-stat-lbl">CONFIRMED</div></div>'
-        f'<div class="month-stat{" is-missing" if m["missing"] else ""}"><div class="month-stat-val">{m["missing"]}</div><div class="month-stat-lbl">MISSING</div></div>'
+        f'<div class="month-stat"><div class="month-stat-val">{m["days_worked"]}</div><div class="month-stat-lbl">DAYS WORKED</div></div>'
         '</div>'
         '<div class="month-revenue-row">'
         f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(annualize_gross(m["revenue"], MONTHS_PER_YEAR) if gross_view else m["revenue"]))}</div><div class="month-revenue-lbl">{revenue_lbl}</div></div>'

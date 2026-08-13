@@ -20,13 +20,13 @@ ACHIEVEMENT_ICON_MILESTONE = "\U0001F3C6"
 
 JURISDICTION_COLORS = {
     "Maryland": "#d0264f",           # deep rose red
-    "Virginia": "#7dd3fc",           # baby blue
-    "Washington, D.C.": "#c4b5fd",   # lavender purple
+    "Virginia": "#4c9be8",           # Cookie Monster blue
+    "Washington, D.C.": "#6a3fd1",   # royal purple
     "West Virginia": "#eab308",      # yellow
     "Pennsylvania / Other": "#22c55e",  # green
 }
 
-TERRITORY_CENTER_COLOR = "#e8dcc3"  # beige/white DC used to use, before DC moved to lavender
+TERRITORY_CENTER_COLOR = "#ffffff"  # white
 
 # Journey doesn't have production's --kith-month-* design tokens in this
 # standalone build, so stop accents use this palette instead — tuned to

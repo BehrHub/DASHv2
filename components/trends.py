@@ -166,12 +166,15 @@ def _chart(series: list[dict], metric: str, view_id: str, suppress_total: bool =
     average = total / len(values)
     days_worked = best.get("days_worked", 0)
     total_display = "N/A" if suppress_total else escape(_fmt(total, metric))
+    total_span = (
+        f'<span>Total <strong>{total_display}</strong></span>' if suppress_total
+        else f'<span><strong>{days_worked}</strong> day{"s" if days_worked != 1 else ""} worked. <strong>{total_display}</strong> Total</span>'
+    )
     foot = (
         '<div class="trend-foot">'
         f'<span>Peak <strong>{escape(best["label"])}</strong> (<strong>{escape(_fmt(best[metric], metric))}</strong>)</span>'
         f'<span>Average <strong>{escape(_fmt(round(average), metric))}</strong></span>'
-        f'<span>Total <strong>{total_display}</strong></span>'
-        f'<span class="trend-foot-days">{days_worked} day{"s" if days_worked != 1 else ""} worked</span>'
+        f'{total_span}'
         "</div>"
     )
 
