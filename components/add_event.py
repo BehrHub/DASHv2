@@ -105,6 +105,11 @@ FORM_CSS = """
 .upcoming-date-cell { display: flex; align-items: center; justify-content: center; height: 44px; color: #f9a8d4; font-weight: 900; font-size: 14px; white-space: nowrap; text-shadow: 0 0 10px rgba(244,114,182,.6); }
 .upcoming-empty { color: #64748b; font-size: 12px; }
 div[data-testid="stButton"] button[kind="secondary"] { padding: 4px 0 !important; }
+.complete-panel {
+    background: rgba(52,211,153,.06); border: 1px solid rgba(52,211,153,.28);
+    border-radius: 14px; padding: 12px 14px 14px; margin: -2px 0 10px;
+}
+.complete-preview { color: #6ee7b7; font-weight: 900; font-size: 15px; text-align: center; margin: 2px 0 10px; }
 .download-panel {
     background: radial-gradient(circle at 100% -10%, rgba(52,211,153,.1), transparent 42%), rgba(23,27,40,.55);
     border: 1px solid rgba(52,211,153,.32);
@@ -125,7 +130,7 @@ div[data-testid="stDownloadButton"] button {
 """
 
 
-def _mark_complete(pipeline_row: pd.Series, is_session_row: bool) -> None:
+def _mark_complete(pipeline_row: pd.Series, is_session_row: bool, amount: float) -> None:
     parsed = _parse_location(str(pipeline_row["Location"]))
     location_detail = str(pipeline_row["Location"])
     state_name = parsed[1] if parsed else "Maryland"
@@ -135,7 +140,10 @@ def _mark_complete(pipeline_row: pd.Series, is_session_row: bool) -> None:
         "status": "Completed",
         "timeline_row": {
             "Client": pipeline_row["Client"], "State/Region": state_name, "Status": "Completed",
-            "Amount": 40, "Verified?": "No", "Service Date": pipeline_row["Date / Timing"],
+            # Rate x hours, entered right here at completion time, so the
+            # real payout lands in the Timeline immediately instead of a
+            # placeholder that needs a manual correction pass later.
+            "Amount": round(amount, 2), "Verified?": "Yes", "Service Date": pipeline_row["Date / Timing"],
             "Location Detail": location_detail, "Billing Type": "Hourly",
         },
     }
@@ -155,6 +163,8 @@ def _render_upcoming(pipeline: pd.DataFrame) -> None:
     working = working.sort_values("__date")
     today = pd.Timestamp.now().normalize()
     tomorrow = today + pd.Timedelta(days=1)
+
+    completing_id = st.session_state.get("completing_event_id")
 
     for _, row in working.iterrows():
         event_id = row["Event ID"]
@@ -181,12 +191,48 @@ def _render_upcoming(pipeline: pd.DataFrame) -> None:
             st.markdown(f'<div class="upcoming-date-cell">{escape(date_label)}</div>', unsafe_allow_html=True)
         with complete_col:
             if st.button("\u2713", key=f"complete_{event_id}", width="stretch"):
-                _mark_complete(row, is_session_row)
+                st.session_state["completing_event_id"] = (
+                    None if completing_id == event_id else event_id
+                )
                 st.rerun()
         with delete_col:
             if st.button("\u2715", key=f"delete_{event_id}", width="stretch"):
                 _apply_delete(event_id, is_session_row)
                 st.rerun()
+
+        if completing_id == event_id:
+            st.markdown('<div class="complete-panel">', unsafe_allow_html=True)
+            rate_col, hours_col = st.columns(2)
+            with rate_col:
+                rate = st.number_input(
+                    "Rate (\uFF04/hr)", min_value=0.0, step=5.0,
+                    value=float(st.session_state.get("last_hourly_rate", 40.0)),
+                    key=f"rate_{event_id}",
+                )
+            with hours_col:
+                hours = st.number_input(
+                    "Hours stayed", min_value=0.0, step=0.25, value=1.0, key=f"hours_{event_id}",
+                )
+            payout = rate * hours
+            st.markdown(
+                f'<div class="complete-preview">Payout: \uFF04{payout:,.2f}</div>',
+                unsafe_allow_html=True,
+            )
+            confirm_col, cancel_col = st.columns(2)
+            with confirm_col:
+                if st.button(
+                    "Confirm & Complete", key=f"confirm_complete_{event_id}",
+                    type="primary", width="stretch",
+                ):
+                    _mark_complete(row, is_session_row, amount=payout)
+                    st.session_state["last_hourly_rate"] = rate
+                    st.session_state.pop("completing_event_id", None)
+                    st.rerun()
+            with cancel_col:
+                if st.button("Cancel", key=f"cancel_complete_{event_id}", width="stretch"):
+                    st.session_state.pop("completing_event_id", None)
+                    st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
 
 def _render_form(known_locations: list[str]) -> None:
