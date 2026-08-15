@@ -99,11 +99,25 @@ def _read(name: str, headers: list[str]) -> pd.DataFrame:
 
 
 def read_timeline() -> pd.DataFrame:
-    return _read(TIMELINE_SHEET, TIMELINE_HEADERS)
+    return _cached_read(TIMELINE_SHEET, tuple(TIMELINE_HEADERS))
 
 
 def read_pipeline() -> pd.DataFrame:
-    return _read(PIPELINE_SHEET, PIPELINE_HEADERS)
+    return _cached_read(PIPELINE_SHEET, tuple(PIPELINE_HEADERS))
+
+
+@st.cache_data(ttl=8, show_spinner=False)
+def _cached_read(name: str, headers: tuple) -> pd.DataFrame:
+    # Streamlit reruns the whole script on every tap/click, and the free
+    # Sheets API tier caps out at 60 read requests/minute/user. A few
+    # seconds of caching absorbs that rerun storm without ever showing
+    # stale data for more than a moment — writes below force-clear this
+    # immediately, so your own edits still show up right away.
+    return _read(name, list(headers))
+
+
+def clear_read_cache() -> None:
+    _cached_read.clear()
 
 
 def is_seeded() -> bool:
@@ -130,6 +144,8 @@ def seed(timeline: pd.DataFrame, pipeline: pd.DataFrame) -> None:
     if pl_rows:
         pl_ws.append_rows(pl_rows, value_input_option="USER_ENTERED")
 
+    clear_read_cache()
+
 
 def _find_row(ws, event_id: str) -> int | None:
     import gspread
@@ -147,6 +163,7 @@ def append_row(sheet_name: str, headers: list[str], row: dict) -> None:
     ws = _worksheet(sheet_name, headers)
     ordered = [str(row.get(h, "")) for h in headers]
     ws.append_row(ordered, value_input_option="USER_ENTERED")
+    clear_read_cache()
 
 
 def update_row(sheet_name: str, headers: list[str], event_id: str, row: dict) -> None:
@@ -155,9 +172,11 @@ def update_row(sheet_name: str, headers: list[str], event_id: str, row: dict) ->
     row_idx = _find_row(ws, event_id)
     if row_idx is None:
         ws.append_row(ordered, value_input_option="USER_ENTERED")
+        clear_read_cache()
         return
     end_col = chr(ord("A") + len(headers) - 1)
     ws.update(range_name=f"A{row_idx}:{end_col}{row_idx}", values=[ordered])
+    clear_read_cache()
 
 
 def delete_row(sheet_name: str, headers: list[str], event_id: str) -> None:
@@ -165,6 +184,7 @@ def delete_row(sheet_name: str, headers: list[str], event_id: str) -> None:
     row_idx = _find_row(ws, event_id)
     if row_idx is not None:
         ws.delete_rows(row_idx)
+        clear_read_cache()
 
 
 def move_row(
