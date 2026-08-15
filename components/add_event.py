@@ -70,9 +70,9 @@ def _known_locations(timeline: pd.DataFrame) -> list[str]:
     return sorted(normalized)
 
 
-def _next_event_id() -> str:
-    from services import local_store
-    return local_store.next_event_id()
+def _next_event_id(timeline: pd.DataFrame, pipeline: pd.DataFrame) -> str:
+    from services import sheets_store
+    return sheets_store.next_event_id(timeline, pipeline)
 
 
 FORM_CSS = """
@@ -130,24 +130,27 @@ div[data-testid="stDownloadButton"] button {
 """
 
 
-def _mark_complete(pipeline_row: pd.Series, is_session_row: bool, amount: float) -> None:
+def _mark_complete(pipeline_row: pd.Series, amount: float) -> None:
+    from services import sheets_store
+
     parsed = _parse_location(str(pipeline_row["Location"]))
     location_detail = str(pipeline_row["Location"])
     state_name = parsed[1] if parsed else "Maryland"
-    new_id = pipeline_row["Event ID"] if is_session_row else _next_event_id()
-    record = {
-        "event_id": new_id,
-        "status": "Completed",
-        "timeline_row": {
-            "Client": pipeline_row["Client"], "State/Region": state_name, "Status": "Completed",
-            # Rate x hours, entered right here at completion time, so the
-            # real payout lands in the Timeline immediately instead of a
-            # placeholder that needs a manual correction pass later.
-            "Amount": round(amount, 2), "Verified?": "Yes", "Service Date": pipeline_row["Date / Timing"],
-            "Location Detail": location_detail, "Billing Type": "Hourly",
-        },
+    event_id = str(pipeline_row["Event ID"])
+    new_row = {
+        "Event ID": event_id, "Client": pipeline_row["Client"], "State/Region": state_name,
+        "Status": "Completed",
+        # Rate x hours, entered right here at completion time, so the
+        # real payout lands in the Timeline immediately instead of a
+        # placeholder that needs a manual correction pass later.
+        "Amount": round(amount, 2), "Verified?": "Yes", "Service Date": pipeline_row["Date / Timing"],
+        "Location Detail": location_detail, "Billing Type": "Hourly",
     }
-    _apply_edit(pipeline_row["Event ID"], is_session_row, record)
+    sheets_store.move_row(
+        sheets_store.PIPELINE_SHEET, sheets_store.PIPELINE_HEADERS,
+        sheets_store.TIMELINE_SHEET, sheets_store.TIMELINE_HEADERS,
+        event_id, new_row,
+    )
 
 
 def _render_upcoming(pipeline: pd.DataFrame) -> None:
@@ -168,7 +171,6 @@ def _render_upcoming(pipeline: pd.DataFrame) -> None:
 
     for _, row in working.iterrows():
         event_id = row["Event ID"]
-        is_session_row = str(event_id).startswith("S")
         date_val = row["__date"]
         if pd.notna(date_val) and date_val.normalize() == today:
             date_label = "TODAY"
@@ -197,7 +199,8 @@ def _render_upcoming(pipeline: pd.DataFrame) -> None:
                 st.rerun()
         with delete_col:
             if st.button("\u2715", key=f"delete_{event_id}", width="stretch"):
-                _apply_delete(event_id, is_session_row)
+                from services import sheets_store
+                sheets_store.delete_row(sheets_store.PIPELINE_SHEET, sheets_store.PIPELINE_HEADERS, event_id)
                 st.rerun()
 
         if completing_id == event_id:
@@ -205,7 +208,7 @@ def _render_upcoming(pipeline: pd.DataFrame) -> None:
             rate_col, hours_col = st.columns(2)
             with rate_col:
                 rate = st.number_input(
-                    "Rate (\uFF04/hr)", min_value=0.0, step=5.0,
+                    "Rate (\uFF04/hr)", min_value=0.0, step=1.0,
                     value=float(st.session_state.get("last_hourly_rate", 40.0)),
                     key=f"rate_{event_id}",
                 )
@@ -224,7 +227,7 @@ def _render_upcoming(pipeline: pd.DataFrame) -> None:
                     "Confirm & Complete", key=f"confirm_complete_{event_id}",
                     type="primary", width="stretch",
                 ):
-                    _mark_complete(row, is_session_row, amount=payout)
+                    _mark_complete(row, amount=payout)
                     st.session_state["last_hourly_rate"] = rate
                     st.session_state.pop("completing_event_id", None)
                     st.rerun()
@@ -235,7 +238,7 @@ def _render_upcoming(pipeline: pd.DataFrame) -> None:
             st.markdown('</div>', unsafe_allow_html=True)
 
 
-def _render_form(known_locations: list[str]) -> None:
+def _render_form(known_locations: list[str], timeline: pd.DataFrame, pipeline: pd.DataFrame) -> None:
     if st.session_state.get("last_saved_event"):
         saved = st.session_state.pop("last_saved_event")
         st.markdown(
@@ -295,29 +298,29 @@ def _render_form(known_locations: list[str]) -> None:
 
         save_col, cancel_col = st.columns(2)
         if save_col.button("Save Event", type="primary", width="stretch", key="save_new_event"):
+            from services import sheets_store
+
             date_str = pending["event_date"].strftime("%Y-%m-%d")
             location_detail = f'{pending["city"]}, {pending["state_code"]}'
-            event_id = _next_event_id()
+            event_id = _next_event_id(timeline, pipeline)
             if pending["status"] == "Completed":
-                record = {
-                    "event_id": event_id, "status": "Completed",
-                    "timeline_row": {
-                        "Client": pending["client"], "State/Region": pending["state"],
+                sheets_store.append_row(
+                    sheets_store.TIMELINE_SHEET, sheets_store.TIMELINE_HEADERS,
+                    {
+                        "Event ID": event_id, "Client": pending["client"], "State/Region": pending["state"],
                         "Status": "Completed", "Amount": pending["rate"], "Verified?": "No",
                         "Service Date": date_str, "Location Detail": location_detail,
                         "Billing Type": pending["billing_type"],
                     },
-                }
+                )
             else:
-                record = {
-                    "event_id": event_id, "status": "Scheduled",
-                    "pipeline_row": {
-                        "Client": pending["client"], "Location": location_detail,
+                sheets_store.append_row(
+                    sheets_store.PIPELINE_SHEET, sheets_store.PIPELINE_HEADERS,
+                    {
+                        "Event ID": event_id, "Client": pending["client"], "Location": location_detail,
                         "Status": "Scheduled", "Date / Timing": date_str,
                     },
-                }
-            from services import local_store
-            local_store.append_added_event(record)
+                )
             st.session_state["last_saved_event"] = {
                 "client": pending["client"], "status": pending["status"], "date": date_str,
             }
@@ -366,21 +369,42 @@ def _event_options(timeline: pd.DataFrame, pipeline: pd.DataFrame) -> dict[str, 
     return options
 
 
-def _apply_edit(original_id: str, is_session_row: bool, new_record: dict) -> None:
-    from services import local_store
-    if is_session_row:
-        local_store.update_added_event(original_id, new_record)
+def _apply_save(
+    original_kind: str, original_id: str, new_status: str,
+    timeline_row: dict | None, pipeline_row: dict | None,
+) -> None:
+    from services import sheets_store
+
+    if new_status == "Completed":
+        if original_kind == "pipeline":
+            sheets_store.move_row(
+                sheets_store.PIPELINE_SHEET, sheets_store.PIPELINE_HEADERS,
+                sheets_store.TIMELINE_SHEET, sheets_store.TIMELINE_HEADERS,
+                original_id, timeline_row,
+            )
+        else:
+            sheets_store.update_row(
+                sheets_store.TIMELINE_SHEET, sheets_store.TIMELINE_HEADERS, original_id, timeline_row,
+            )
     else:
-        local_store.add_deleted_id(original_id)
-        local_store.append_added_event(new_record)
+        if original_kind == "timeline":
+            sheets_store.move_row(
+                sheets_store.TIMELINE_SHEET, sheets_store.TIMELINE_HEADERS,
+                sheets_store.PIPELINE_SHEET, sheets_store.PIPELINE_HEADERS,
+                original_id, pipeline_row,
+            )
+        else:
+            sheets_store.update_row(
+                sheets_store.PIPELINE_SHEET, sheets_store.PIPELINE_HEADERS, original_id, pipeline_row,
+            )
 
 
-def _apply_delete(original_id: str, is_session_row: bool) -> None:
-    from services import local_store
-    if is_session_row:
-        local_store.remove_added_event(original_id)
-    else:
-        local_store.add_deleted_id(original_id)
+def _apply_delete(kind: str, event_id: str) -> None:
+    from services import sheets_store
+
+    sheet = sheets_store.TIMELINE_SHEET if kind == "timeline" else sheets_store.PIPELINE_SHEET
+    headers = sheets_store.TIMELINE_HEADERS if kind == "timeline" else sheets_store.PIPELINE_HEADERS
+    sheets_store.delete_row(sheet, headers, event_id)
 
 
 def _render_modify(timeline: pd.DataFrame, pipeline: pd.DataFrame, known_locations: list[str]) -> None:
@@ -398,7 +422,6 @@ def _render_modify(timeline: pd.DataFrame, pipeline: pd.DataFrame, known_locatio
 
     if selected_label:
         original = options[selected_label]
-        is_session_row = str(original["event_id"]).startswith("S")
 
         with st.form("modify_event_form"):
             m_status = st.radio(
@@ -435,30 +458,26 @@ def _render_modify(timeline: pd.DataFrame, pipeline: pd.DataFrame, known_locatio
                 city, state_name, state_code = parsed
                 location_detail = f"{city}, {state_code}"
                 date_str = m_date.strftime("%Y-%m-%d")
-                new_id = original["event_id"] if is_session_row else _next_event_id()
+                event_id = str(original["event_id"])
                 if m_status == "Completed":
-                    record = {
-                        "event_id": new_id, "status": "Completed",
-                        "timeline_row": {
-                            "Client": m_client, "State/Region": state_name, "Status": "Completed",
-                            "Amount": m_rate, "Verified?": "No", "Service Date": date_str,
-                            "Location Detail": location_detail, "Billing Type": m_billing,
-                        },
+                    timeline_row = {
+                        "Event ID": event_id, "Client": m_client, "State/Region": state_name,
+                        "Status": "Completed", "Amount": m_rate, "Verified?": "No",
+                        "Service Date": date_str, "Location Detail": location_detail,
+                        "Billing Type": m_billing,
                     }
+                    _apply_save(original["kind"], event_id, "Completed", timeline_row, None)
                 else:
-                    record = {
-                        "event_id": new_id, "status": "Scheduled",
-                        "pipeline_row": {
-                            "Client": m_client, "Location": location_detail,
-                            "Status": "Scheduled", "Date / Timing": date_str,
-                        },
+                    pipeline_row = {
+                        "Event ID": event_id, "Client": m_client, "Location": location_detail,
+                        "Status": "Scheduled", "Date / Timing": date_str,
                     }
-                _apply_edit(original["event_id"], is_session_row, record)
+                    _apply_save(original["kind"], event_id, "Scheduled", None, pipeline_row)
                 st.success(f"Updated {m_client}.")
                 st.rerun()
 
         if m_delete:
-            _apply_delete(original["event_id"], is_session_row)
+            _apply_delete(original["kind"], str(original["event_id"]))
             st.success(f'Removed {original["client"]}.')
             st.rerun()
 
@@ -513,7 +532,7 @@ def render_add_event(
     _render_upcoming(pipeline)
 
     st.markdown('<div class="event-page-title">ADD SERVICE EVENT</div>', unsafe_allow_html=True)
-    _render_form(known_locations)
+    _render_form(known_locations, timeline, pipeline)
 
     _render_modify(timeline, pipeline, known_locations)
 

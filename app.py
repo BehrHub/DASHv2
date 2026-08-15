@@ -73,6 +73,16 @@ def main() -> None:
     snapshot = load_snapshot()
     metrics = build_executive_metrics(snapshot)
 
+    sheets_error = st.session_state.get("sheets_error")
+    if sheets_error:
+        st.markdown(
+            '<div style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.4);'
+            'border-radius:12px;padding:10px 14px;margin:0 0 10px;color:#fca5a5;'
+            'font-size:12.5px;font-weight:600;">\u26A0\uFE0F '
+            f'{sheets_error}</div>',
+            unsafe_allow_html=True,
+        )
+
     view = st.query_params.get("view", "main")
     show_money_toggle = view in ("main", "clienthub", "ledger")
     render_header(view, show_money_toggle)

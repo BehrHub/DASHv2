@@ -164,34 +164,13 @@ def _real_pipeline() -> pd.DataFrame:
 
 
 
-def _session_added_events() -> list[dict]:
-    """Events added or edited via the Add Event page.
-
-    Persisted in services/local_store.py (a small local JSON file) — NOT
-    session_state, which only lives on your browser tab's live connection
-    and is wiped by any page refresh even though the server keeps running.
-    Not a real .xlsx file, so it's still not the production workbook, but
-    it now survives refreshes and server restarts.
-    """
+def _local_fallback_snapshot() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Old on-disk-JSON overlay behavior. Used only when Google Sheets
+    isn't configured yet, or a live call to it fails, so the app still
+    functions during setup/outages instead of hard-crashing — but note
+    this fallback does NOT survive a container restart, which is the
+    exact problem the Sheets store exists to fix."""
     from services import local_store
-    return local_store.get_added_events()
-
-
-def _session_deleted_ids() -> set[str]:
-    from services import local_store
-    return local_store.get_deleted_ids()
-
-
-def load_snapshot() -> WorkbookSnapshot:
-    """Real snapshot built from the uploaded Barrister workbook.
-
-    Timeline and Pipeline are 100% real: 90 completed events (verified
-    through Event #90, 2026-08-03 financial closeout) and 6 real scheduled
-    events. Every row (real or session-added) carries a stable "Event ID"
-    so the Add Event page can edit or delete individual events. State
-    Coverage is always derived live from the current Timeline, so an edit
-    or delete never leaves stale territory numbers behind.
-    """
 
     timeline = _real_timeline()
     timeline.insert(0, "Event ID", [f"T{i:03d}" for i in range(len(timeline))])
@@ -199,11 +178,11 @@ def load_snapshot() -> WorkbookSnapshot:
     pipeline = _real_pipeline()
     pipeline.insert(0, "Event ID", [f"P{i:03d}" for i in range(len(pipeline))])
 
-    deleted_ids = _session_deleted_ids()
+    deleted_ids = local_store.get_deleted_ids()
     timeline = timeline[~timeline["Event ID"].isin(deleted_ids)].reset_index(drop=True)
     pipeline = pipeline[~pipeline["Event ID"].isin(deleted_ids)].reset_index(drop=True)
 
-    for event in _session_added_events():
+    for event in local_store.get_added_events():
         if event["status"] == "Completed":
             row = dict(event["timeline_row"])
             row.setdefault("Event ID", event.get("event_id"))
@@ -212,6 +191,48 @@ def load_snapshot() -> WorkbookSnapshot:
             row = dict(event["pipeline_row"])
             row.setdefault("Event ID", event.get("event_id"))
             pipeline = pd.concat([pipeline, pd.DataFrame([row])], ignore_index=True)
+
+    return timeline, pipeline
+
+
+def load_snapshot() -> WorkbookSnapshot:
+    """Live snapshot, sourced from the Google Sheet that is now the
+    single source of truth for Timeline and Pipeline (see
+    services/sheets_store.py). Falls back to the old local-only behavior
+    if Sheets isn't configured yet or a call to it fails, and records
+    the reason in st.session_state["sheets_error"] so the UI can show a
+    banner explaining why changes won't be persistent in that case.
+    State Coverage is always derived live from the current Timeline, so
+    an edit or delete never leaves stale territory numbers behind.
+    """
+    import streamlit as st
+    from services import sheets_store
+
+    st.session_state.pop("sheets_error", None)
+    source_label = "Barrister_Master_Four_Month_Closeout_Financially_Verified_2026-08-03.xlsx"
+
+    if sheets_store.is_configured():
+        try:
+            if not sheets_store.is_seeded():
+                seed_timeline = _real_timeline()
+                seed_timeline.insert(0, "Event ID", [f"T{i:03d}" for i in range(len(seed_timeline))])
+                seed_pipeline = _real_pipeline()
+                seed_pipeline.insert(0, "Event ID", [f"P{i:03d}" for i in range(len(seed_pipeline))])
+                sheets_store.seed(seed_timeline, seed_pipeline)
+
+            timeline = sheets_store.read_timeline()
+            pipeline = sheets_store.read_pipeline()
+            timeline["Amount"] = pd.to_numeric(timeline["Amount"], errors="coerce")
+            source_label = "Google Sheets (live)"
+        except sheets_store.SheetsUnavailable as exc:
+            st.session_state["sheets_error"] = str(exc)
+            timeline, pipeline = _local_fallback_snapshot()
+    else:
+        st.session_state["sheets_error"] = (
+            "Google Sheets isn't connected yet \u2014 changes made in this session "
+            "will NOT survive a restart. See SETUP.md."
+        )
+        timeline, pipeline = _local_fallback_snapshot()
 
     if timeline.empty:
         coverage = pd.DataFrame(columns=["State/Region", "Completed Visits"])
@@ -225,7 +246,7 @@ def load_snapshot() -> WorkbookSnapshot:
         )
 
     return WorkbookSnapshot(
-        path=Path("Barrister_Master_Four_Month_Closeout_Financially_Verified_2026-08-03.xlsx"),
+        path=Path(source_label),
         modified_ns=time.time_ns(),
         sheets={
             "Timeline": timeline,

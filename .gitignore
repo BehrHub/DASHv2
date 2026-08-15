@@ -2,10 +2,15 @@ __pycache__/
 *.pyc
 .DS_Store
 
-# Session-added events are transient runtime state, not source-controlled
-# data — same treatment on the Mac mini and on Streamlit Cloud. On Cloud
-# specifically, this file lives on the container's local disk and will
-# NOT survive a redeploy (a fresh git push rebuilds the container from
-# scratch). Export/back up before pushing any code change.
-session_data.json
+# Google service-account credentials + Sheet ID. NEVER commit this —
+# treat it like a password. Lives only in .streamlit/secrets.toml
+# locally and in the Streamlit Cloud "Secrets" panel for the deployed
+# app. See SETUP.md.
 .streamlit/secrets.toml
+
+# Legacy local-disk store, no longer the source of truth now that
+# Google Sheets is (see services/sheets_store.py). Kept only as an
+# emergency fallback if Sheets is unreachable — see
+# services/data_source.py::_local_fallback_snapshot(). Still not
+# source-controlled data even in that fallback role.
+session_data.json
