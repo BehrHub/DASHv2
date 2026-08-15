@@ -8,3 +8,4 @@ __pycache__/
 # NOT survive a redeploy (a fresh git push rebuilds the container from
 # scratch). Export/back up before pushing any code change.
 session_data.json
+.streamlit/secrets.toml
