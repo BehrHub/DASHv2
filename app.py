@@ -84,7 +84,11 @@ def main() -> None:
         )
 
     view = st.query_params.get("view", "main")
-    show_money_toggle = view in ("main", "clienthub", "ledger")
+    # The gross/net toggle lives in the top app header for Main and Client
+    # Hub, but on Ledger it renders inline with the "BREAKDOWNS" title
+    # instead (see below) — it's used constantly on that page and forcing
+    # a scroll up to the header every time was the whole complaint.
+    show_money_toggle = view in ("main", "clienthub")
     render_header(view, show_money_toggle)
     if show_money_toggle:
         st.markdown(
@@ -105,6 +109,22 @@ def main() -> None:
     elif view == "clienthub":
         render_client_standings(metrics, snapshot.sheets["Timeline"], gross_view)
     elif view == "ledger":
+        st.markdown(
+            "<style>.ledger-breakdowns-title { font-size: 16px; font-weight: 900; "
+            "letter-spacing: .5px; color: #fff; text-transform: uppercase; margin-top: 8px; }</style>",
+            unsafe_allow_html=True,
+        )
+        title_col, toggle_col = st.columns([5, 1])
+        with title_col:
+            st.markdown('<div class="ledger-breakdowns-title">BREAKDOWNS</div>', unsafe_allow_html=True)
+        with toggle_col:
+            if st.button(
+                "\U0001F4B5",
+                key="gross_toggle_btn_ledger",
+                type="primary" if gross_view else "secondary",
+            ):
+                st.session_state["gross_annual_view"] = not gross_view
+                st.rerun()
         render_ledger(snapshot.sheets["Timeline"], gross_view)
     else:
         render_dashboard(metrics, snapshot.sheets["Timeline"], gross_view)

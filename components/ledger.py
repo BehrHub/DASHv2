@@ -301,9 +301,8 @@ body{color:#fff}
 .ledger-kpi-lbl { font-size: 10.5px; font-weight: 800; color: #c5d0e0; letter-spacing: .4px; text-transform: uppercase; margin-top: 3px; line-height: 1.35; }
 .month-card { background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.01)); border: 1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
 .month-card:last-child { margin-bottom: 0; }
-.ledger-title-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 2px; }
-.month-view-tabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-.month-view-tab { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 5px 12px; font-size: 10px; font-weight: 800; letter-spacing: .5px; color: #c5d0e0; cursor: pointer; }
+.month-view-tabs { display: grid; grid-template-columns: repeat(3, max-content); gap: 8px 10px; justify-content: start; justify-items: start; }
+.month-view-tab { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 7px 16px; font-size: 11px; font-weight: 800; letter-spacing: .5px; color: #c5d0e0; cursor: pointer; }
 .month-view-tab.is-active { background: rgba(244,114,182,.1); border-color: #f472b6; color: #f9a8d4; box-shadow: 0 0 10px rgba(244,114,182,.25); }
 .month-view { display: none; margin-top: 12px; }
 .month-view.is-active { display: block; }
@@ -436,16 +435,13 @@ def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
       </div>
 
       <div class="ledger-panel">
-        <div class="ledger-title-row">
-          <div><div class="ledger-title">MONTHLY BREAKDOWN</div></div>
-          <div class="month-view-tabs">
-            <div class="month-view-tab is-active" data-view="career">CAREER</div>
-            <div class="month-view-tab" data-view="calendar">CALENDAR</div>
-            <div class="month-view-tab" data-view="l10wk">L10WK</div>
-            <div class="month-view-tab" data-view="eras">ERAS</div>
-            <div class="month-view-tab" data-view="days">DAYS</div>
-            <div class="month-view-tab" data-view="clients">CLIENTS</div>
-          </div>
+        <div class="month-view-tabs">
+          <div class="month-view-tab is-active" data-view="career">CAREER</div>
+          <div class="month-view-tab" data-view="calendar">CAL MONTH</div>
+          <div class="month-view-tab" data-view="eras">ERAS</div>
+          <div class="month-view-tab" data-view="l10wk">L10WK</div>
+          <div class="month-view-tab" data-view="days">DAYS</div>
+          <div class="month-view-tab" data-view="clients">CLIENTS</div>
         </div>
         <div class="month-view is-active" data-view="career">{career_cards}</div>
         <div class="month-view" data-view="calendar">{calendar_cards}</div>
