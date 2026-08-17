@@ -395,13 +395,40 @@ def _build_client_cards(clients: list[dict], gross_view: bool = False) -> str:
     )
 
 
-def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
-    summary, career_months, calendar_months, eras, l10wk, top_days, top_clients = _compute_summary_and_months(timeline, gross_view)
-
+def render_ledger_summary(timeline: pd.DataFrame, gross_view: bool = False) -> None:
+    """Just the FINANCIAL CLOSEOUT panel — split out from the rest so a
+    native Streamlit title+button row can sit between this and the
+    breakdowns panel, in the exact spot the old embedded title used to
+    occupy, instead of in front of the whole combined component.
+    """
+    summary, _, _, _, _, _, _ = _compute_summary_and_months(timeline, gross_view)
     kpi_html = "".join(
         f'<div class="ledger-kpi"><div class="ledger-kpi-val">{escape(val)}</div>'
         f'<div class="ledger-kpi-lbl">{escape(label)}</div></div>'
         for label, val in summary
+    )
+    html = f"""
+    <!DOCTYPE html>
+    <html><head><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {LEDGER_CSS}
+    </head><body>
+      <div class="ledger-panel">
+        <div class="ledger-title" style="margin-bottom:14px">FINANCIAL CLOSEOUT</div>
+        <div class="ledger-kpi-grid">{kpi_html}</div>
+      </div>
+    </body></html>
+    """
+    components.html(html, height=245, scrolling=False)
+
+
+def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False) -> None:
+    """The tab-grid breakdowns panel + Action Items — everything that
+    used to sit below "MONTHLY BREAKDOWN". No title of its own now; the
+    native "BREAKDOWNS" row rendered just above this (in app.py) takes
+    that place, matching the original layout position exactly.
+    """
+    summary, career_months, calendar_months, eras, l10wk, top_days, top_clients = _compute_summary_and_months(
+        timeline, gross_view
     )
 
     career_cards = _build_month_cards(career_months, gross_view)
@@ -429,11 +456,6 @@ def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     <html><head><meta name="viewport" content="width=device-width, initial-scale=1.0">
     {LEDGER_CSS}
     </head><body>
-      <div class="ledger-panel">
-        <div class="ledger-title" style="margin-bottom:14px">FINANCIAL CLOSEOUT</div>
-        <div class="ledger-kpi-grid">{kpi_html}</div>
-      </div>
-
       <div class="ledger-panel">
         <div class="month-view-tabs">
           <div class="month-view-tab is-active" data-view="career">CAREER</div>
@@ -474,8 +496,17 @@ def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     """
 
     height = (
-        320 + 240
+        220
         + max(len(career_months), len(calendar_months), len(eras), len(l10wk), len(top_days), len(top_clients)) * 190
         + len(ACTION_ITEMS) * 175
     )
     components.html(html, height=height, scrolling=False)
+
+
+def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
+    """Convenience wrapper — the two panels back-to-back with no native
+    row between them. app.py calls the two pieces separately instead, so
+    it can inject the native BREAKDOWNS title+toggle row between them.
+    """
+    render_ledger_summary(timeline, gross_view)
+    render_ledger_breakdowns(timeline, gross_view)

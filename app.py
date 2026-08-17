@@ -8,7 +8,7 @@ from components.ui import render_dashboard
 from components.journey import render_barrister_journey
 from components.add_event import render_add_event
 from components.client_hub import render_client_standings
-from components.ledger import render_ledger
+from components.ledger import render_ledger_summary, render_ledger_breakdowns
 from services.data_source import load_snapshot
 from services.metrics import build_executive_metrics
 
@@ -109,9 +109,16 @@ def main() -> None:
     elif view == "clienthub":
         render_client_standings(metrics, snapshot.sheets["Timeline"], gross_view)
     elif view == "ledger":
+        render_ledger_summary(snapshot.sheets["Timeline"], gross_view)
+        # Native title+toggle row, placed here deliberately — this is
+        # the exact spot the old embedded "MONTHLY BREAKDOWN" title sat,
+        # between the Financial Closeout panel above and the tab-grid
+        # panel below. It has to be a real Streamlit row (not part of
+        # the iframe above or below) so the toggle button stays clickable.
         st.markdown(
             "<style>.ledger-breakdowns-title { font-size: 16px; font-weight: 900; "
-            "letter-spacing: .5px; color: #fff; text-transform: uppercase; margin-top: 8px; }</style>",
+            "letter-spacing: .5px; color: #fff; text-transform: uppercase; margin: 4px 0 2px; }"
+            "div.st-key-gross_toggle_btn_ledger button { position: relative; top: -2px; }</style>",
             unsafe_allow_html=True,
         )
         title_col, toggle_col = st.columns([5, 1])
@@ -125,7 +132,7 @@ def main() -> None:
             ):
                 st.session_state["gross_annual_view"] = not gross_view
                 st.rerun()
-        render_ledger(snapshot.sheets["Timeline"], gross_view)
+        render_ledger_breakdowns(snapshot.sheets["Timeline"], gross_view)
     else:
         render_dashboard(metrics, snapshot.sheets["Timeline"], gross_view)
         # Hero card's "UPCOMING" KPI clicks this via JS (window.parent lookup by
