@@ -1200,18 +1200,24 @@ body,
   letter-spacing: 2.5px;
   color: #e0fbff;
   text-transform: uppercase;
-  text-decoration: none;
+  text-decoration: none !important;
+  border-bottom: none !important;
+  outline: none !important;
   cursor: pointer;
   text-shadow:
     0 0 4px rgba(103, 232, 249, 0.9),
     0 0 12px rgba(34, 211, 238, 0.7),
     0 0 24px rgba(34, 211, 238, 0.4);
 }
+.app-header-word:link,
 .app-header-word:visited,
 .app-header-word:hover,
-.app-header-word:active {
-  color: #e0fbff;
-  text-decoration: none;
+.app-header-word:active,
+.app-header-word:focus {
+  color: #e0fbff !important;
+  text-decoration: none !important;
+  border-bottom: none !important;
+  outline: none !important;
 }
 div[data-testid="stButton"] button {
   border-radius: 20px !important;

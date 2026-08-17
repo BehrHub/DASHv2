@@ -22,8 +22,8 @@ def _month_index(date: pd.Timestamp, career_start: pd.Timestamp) -> int:
     return months_diff
 
 
-def _compute_l5wk(dated: pd.DataFrame) -> list[dict]:
-    """Last 5 weeks (4 prior + current), using the same career-relative
+def _compute_l10wk(dated: pd.DataFrame) -> list[dict]:
+    """Last 10 weeks (9 prior + current), using the same career-relative
     week numbering as the Performance Trends chart (W1 = first ISO week
     with data), so W-labels match exactly across the app.
     """
@@ -45,7 +45,7 @@ def _compute_l5wk(dated: pd.DataFrame) -> list[dict]:
     iso = dated["__date"].dt.isocalendar()
     week_index = iso["year"] * 52 + iso["week"]
 
-    for offset in range(4, -1, -1):
+    for offset in range(9, -1, -1):
         week_start = this_monday - pd.Timedelta(weeks=offset)
         week_end = week_start + pd.Timedelta(days=6)
         wk_iso = week_start.isocalendar()
@@ -69,9 +69,65 @@ def _compute_l5wk(dated: pd.DataFrame) -> list[dict]:
     return weeks
 
 
+def _compute_top_days(dated: pd.DataFrame, limit: int = 10) -> list[dict]:
+    """Top N calendar days ranked by confirmed revenue earned that day
+    (not per event) — reuses the same DAYS-tab card shape regardless of
+    how many distinct clients/events contributed to that day's total.
+    """
+    if dated.empty:
+        return []
+
+    confirmed = dated[dated["Verified?"] == "Yes"].copy()
+    if confirmed.empty:
+        return []
+
+    confirmed["__day"] = confirmed["__date"].dt.normalize()
+    grouped = confirmed.groupby("__day").agg(
+        revenue=("__amount", "sum"),
+        events=("__amount", "size"),
+    ).reset_index()
+    grouped = grouped[grouped["revenue"] > 0]
+    grouped = grouped.sort_values("revenue", ascending=False).head(limit)
+
+    days = []
+    for rank, row in enumerate(grouped.to_dict("records"), start=1):
+        day = row["__day"]
+        days.append({
+            "rank": rank,
+            "label": day.strftime("%b %d, %Y").upper(),
+            "weekday": day.strftime("%A"),
+            "events": int(row["events"]),
+            "revenue": float(row["revenue"]),
+        })
+    return days
+
+
+def _compute_top_clients(dated: pd.DataFrame, limit: int = 10) -> list[dict]:
+    """Top N clients ranked by career-to-date confirmed revenue."""
+    if dated.empty:
+        return []
+
+    grouped = dated.groupby("Client")
+    rows = []
+    for client, group in grouped:
+        confirmed = group[group["Verified?"] == "Yes"]
+        revenue = float(confirmed["__amount"].sum())
+        if revenue <= 0:
+            continue
+        events = len(group)
+        confirmed_count = len(confirmed)
+        avg = revenue / confirmed_count if confirmed_count else 0.0
+        rows.append({"client": str(client), "revenue": revenue, "events": events, "avg": avg})
+
+    rows.sort(key=lambda r: r["revenue"], reverse=True)
+    for rank, r in enumerate(rows[:limit], start=1):
+        r["rank"] = rank
+    return rows[:limit]
+
+
 def _compute_summary_and_months(
     timeline: pd.DataFrame, gross_view: bool = False
-) -> tuple[list[tuple[str, str]], list[dict], list[dict], list[dict], list[dict]]:
+) -> tuple[list[tuple[str, str]], list[dict], list[dict], list[dict], list[dict], list[dict], list[dict]]:
     working = timeline.copy()
     working["__date"] = pd.to_datetime(working["Service Date"], errors="coerce")
     working["__amount"] = pd.to_numeric(working["Amount"], errors="coerce").fillna(0)
@@ -108,9 +164,11 @@ def _compute_summary_and_months(
     calendar_months = _compute_calendar_months(dated)
     eras = _compute_eras(dated)
 
-    l5wk = _compute_l5wk(dated)
+    l10wk = _compute_l10wk(dated)
+    top_days = _compute_top_days(dated)
+    top_clients = _compute_top_clients(dated)
 
-    return summary, career_months, calendar_months, eras, l5wk
+    return summary, career_months, calendar_months, eras, l10wk, top_days, top_clients
 
 
 def _compute_career_months(dated: pd.DataFrame) -> list[dict]:
@@ -244,7 +302,7 @@ body{color:#fff}
 .month-card { background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.01)); border: 1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
 .month-card:last-child { margin-bottom: 0; }
 .ledger-title-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 2px; }
-.month-view-tabs { display: flex; gap: 6px; flex-shrink: 0; }
+.month-view-tabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .month-view-tab { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 5px 12px; font-size: 10px; font-weight: 800; letter-spacing: .5px; color: #c5d0e0; cursor: pointer; }
 .month-view-tab.is-active { background: rgba(244,114,182,.1); border-color: #f472b6; color: #f9a8d4; box-shadow: 0 0 10px rgba(244,114,182,.25); }
 .month-view { display: none; margin-top: 12px; }
@@ -307,8 +365,39 @@ def _build_month_cards(months: list[dict], gross_view: bool = False) -> str:
     )
 
 
+def _build_day_cards(days: list[dict]) -> str:
+    return "".join(
+        '<div class="month-card">'
+        '<div class="month-card-head">'
+        f'<div class="month-card-name">#{d["rank"]} \u00b7 {escape(d["label"])}</div>'
+        f'<div class="month-card-range">{escape(d["weekday"].upper())} \u00b7 {d["events"]} EVENTS</div>'
+        '</div>'
+        '<div class="month-revenue-row">'
+        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(d["revenue"]))}</div><div class="month-revenue-lbl">TOTAL REVENUE</div></div>'
+        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(gross_up(d["revenue"])))}</div><div class="month-revenue-lbl">GROSS REVENUE</div></div>'
+        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(annualize_gross(d["revenue"], DAYS_PER_YEAR)))}</div><div class="month-revenue-lbl">ANNUALIZED</div></div>'
+        '</div></div>'
+        for d in days
+    )
+
+
+def _build_client_cards(clients: list[dict], gross_view: bool = False) -> str:
+    return "".join(
+        '<div class="month-card">'
+        '<div class="month-card-head">'
+        f'<div class="month-card-name">#{c["rank"]} \u00b7 {escape(c["client"].upper())}</div>'
+        '</div>'
+        '<div class="month-revenue-row">'
+        f'<div class="month-revenue-item"><div class="month-revenue-val">{c["events"]}</div><div class="month-revenue-lbl">EVENTS</div></div>'
+        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(gross_up(c["revenue"]) if gross_view else c["revenue"]))}</div><div class="month-revenue-lbl">TOTAL REVENUE</div></div>'
+        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(gross_up(c["avg"]) if gross_view else c["avg"]))}</div><div class="month-revenue-lbl">AVG / EVENT</div></div>'
+        '</div></div>'
+        for c in clients
+    )
+
+
 def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
-    summary, career_months, calendar_months, eras, l5wk = _compute_summary_and_months(timeline, gross_view)
+    summary, career_months, calendar_months, eras, l10wk, top_days, top_clients = _compute_summary_and_months(timeline, gross_view)
 
     kpi_html = "".join(
         f'<div class="ledger-kpi"><div class="ledger-kpi-val">{escape(val)}</div>'
@@ -319,7 +408,9 @@ def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     career_cards = _build_month_cards(career_months, gross_view)
     calendar_cards = _build_month_cards(calendar_months, gross_view)
     era_cards = _build_month_cards(eras, gross_view)
-    l5wk_cards = _build_month_cards(l5wk, gross_view)
+    l10wk_cards = _build_month_cards(l10wk, gross_view)
+    day_cards = _build_day_cards(top_days)
+    client_cards = _build_client_cards(top_clients, gross_view)
 
     action_html = "".join(
         f'<div class="action-item flag-{item["flag"]}">'
@@ -350,14 +441,18 @@ def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
           <div class="month-view-tabs">
             <div class="month-view-tab is-active" data-view="career">CAREER</div>
             <div class="month-view-tab" data-view="calendar">CALENDAR</div>
-            <div class="month-view-tab" data-view="l5wk">L5WK</div>
+            <div class="month-view-tab" data-view="l10wk">L10WK</div>
             <div class="month-view-tab" data-view="eras">ERAS</div>
+            <div class="month-view-tab" data-view="days">DAYS</div>
+            <div class="month-view-tab" data-view="clients">CLIENTS</div>
           </div>
         </div>
         <div class="month-view is-active" data-view="career">{career_cards}</div>
         <div class="month-view" data-view="calendar">{calendar_cards}</div>
         <div class="month-view" data-view="eras">{era_cards}</div>
-        <div class="month-view" data-view="l5wk">{l5wk_cards}</div>
+        <div class="month-view" data-view="l10wk">{l10wk_cards}</div>
+        <div class="month-view" data-view="days">{day_cards}</div>
+        <div class="month-view" data-view="clients">{client_cards}</div>
       </div>
 
       <div class="ledger-panel">
@@ -382,5 +477,9 @@ def render_ledger(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     </body></html>
     """
 
-    height = 320 + 220 + max(len(career_months), len(calendar_months), len(eras), len(l5wk)) * 190 + len(ACTION_ITEMS) * 175
+    height = (
+        320 + 240
+        + max(len(career_months), len(calendar_months), len(eras), len(l10wk), len(top_days), len(top_clients)) * 190
+        + len(ACTION_ITEMS) * 175
+    )
     components.html(html, height=height, scrolling=False)
