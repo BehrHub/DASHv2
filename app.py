@@ -92,8 +92,17 @@ def main() -> None:
     render_header(view, show_money_toggle)
     if show_money_toggle:
         st.markdown(
-            "<style>div.st-key-gross_toggle_btn button "
-            "{ position: relative; left: 13px; top: 6px; }</style>",
+            "<style>"
+            "div.st-key-gross_toggle_btn button { position: relative; left: -2px; top: 6px; }"
+            # Glow only appears when the toggle is actually ON (Streamlit
+            # marks the active button variant with this data attribute),
+            # so it doubles as the on/off indicator this button needs —
+            # placed on the button itself so it wraps the emoji glyph
+            # directly rather than a container that no longer exists.
+            "div.st-key-gross_toggle_btn button[data-testid='stBaseButton-primary'] "
+            "{ text-shadow: 0 0 8px rgba(250,204,21,.9), 0 0 16px rgba(250,204,21,.6), "
+            "0 0 28px rgba(250,204,21,.35); }"
+            "</style>",
             unsafe_allow_html=True,
         )
     gross_view = bool(st.session_state.get("gross_annual_view", False))
@@ -120,7 +129,7 @@ def main() -> None:
             "<style>"
             ".ledger-breakdowns-title { font-family: 'Merriweather', Georgia, serif; "
             "font-size: clamp(1.6rem, 3.3vw, 2.6rem); font-weight: 850; line-height: .94; "
-            "letter-spacing: -.028em; color: #fff; margin: 6px 0 4px; }"
+            "letter-spacing: -.028em; color: #fff; margin: 6px 0 0 -4px; }"
             # Pulls this row up against the panel above, closing the gap
             # created by that panel's own trailing margin plus Streamlit's
             # normal spacing between elements.
@@ -139,6 +148,11 @@ def main() -> None:
             "div.st-key-gross_toggle_btn_ledger button { background: transparent !important; "
             "border: none !important; box-shadow: none !important; padding: 2px 0px 2px 2px !important; "
             "margin: 8px 0 0 !important; font-size: 22px !important; min-height: unset !important; }"
+            # Same on/off glow as the header instance — text-shadow around
+            # the emoji itself, since there's no container left to glow.
+            "div.st-key-gross_toggle_btn_ledger button[data-testid='stBaseButton-primary'] "
+            "{ text-shadow: 0 0 8px rgba(250,204,21,.9), 0 0 16px rgba(250,204,21,.6), "
+            "0 0 28px rgba(250,204,21,.35); }"
             "</style>",
             unsafe_allow_html=True,
         )

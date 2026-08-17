@@ -77,7 +77,7 @@ def _next_event_id(timeline: pd.DataFrame, pipeline: pd.DataFrame) -> str:
 
 FORM_CSS = """
 <style>
-* { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important; }
+*:not(.app-header-word) { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important; }
 .event-page-wrap { max-width: 620px; margin: 0 auto; }
 .event-page-title { font-size: 15px; font-weight: 900; letter-spacing: 1px; color: #fff; text-transform: uppercase; margin: 4px 0 12px; }
 .event-preview, .upcoming-panel, .modify-panel {
