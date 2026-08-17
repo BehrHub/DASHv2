@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&display=swap');
+
 :root {
   color-scheme: dark;
 
@@ -1190,24 +1192,26 @@ body,
    nav (not <a> links) so page changes go through Streamlit's own
    server-side rerun instead of a browser link click. */
 .app-header-word-row {
-  margin-bottom: 2px;
+  margin-top: 8px;
+  margin-bottom: 10px;
 }
 .app-header-word {
   position: relative;
   display: inline-block;
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 2.5px;
+  font-family: "Merriweather", Georgia, serif;
+  font-size: clamp(2.45rem, 5vw, 3.95rem);
+  font-weight: 850;
+  line-height: .94;
+  letter-spacing: -.028em;
   color: #e0fbff;
-  text-transform: uppercase;
   text-decoration: none !important;
   border-bottom: none !important;
   outline: none !important;
   cursor: pointer;
   text-shadow:
-    0 0 4px rgba(103, 232, 249, 0.9),
-    0 0 12px rgba(34, 211, 238, 0.7),
-    0 0 24px rgba(34, 211, 238, 0.4);
+    0 0 9px rgba(103, 232, 249, 0.4),
+    0 0 18px rgba(34, 211, 238, 0.28),
+    0 14px 28px rgba(0, 0, 0, 0.35);
 }
 .app-header-word:link,
 .app-header-word:visited,

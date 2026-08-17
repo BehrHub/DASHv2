@@ -124,18 +124,24 @@ def main() -> None:
             # created by that panel's own trailing margin plus Streamlit's
             # normal spacing between elements.
             "div[data-testid='stHorizontalBlock']:has(div.st-key-gross_toggle_btn_ledger) "
-            "{ margin-top: -14px !important; }"
-            # Strip the big pill/oval button chrome — just the emoji,
-            # tight and unobtrusive, right-aligned within its column.
-            "div.st-key-gross_toggle_btn_ledger button { background: transparent !important; "
-            "border: none !important; box-shadow: none !important; padding: 2px 2px !important; "
-            "font-size: 22px !important; min-height: unset !important; }"
+            "{ margin-top: -14px !important; gap: 0 !important; }"
+            # Column itself gets zero right padding so its content can
+            # actually reach the true right edge of the page's content
+            # column — the same right edge the BREAKDOWNS panel's outer
+            # border sits on below, since both the native row and the
+            # iframe panel share that same column width.
             "div[data-testid='stColumn']:has(div.st-key-gross_toggle_btn_ledger) "
-            "{ display: flex !important; justify-content: flex-end !important; }"
+            "{ display: flex !important; justify-content: flex-end !important; padding-right: 0 !important; }"
+            # Strip the big pill/oval button chrome — just the emoji,
+            # tight and unobtrusive, nudged down ~8px to level with the
+            # title text's own top margin, flush against the right edge.
+            "div.st-key-gross_toggle_btn_ledger button { background: transparent !important; "
+            "border: none !important; box-shadow: none !important; padding: 2px 0px 2px 2px !important; "
+            "margin: 8px 0 0 !important; font-size: 22px !important; min-height: unset !important; }"
             "</style>",
             unsafe_allow_html=True,
         )
-        title_col, toggle_col = st.columns([6, 1])
+        title_col, toggle_col = st.columns([10, 1])
         with title_col:
             st.markdown('<div class="ledger-breakdowns-title">BREAKDOWNS</div>', unsafe_allow_html=True)
         with toggle_col:
