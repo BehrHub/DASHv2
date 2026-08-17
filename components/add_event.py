@@ -110,16 +110,7 @@ div[data-testid="stButton"] button[kind="secondary"] { padding: 4px 0 !important
     border-radius: 14px; padding: 12px 14px 14px; margin: -2px 0 10px;
 }
 .complete-preview { color: #6ee7b7; font-weight: 900; font-size: 15px; text-align: center; margin: 2px 0 10px; }
-.download-panel {
-    background: radial-gradient(circle at 100% -10%, rgba(52,211,153,.1), transparent 42%), rgba(23,27,40,.55);
-    border: 1px solid rgba(52,211,153,.32);
-    border-radius: 20px;
-    padding: 18px 20px;
-    margin-top: 4px;
-    box-shadow: 0 15px 35px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.1);
-}
-.download-title { font-size: 16px; font-weight: 900; letter-spacing: .5px; color: #fff; text-transform: uppercase; margin-bottom: 4px; }
-.download-sub { font-size: 12px; color: #b8c4d9; margin-bottom: 14px; }
+.download-title { font-size: 16px; font-weight: 900; letter-spacing: .5px; color: #fff; text-transform: uppercase; margin: 4px 0 10px; }
 div[data-testid="stDownloadButton"] button {
     width: 100%; background: linear-gradient(135deg, rgba(52,211,153,.18), rgba(52,211,153,.06));
     border: 1px solid rgba(52,211,153,.5); border-radius: 12px; color: #6ee7b7;
@@ -501,13 +492,7 @@ def _build_master_workbook(
 def _render_download(
     timeline: pd.DataFrame, pipeline: pd.DataFrame, state_coverage: pd.DataFrame | None
 ) -> None:
-    st.markdown('<div class="download-panel">', unsafe_allow_html=True)
     st.markdown('<div class="download-title">Download Master Workbook</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="download-sub">Exports the current live Timeline, Pipeline, '
-        'and State Coverage as a real .xlsx file.</div>',
-        unsafe_allow_html=True,
-    )
     workbook_bytes = _build_master_workbook(timeline, pipeline, state_coverage)
     file_name = f"Barrister_Master_{date.today().isoformat()}.xlsx"
     st.download_button(
@@ -517,7 +502,6 @@ def _render_download(
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         width="stretch",
     )
-    st.markdown('</div>', unsafe_allow_html=True)
 
 
 def render_add_event(

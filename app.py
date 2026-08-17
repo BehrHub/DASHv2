@@ -118,8 +118,9 @@ def main() -> None:
         # snapshot, nothing inside it can trigger a Python rerun.
         st.markdown(
             "<style>"
-            ".ledger-breakdowns-title { font-size: 16px; font-weight: 900; "
-            "letter-spacing: .5px; color: #fff; text-transform: uppercase; margin: 6px 0 4px; }"
+            ".ledger-breakdowns-title { font-family: 'Merriweather', Georgia, serif; "
+            "font-size: clamp(1.6rem, 3.3vw, 2.6rem); font-weight: 850; line-height: .94; "
+            "letter-spacing: -.028em; color: #fff; margin: 6px 0 4px; }"
             # Pulls this row up against the panel above, closing the gap
             # created by that panel's own trailing margin plus Streamlit's
             # normal spacing between elements.

@@ -460,7 +460,7 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False) -
         <div class="month-view-tabs">
           <div class="month-view-tab is-active" data-view="career">CAREER</div>
           <div class="month-view-tab" data-view="eras">ERAS</div>
-          <div class="month-view-tab" data-view="calendar">CAL MONTH</div>
+          <div class="month-view-tab" data-view="calendar">CALENDAR</div>
           <div class="month-view-tab" data-view="l10wk">L10WK</div>
           <div class="month-view-tab" data-view="days">DAYS</div>
           <div class="month-view-tab" data-view="clients">CLIENTS</div>
