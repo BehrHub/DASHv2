@@ -110,18 +110,32 @@ def main() -> None:
         render_client_standings(metrics, snapshot.sheets["Timeline"], gross_view)
     elif view == "ledger":
         render_ledger_summary(snapshot.sheets["Timeline"], gross_view)
-        # Native title+toggle row, placed here deliberately — this is
-        # the exact spot the old embedded "MONTHLY BREAKDOWN" title sat,
-        # between the Financial Closeout panel above and the tab-grid
-        # panel below. It has to be a real Streamlit row (not part of
-        # the iframe above or below) so the toggle button stays clickable.
+        # Native title+toggle row — this is the exact spot the old
+        # embedded "MONTHLY BREAKDOWN" title sat, between the Financial
+        # Closeout panel above and the tab-grid panel below. Has to be a
+        # real Streamlit row (not part of either iframe) so the toggle
+        # button stays clickable — components.html output is a static
+        # snapshot, nothing inside it can trigger a Python rerun.
         st.markdown(
-            "<style>.ledger-breakdowns-title { font-size: 16px; font-weight: 900; "
-            "letter-spacing: .5px; color: #fff; text-transform: uppercase; margin: 4px 0 2px; }"
-            "div.st-key-gross_toggle_btn_ledger button { position: relative; top: -2px; }</style>",
+            "<style>"
+            ".ledger-breakdowns-title { font-size: 16px; font-weight: 900; "
+            "letter-spacing: .5px; color: #fff; text-transform: uppercase; margin: 6px 0 4px; }"
+            # Pulls this row up against the panel above, closing the gap
+            # created by that panel's own trailing margin plus Streamlit's
+            # normal spacing between elements.
+            "div[data-testid='stHorizontalBlock']:has(div.st-key-gross_toggle_btn_ledger) "
+            "{ margin-top: -14px !important; }"
+            # Strip the big pill/oval button chrome — just the emoji,
+            # tight and unobtrusive, right-aligned within its column.
+            "div.st-key-gross_toggle_btn_ledger button { background: transparent !important; "
+            "border: none !important; box-shadow: none !important; padding: 2px 2px !important; "
+            "font-size: 22px !important; min-height: unset !important; }"
+            "div[data-testid='stColumn']:has(div.st-key-gross_toggle_btn_ledger) "
+            "{ display: flex !important; justify-content: flex-end !important; }"
+            "</style>",
             unsafe_allow_html=True,
         )
-        title_col, toggle_col = st.columns([5, 1])
+        title_col, toggle_col = st.columns([6, 1])
         with title_col:
             st.markdown('<div class="ledger-breakdowns-title">BREAKDOWNS</div>', unsafe_allow_html=True)
         with toggle_col:

@@ -418,7 +418,7 @@ def render_ledger_summary(timeline: pd.DataFrame, gross_view: bool = False) -> N
       </div>
     </body></html>
     """
-    components.html(html, height=245, scrolling=False)
+    components.html(html, height=225, scrolling=False)
 
 
 def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False) -> None:
