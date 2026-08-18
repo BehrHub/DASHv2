@@ -1391,20 +1391,27 @@ div.st-key-gross_toggle_btn {
   height: 100%;
 }
 
-/* Toggle-click flourish: a truck emoji rides in on a ::before
-   pseudo-element, then a brief brightness flash lands as it arrives.
-   Keyframes only — the actual selectors targeting a specific button's
-   .st-key-* class are built dynamically per-render in app.py, since
-   which exact key is "live" for the animation changes on the one
-   render right after a click. */
+/* Toggle-click flourish: a truck rides in on a ::before pseudo-element,
+   then a brief brightness flash lands as it arrives. Keyframes only —
+   the actual selectors targeting a specific button's .st-key-* class
+   (and the icon-swap timing) are built dynamically per-render in
+   app.py, since which exact key is "live" changes on the one render
+   right after a click.
+
+   Now travels the full width of the row — starting near the title text
+   on the left (BARRISTER on the header, BREAKDOWNS on Ledger) rather
+   than just off the button's own edge — for a longer, more visible
+   runway. scaleX(-1) mirrors the truck image so it visually faces the
+   direction of travel (left-to-right) instead of the artwork's
+   original right-to-left facing. */
 @keyframes barrister-truck-approach {
-  0%   { transform: translateY(-50%) translateX(58px); opacity: 1; }
-  82%  { transform: translateY(-50%) translateX(0); opacity: 1; }
-  100% { transform: translateY(-50%) translateX(0); opacity: 0; }
+  0%   { transform: translateY(-50%) translateX(-320px) scaleX(-1); opacity: 1; }
+  82%  { transform: translateY(-50%) translateX(0) scaleX(-1); opacity: 1; }
+  100% { transform: translateY(-50%) translateX(0) scaleX(-1); opacity: 0; }
 }
 @keyframes barrister-toggle-flash {
   0%   { filter: brightness(1); }
-  15%  { filter: brightness(2.4); }
+  15%  { filter: brightness(2.8); }
   100% { filter: brightness(1); }
 }
 

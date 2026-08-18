@@ -31,7 +31,7 @@ def _icon_data_uri(filename: str) -> str:
     return f"data:image/png;base64,{base64.b64encode(data).decode('ascii')}"
 
 
-def _toggle_button_css(key: str, play_anim: bool, position_css: str = "") -> str:
+def _toggle_button_css(key: str, play_anim: bool, position_css: str = "", off_font_size: str = "16px") -> str:
     """Builds the CSS for one gross/net toggle button instance, keyed to
     whichever widget `key` is actually live this render. On the single
     render right after a click, `key` is the "_anim" variant and this
@@ -56,25 +56,53 @@ def _toggle_button_css(key: str, play_anim: bool, position_css: str = "") -> str
     icon (background-image, since the text itself is hidden via
     font-size:0 — text-shadow has no effect on a background-image, so
     the on-state glow uses filter:drop-shadow instead).
+
+    During the animated (post-click) render, the icon-swap itself is
+    DELAYED to land at the same instant the truck arrives (2s) rather
+    than switching instantly on click — a steps(1,end) keyframe holds
+    the plain "before" look for the truck's whole flight, then jumps to
+    the money-bags look + flash together at the very end. Previously
+    the swap was instant (tied only to the primary-state selector),
+    so the button had already become its "destination" look before the
+    truck ever visually arrived — backwards from the intended sequence.
     """
     moneybags_uri = _icon_data_uri("toggle-moneybags.png")
+    glow = (
+        "filter: drop-shadow(0 0 10px rgba(250,204,21,.95)) "
+        "drop-shadow(0 0 22px rgba(250,204,21,.7)) drop-shadow(0 0 38px rgba(250,204,21,.4));"
+    )
     css = (
         f"div.st-key-{key} button {{ position: relative; overflow: visible !important; "
         "background: transparent !important; border: none !important; box-shadow: none !important; "
         "border-radius: 8px !important; width: 26px !important; height: 26px !important; "
         "padding: 0 !important; min-width: 0 !important; line-height: 1 !important; "
         f"{position_css} }}"
+        # No !important on font-size/background-image/filter here — CSS
+        # animations rank BELOW "important author" rules in the cascade,
+        # so an !important here would silently defeat the delayed-reveal
+        # animation below (it would never be able to override this rule
+        # during the animated render's first 2s). The specificity of
+        # this selector (class + attribute) is already enough to beat
+        # Streamlit's own base button styling without needing !important.
         f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ "
-        "font-size: 0 !important; "
-        f"background-image: url({moneybags_uri}) !important; "
-        "background-size: contain !important; background-repeat: no-repeat !important; "
-        "background-position: center !important; "
-        "filter: drop-shadow(0 0 6px rgba(250,204,21,.85)) drop-shadow(0 0 12px rgba(250,204,21,.5)); }"
+        "font-size: 0; "
+        f"background-image: url({moneybags_uri}); "
+        "background-size: contain; background-repeat: no-repeat; "
+        "background-position: center; "
+        f"{glow} }}"
     )
     if play_anim:
         truck_uri = _icon_data_uri("toggle-truck.png")
+        reveal_name = f"barrister-icon-reveal-{key}"
         css += (
-            f"div.st-key-{key} button {{ animation: barrister-toggle-flash .5s ease-out 2s 1; }}"
+            f"@keyframes {reveal_name} {{ "
+            f"0%, 99% {{ font-size: {off_font_size}; background-image: none; filter: none; }} "
+            f"100% {{ font-size: 0; background-image: url({moneybags_uri}); "
+            "background-size: contain; background-repeat: no-repeat; background-position: center; "
+            f"{glow} }} }}"
+            f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ "
+            f"animation: {reveal_name} 2s steps(1, end) forwards, "
+            "barrister-toggle-flash .5s ease-out 2s 1; }"
             f"div.st-key-{key} button::before {{ content: ''; position: absolute; right: -2px; "
             "top: 50%; width: 20px; height: 20px; pointer-events: none; "
             f"background-image: url({truck_uri}); background-size: contain; background-repeat: no-repeat; "
@@ -207,7 +235,7 @@ def main() -> None:
             # bigger/borderless sizing wins over the header's default
             # small-square sizing (same selector + !important on both,
             # so source order decides the winner).
-            + _toggle_button_css(ledger_toggle_key, ledger_toggle_anim)
+            + _toggle_button_css(ledger_toggle_key, ledger_toggle_anim, off_font_size="22px")
             + f"div.st-key-{ledger_toggle_key} button {{ width: auto !important; height: auto !important; "
             "border-radius: 0 !important; padding: 2px 0px 2px 2px !important; "
             "margin: 8px 0 0 !important; font-size: 22px !important; min-height: unset !important; }"
