@@ -155,7 +155,7 @@ def _render_upcoming(pipeline: pd.DataFrame) -> None:
 
     working = pipeline.copy()
     working["__date"] = pd.to_datetime(working["Date / Timing"], errors="coerce")
-    working = working.sort_values("__date")
+    working = working.sort_values(["__date", "Event ID"], kind="stable")
     today = eastern_today_naive()
     tomorrow = today + pd.Timedelta(days=1)
 

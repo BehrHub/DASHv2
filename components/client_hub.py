@@ -40,7 +40,7 @@ def _client_details(timeline: pd.DataFrame) -> dict[str, dict]:
     working = timeline.copy()
     working["__date"] = pd.to_datetime(working["Service Date"], errors="coerce")
     working["__amount"] = pd.to_numeric(working["Amount"], errors="coerce").fillna(0)
-    chronological = working.sort_values("__date").reset_index(drop=True)
+    chronological = working.sort_values(["__date", "Event ID"], kind="stable").reset_index(drop=True)
     chronological["__visit_num"] = range(1, len(chronological) + 1)
 
     details: dict[str, dict] = {}
@@ -53,7 +53,7 @@ def _client_details(timeline: pd.DataFrame) -> dict[str, dict]:
         dated = group.dropna(subset=["__date"])
 
         visit_rows = []
-        for _, row in group.sort_values("__date").iterrows():
+        for _, row in group.sort_values(["__date", "Event ID"], kind="stable").iterrows():
             date_val = row["__date"]
             date_label = date_val.strftime("%b %d, %Y") if pd.notna(date_val) else "\u2014"
             loc = str(row.get("Location Detail") or row.get("State/Region") or "\u2014")

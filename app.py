@@ -31,7 +31,13 @@ def _icon_data_uri(filename: str) -> str:
     return f"data:image/png;base64,{base64.b64encode(data).decode('ascii')}"
 
 
-def _toggle_button_css(key: str, play_anim: bool, position_css: str = "", off_font_size: str = "16px") -> str:
+def _toggle_button_css(
+    key: str,
+    play_anim: bool,
+    position_css: str = "",
+    off_font_size: str = "30px",
+    box_size: str = "44px",
+) -> str:
     """Builds the CSS for one gross/net toggle button instance, keyed to
     whichever widget `key` is actually live this render. On the single
     render right after a click, `key` is the "_anim" variant and this
@@ -44,6 +50,10 @@ def _toggle_button_css(key: str, play_anim: bool, position_css: str = "", off_fo
     header instance still showed Streamlit's own type="primary" vs
     type="secondary" default styling underneath, which looked like 3-4
     different inconsistent "stages" rather than a clean on/off toggle.
+
+    Sized up substantially from the original 26px box — next to
+    BARRISTER's now much larger Merriweather wordmark, the small version
+    was reading as basically invisible.
 
     `overflow: visible` is required here — the global
     `div[data-testid="stButton"] button { overflow: hidden !important; }`
@@ -61,21 +71,19 @@ def _toggle_button_css(key: str, play_anim: bool, position_css: str = "", off_fo
     DELAYED to land at the same instant the truck arrives (2s) rather
     than switching instantly on click — a steps(1,end) keyframe holds
     the plain "before" look for the truck's whole flight, then jumps to
-    the money-bags look + flash together at the very end. Previously
-    the swap was instant (tied only to the primary-state selector),
-    so the button had already become its "destination" look before the
-    truck ever visually arrived — backwards from the intended sequence.
+    the money-bags look + flash together at the very end.
     """
     moneybags_uri = _icon_data_uri("toggle-moneybags.png")
     glow = (
-        "filter: drop-shadow(0 0 10px rgba(250,204,21,.95)) "
-        "drop-shadow(0 0 22px rgba(250,204,21,.7)) drop-shadow(0 0 38px rgba(250,204,21,.4));"
+        "filter: drop-shadow(0 0 14px rgba(250,204,21,.95)) "
+        "drop-shadow(0 0 28px rgba(250,204,21,.7)) drop-shadow(0 0 46px rgba(250,204,21,.4));"
     )
     css = (
         f"div.st-key-{key} button {{ position: relative; overflow: visible !important; "
         "background: transparent !important; border: none !important; box-shadow: none !important; "
-        "border-radius: 8px !important; width: 26px !important; height: 26px !important; "
-        "padding: 0 !important; min-width: 0 !important; line-height: 1 !important; "
+        f"border-radius: 10px !important; width: {box_size} !important; height: {box_size} !important; "
+        f"padding: 0 !important; min-width: 0 !important; line-height: 1 !important; "
+        f"font-size: {off_font_size} !important; "
         f"{position_css} }}"
         # No !important on font-size/background-image/filter here — CSS
         # animations rank BELOW "important author" rules in the cascade,
@@ -104,7 +112,7 @@ def _toggle_button_css(key: str, play_anim: bool, position_css: str = "", off_fo
             f"animation: {reveal_name} 2s steps(1, end) forwards, "
             "barrister-toggle-flash .5s ease-out 2s 1; }"
             f"div.st-key-{key} button::before {{ content: ''; position: absolute; right: -2px; "
-            "top: 50%; width: 20px; height: 20px; pointer-events: none; "
+            "top: 50%; width: 34px; height: 34px; pointer-events: none; "
             f"background-image: url({truck_uri}); background-size: contain; background-repeat: no-repeat; "
             "animation: barrister-truck-approach 2s ease-in forwards; }"
         )
@@ -228,22 +236,14 @@ def main() -> None:
             # iframe panel share that same column width.
             f"div[data-testid='stColumn']:has(div.st-key-{ledger_toggle_key}) "
             "{ display: flex !important; justify-content: flex-end !important; padding-right: 0 !important; }"
-            # Ledger-specific sizing/position tweaks — chrome-stripping,
-            # overflow-visible, and the glow itself are now handled
-            # centrally by _toggle_button_css() for both instances. This
-            # block comes AFTER that shared CSS in the cascade so its
-            # bigger/borderless sizing wins over the header's default
-            # small-square sizing (same selector + !important on both,
-            # so source order decides the winner).
-            + _toggle_button_css(ledger_toggle_key, ledger_toggle_anim, off_font_size="22px")
-            + f"div.st-key-{ledger_toggle_key} button {{ width: auto !important; height: auto !important; "
-            "border-radius: 0 !important; padding: 2px 0px 2px 2px !important; "
-            "margin: 8px 0 0 !important; font-size: 22px !important; min-height: unset !important; }"
-            # ON state has no text (font-size:0 for the image swap), so
-            # the width:auto/height:auto above would leave it nothing to
-            # size against — give it an explicit box just for that state.
-            f"div.st-key-{ledger_toggle_key} button[data-testid='stBaseButton-primary'] "
-            "{ width: 26px !important; height: 26px !important; }"
+            # Ledger-specific position tweak only now — sizing, chrome-
+            # stripping, overflow-visible, and glow are all handled
+            # centrally by _toggle_button_css() for both instances.
+            + _toggle_button_css(
+                ledger_toggle_key, ledger_toggle_anim,
+                position_css="margin: 4px 0 0;",
+                off_font_size="40px", box_size="48px",
+            )
             + "</style>",
             unsafe_allow_html=True,
         )

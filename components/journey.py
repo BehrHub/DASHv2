@@ -229,7 +229,18 @@ def render_barrister_journey(timeline: pd.DataFrame) -> None:
 
     working = timeline.copy()
     working["__date"] = pd.to_datetime(working["Service Date"], errors="coerce")
-    chronological = working.sort_values("__date").reset_index(drop=True)
+    # Same-day events need a deterministic secondary order, or ties fall
+    # back to whatever row position they happen to occupy in the sheet —
+    # which shifts every time an event is deleted and recreated (it
+    # always lands at a new row at the bottom), making the display order
+    # flip around unpredictably on edits that shouldn't have moved
+    # anything. Event ID is stable regardless of physical row position.
+    # Note: the underlying data only has a *date*, not a time-of-day, so
+    # this can't recover true real-world completion order within a
+    # day — it can only make ties resolve the same way every time.
+    chronological = working.sort_values(
+        ["__date", "Event ID"], kind="stable"
+    ).reset_index(drop=True)
 
     completed_visits = len(chronological)
     unique_clients = (
