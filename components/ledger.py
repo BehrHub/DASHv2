@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit.components.v1 as components
 
 from services.money_view import annualize_gross, gross_up, DAYS_PER_YEAR, MONTHS_PER_YEAR
+from services.tz import eastern_today_naive
 
 
 def _money(value: float) -> str:
@@ -35,7 +36,7 @@ def _compute_l10wk(dated: pd.DataFrame) -> list[dict]:
     start_iso = career_start.isocalendar()
     start_index = start_iso.year * 52 + start_iso.week
 
-    today = pd.Timestamp.now().normalize()
+    today = eastern_today_naive()
     # Monday of the current ISO week, walking backward in real calendar
     # time (not reverse-engineering year/week from a combined index,
     # which isn't a safe inversion near year boundaries since ISO years
@@ -227,7 +228,7 @@ def _compute_eras(dated: pd.DataFrame) -> list[dict]:
     ]
 
     for label, start, end in ERA_DEFINITIONS:
-        end_ts = end if end is not None else pd.Timestamp.now().normalize()
+        end_ts = end if end is not None else eastern_today_naive()
         subset = dated[(dated["__date"] >= start) & (dated["__date"] <= end_ts)]
         end_label = end.strftime("%b %d") if end is not None else "Current"
         events = len(subset)

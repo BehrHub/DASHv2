@@ -6,6 +6,7 @@ from typing import Dict, Iterable, List, Tuple
 import pandas as pd
 
 from services.data_source import WorkbookSnapshot
+from services.tz import eastern_today_naive
 
 
 def _normalized(value: object) -> str:
@@ -168,7 +169,7 @@ def _current_business_day_streak(values: pd.Series) -> int:
         .drop_duplicates()
     )
     dates = set(valid.tolist())
-    today = pd.Timestamp.now().normalize()
+    today = eastern_today_naive()
     cursor = today if today.weekday() < 5 else today - pd.offsets.BDay(1)
     streak = 0
     while cursor in dates:
@@ -511,7 +512,7 @@ def build_executive_metrics(
         )
 
     upcoming_items: List[Dict[str, str]] = []
-    today = pd.Timestamp.now().normalize()
+    today = eastern_today_naive()
     tomorrow = today + pd.Timedelta(days=1)
 
     for _, row in scheduled.head(4).iterrows():

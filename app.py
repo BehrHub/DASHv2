@@ -20,22 +20,36 @@ def load_css() -> str:
     return (ROOT / "assets" / "styles.css").read_text(encoding="utf-8")
 
 
-def _toggle_button_css(key: str, play_anim: bool, position_css: str = "", include_box_glow: bool = False) -> str:
+def _toggle_button_css(key: str, play_anim: bool, position_css: str = "") -> str:
     """Builds the CSS for one gross/net toggle button instance, keyed to
     whichever widget `key` is actually live this render. On the single
     render right after a click, `key` is the "_anim" variant and this
     also attaches the truck-approach + arrival-flash animation; every
     other render it's just the steady position + on-state glow.
+
+    Both toggle instances (header + Ledger) are unified to the exact
+    same bare-emoji look here — no pill/oval background in any state.
+    Previously only the Ledger one had its chrome stripped, so the
+    header instance still showed Streamlit's own type="primary" vs
+    type="secondary" default styling underneath, which looked like 3-4
+    different inconsistent "stages" rather than a clean on/off toggle.
+
+    `overflow: visible` is required here — the global
+    `div[data-testid="stButton"] button { overflow: hidden !important; }`
+    rule (needed elsewhere for nav-label text-ellipsis truncation) was
+    clipping the truck the entire time it was positioned outside the
+    button's own box, so it only became visible once it had already
+    slid most of the way in.
     """
-    glow = (
-        "text-shadow: 0 0 8px rgba(250,204,21,.9), 0 0 16px rgba(250,204,21,.6), "
-        "0 0 28px rgba(250,204,21,.35);"
-    )
-    if include_box_glow:
-        glow += " box-shadow: 0 0 12px 2px rgba(255,255,255,.75) !important; border-color: rgba(255,255,255,.9) !important;"
     css = (
-        f"div.st-key-{key} button {{ position: relative; {position_css} }}"
-        f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ {glow} }}"
+        f"div.st-key-{key} button {{ position: relative; overflow: visible !important; "
+        "background: transparent !important; border: none !important; box-shadow: none !important; "
+        "border-radius: 8px !important; width: 26px !important; height: 26px !important; "
+        "padding: 0 !important; min-width: 0 !important; line-height: 1 !important; "
+        f"{position_css} }}"
+        f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ "
+        "text-shadow: 0 0 8px rgba(250,204,21,.9), 0 0 16px rgba(250,204,21,.6), "
+        "0 0 28px rgba(250,204,21,.35); }"
     )
     if play_anim:
         css += (
@@ -122,7 +136,7 @@ def main() -> None:
     render_header(view, show_money_toggle, toggle_key=main_toggle_key)
     if show_money_toggle:
         st.markdown(
-            f"<style>{_toggle_button_css(main_toggle_key, main_toggle_anim, position_css='left: -2px; top: 6px;', include_box_glow=True)}</style>",
+            f"<style>{_toggle_button_css(main_toggle_key, main_toggle_anim, position_css='left: -2px; top: 6px;')}</style>",
             unsafe_allow_html=True,
         )
     gross_view = bool(st.session_state.get("gross_annual_view", False))
@@ -164,13 +178,17 @@ def main() -> None:
             # iframe panel share that same column width.
             f"div[data-testid='stColumn']:has(div.st-key-{ledger_toggle_key}) "
             "{ display: flex !important; justify-content: flex-end !important; padding-right: 0 !important; }"
-            # Strip the big pill/oval button chrome — just the emoji,
-            # tight and unobtrusive, nudged down ~8px to level with the
-            # title text's own top margin, flush against the right edge.
-            f"div.st-key-{ledger_toggle_key} button {{ background: transparent !important; "
-            "border: none !important; box-shadow: none !important; padding: 2px 0px 2px 2px !important; "
-            "margin: 8px 0 0 !important; font-size: 22px !important; min-height: unset !important; }"
+            # Ledger-specific sizing/position tweaks — chrome-stripping,
+            # overflow-visible, and the glow itself are now handled
+            # centrally by _toggle_button_css() for both instances. This
+            # block comes AFTER that shared CSS in the cascade so its
+            # bigger/borderless sizing wins over the header's default
+            # small-square sizing (same selector + !important on both,
+            # so source order decides the winner).
             + _toggle_button_css(ledger_toggle_key, ledger_toggle_anim)
+            + f"div.st-key-{ledger_toggle_key} button {{ width: auto !important; height: auto !important; "
+            "border-radius: 0 !important; padding: 2px 0px 2px 2px !important; "
+            "margin: 8px 0 0 !important; font-size: 22px !important; min-height: unset !important; }"
             + "</style>",
             unsafe_allow_html=True,
         )
@@ -188,15 +206,19 @@ def main() -> None:
                 st.rerun()
         render_ledger_breakdowns(snapshot.sheets["Timeline"], gross_view)
     else:
-        # render_dashboard() is one big components.html() iframe — the
-        # gap between it and the nav tabs above is Streamlit's own
-        # external spacing (default inter-element gap + the iframe's own
-        # top inset), separate from the internal .panel{margin-bottom}
-        # spacing *inside* that iframe. Scoped to :first-of-type so this
-        # only touches this specific iframe, not Ledger's.
+        # render_dashboard() is one big components.html() iframe. The
+        # previous attempt tried to pull the iframe itself up via
+        # div[data-testid='stIFrame'] — an unverified guess at Streamlit's
+        # internal testid that evidently either didn't match at all or
+        # matched the wrong thing, since the gap grew instead of shrank.
+        # This instead pulls up the *nav-tabs row itself* (the row right
+        # above the iframe), anchored to the MAIN nav button's own proven
+        # .st-key-nav_main class — a selector we're actually certain
+        # exists, rather than guessing at Streamlit's internal iframe
+        # wrapper markup again.
         st.markdown(
-            "<style>div[data-testid='stIFrame']:first-of-type "
-            "{ margin-top: -10px !important; }</style>",
+            "<style>div[data-testid='stHorizontalBlock']:has(div.st-key-nav_main) "
+            "{ margin-bottom: -8px !important; }</style>",
             unsafe_allow_html=True,
         )
         render_dashboard(metrics, snapshot.sheets["Timeline"], gross_view)

@@ -1374,27 +1374,16 @@ div[data-testid="stElementContainer"]:has(style) {
   display: none !important;
 }
 
-/* Gross/Annualized button: sits top-right of the header, next to
-   BARRISTER, matching where Streamlit's own hidden menu button used
-   to be. Kept small deliberately — this sits in the SAME row as the
-   BARRISTER title via st.columns(), and that row's height stretches
-   to fit its tallest child. A big button here was pushing the whole
-   header taller only on pages that show it, which is why those pages
-   had noticeably more top space than Events/Journey. */
-div.st-key-gross_toggle_btn button {
-  border-radius: 8px !important;
-  width: 26px !important;
-  height: 26px !important;
-  padding: 0 !important;
-  font-size: 12px !important;
-  min-width: 0 !important;
-  line-height: 1 !important;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
-}
-div.st-key-gross_toggle_btn button[data-testid="stBaseButton-primary"] {
-  box-shadow: 0 0 12px 2px rgba(255, 255, 255, 0.75) !important;
-  border-color: rgba(255, 255, 255, 0.9) !important;
-}
+/* Gross/Annualized toggle sizing/glow/animation is now generated
+   per-render by _toggle_button_css() in app.py, keyed to whichever
+   widget key is actually live that render (base vs the one-render
+   "_anim" variant after a click). It used to live here as static rules
+   hardcoded to the literal "gross_toggle_btn" key, which silently
+   stopped applying — size, chrome, and glow all — on the one render
+   right after a click, when the key temporarily switched to the "_anim"
+   variant. That's what caused the button to visibly flicker between
+   several different looks depending on click history.
+*/
 div.st-key-gross_toggle_btn {
   display: flex;
   justify-content: flex-end;

@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from components.journey import compact_state_code
+from services.tz import eastern_today, eastern_today_naive
 
 
 REAL_CLIENTS = [
@@ -155,7 +156,7 @@ def _render_upcoming(pipeline: pd.DataFrame) -> None:
     working = pipeline.copy()
     working["__date"] = pd.to_datetime(working["Date / Timing"], errors="coerce")
     working = working.sort_values("__date")
-    today = pd.Timestamp.now().normalize()
+    today = eastern_today_naive()
     tomorrow = today + pd.Timedelta(days=1)
 
     completing_id = st.session_state.get("completing_event_id")
@@ -251,7 +252,7 @@ def _render_form(known_locations: list[str], timeline: pd.DataFrame, pipeline: p
         billing_type = st.radio("Billing Type", ["Hourly", "Per Trip"], horizontal=True, index=0)
         rate = st.number_input("Rate (\uFF04)", min_value=0.0, step=1.0, value=40.0)
         notes = st.text_area("Notes", height=92)
-        event_date = st.date_input("Date", value=date.today())
+        event_date = st.date_input("Date", value=eastern_today())
         preview_clicked = st.form_submit_button("Preview", type="primary", width="stretch")
 
     if preview_clicked:
@@ -341,7 +342,7 @@ def _event_options(timeline: pd.DataFrame, pipeline: pd.DataFrame) -> dict[str, 
             "event_id": row["Event ID"], "kind": "pipeline", "client": row["Client"],
             "location": row["Location"], "state": "", "status": "Scheduled",
             "rate": 40.0, "billing_type": "Hourly", "notes": "",
-            "date": date_val.date() if pd.notna(date_val) else date.today(),
+            "date": date_val.date() if pd.notna(date_val) else eastern_today(),
         }
 
     for _, row in timeline_sorted.iterrows():
@@ -354,7 +355,7 @@ def _event_options(timeline: pd.DataFrame, pipeline: pd.DataFrame) -> dict[str, 
             "state": row["State/Region"], "status": "Completed",
             "rate": float(row["Amount"]) if pd.notna(row["Amount"]) else 40.0,
             "billing_type": row.get("Billing Type") or "Hourly",
-            "notes": "", "date": date_val.date() if pd.notna(date_val) else date.today(),
+            "notes": "", "date": date_val.date() if pd.notna(date_val) else eastern_today(),
         }
 
     return options
@@ -494,7 +495,7 @@ def _render_download(
 ) -> None:
     st.markdown('<div class="download-title">Download Master Workbook</div>', unsafe_allow_html=True)
     workbook_bytes = _build_master_workbook(timeline, pipeline, state_coverage)
-    file_name = f"Barrister_Master_{date.today().isoformat()}.xlsx"
+    file_name = f"Barrister_Master_{eastern_today().isoformat()}.xlsx"
     st.download_button(
         label="⬇ Download Barrister_Master.xlsx",
         data=workbook_bytes,
