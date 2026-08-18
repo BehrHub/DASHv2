@@ -126,9 +126,46 @@ def _compute_top_clients(dated: pd.DataFrame, limit: int = 10) -> list[dict]:
     return rows[:limit]
 
 
+def _city_only(detail: object) -> str:
+    """Same convention used on the Journey page — city name, state
+    dropped, from a "City, ST" Location Detail string."""
+    text = "" if pd.isna(detail) else str(detail).strip()
+    return text.rsplit(",", 1)[0].strip() if "," in text else text
+
+
+def _compute_top_cities(dated: pd.DataFrame, limit: int = 10) -> list[dict]:
+    """Top N cities ranked by how many times visited (event count) —
+    reuses the exact same card shape as Clients (built with the same
+    _build_client_cards renderer), just grouped by city and ranked by
+    visit frequency instead of by revenue.
+    """
+    if dated.empty:
+        return []
+
+    working = dated.copy()
+    working["__city"] = working.get("Location Detail", pd.Series(dtype=object)).map(_city_only)
+    working = working[working["__city"] != ""]
+    if working.empty:
+        return []
+
+    rows = []
+    for city, group in working.groupby("__city"):
+        confirmed = group[group["Verified?"] == "Yes"]
+        revenue = float(confirmed["__amount"].sum())
+        events = len(group)
+        confirmed_count = len(confirmed)
+        avg = revenue / confirmed_count if confirmed_count else 0.0
+        rows.append({"client": str(city), "revenue": revenue, "events": events, "avg": avg})
+
+    rows.sort(key=lambda r: r["events"], reverse=True)
+    for rank, r in enumerate(rows[:limit], start=1):
+        r["rank"] = rank
+    return rows[:limit]
+
+
 def _compute_summary_and_months(
     timeline: pd.DataFrame, gross_view: bool = False
-) -> tuple[list[tuple[str, str]], list[dict], list[dict], list[dict], list[dict], list[dict], list[dict]]:
+) -> tuple[list[tuple[str, str]], list[dict], list[dict], list[dict], list[dict], list[dict], list[dict], list[dict]]:
     working = timeline.copy()
     working["__date"] = pd.to_datetime(working["Service Date"], errors="coerce")
     working["__amount"] = pd.to_numeric(working["Amount"], errors="coerce").fillna(0)
@@ -161,15 +198,20 @@ def _compute_summary_and_months(
         ("Pay Missing/Flagged", f"{breakdowns_missing}/{payments_flagged}"),
     ]
 
-    career_months = _compute_career_months(dated)
-    calendar_months = _compute_calendar_months(dated)
+    # L10WK, CAREER, and CALENDAR are computed oldest-first internally
+    # (simplest way to walk the date ranges), then reversed here so the
+    # most recent period displays first — that's the requested order for
+    # these three specifically. ERAS, DAYS, and CLIENTS are left as-is.
+    career_months = _compute_career_months(dated)[::-1]
+    calendar_months = _compute_calendar_months(dated)[::-1]
     eras = _compute_eras(dated)
 
-    l10wk = _compute_l10wk(dated)
+    l10wk = _compute_l10wk(dated)[::-1]
     top_days = _compute_top_days(dated)
     top_clients = _compute_top_clients(dated)
+    top_cities = _compute_top_cities(dated)
 
-    return summary, career_months, calendar_months, eras, l10wk, top_days, top_clients
+    return summary, career_months, calendar_months, eras, l10wk, top_days, top_clients, top_cities
 
 
 def _compute_career_months(dated: pd.DataFrame) -> list[dict]:
@@ -188,10 +230,12 @@ def _compute_career_months(dated: pd.DataFrame) -> list[dict]:
     # events actually land in that window.
     cycle_count = latest_month_idx + 2
 
+    today = eastern_today_naive()
     for i in range(cycle_count):
         start = career_start + pd.DateOffset(months=i)
         end = career_start + pd.DateOffset(months=i + 1) - pd.Timedelta(days=1)
-        label = f"Month {i + 1}"
+        is_current = start <= today <= end
+        label = f"Month {i + 1}*" if is_current else f"Month {i + 1}"
         subset = dated[dated["__month_idx"] == i]
         start_label = start.strftime("%b %d")
         end_label = end.strftime("%b %d")
@@ -255,17 +299,20 @@ def _compute_calendar_months(dated: pd.DataFrame) -> list[dict]:
         return months
 
     periods = dated["__date"].dt.to_period("M")
+    today = eastern_today_naive()
     for period in sorted(periods.unique()):
         subset = dated[periods == period]
         start = period.start_time
         end = period.end_time.normalize()
+        is_current = start <= today <= end
+        label = f"{start.strftime('%B')}*" if is_current else start.strftime("%B")
         events = len(subset)
         confirmed = int((subset["Verified?"] == "Yes").sum())
         days_worked = int(subset["__date"].dt.normalize().nunique())
         revenue = float(subset.loc[subset["Verified?"] == "Yes", "__amount"].sum())
         avg = revenue / confirmed if confirmed else 0.0
         months.append({
-            "label": start.strftime("%B"),
+            "label": label,
             "start": start.strftime("%b %d"),
             "end": end.strftime("%b %d"),
             "events": events, "confirmed": confirmed, "days_worked": days_worked,
@@ -302,8 +349,8 @@ body{color:#fff}
 .ledger-kpi-lbl { font-size: 10.5px; font-weight: 800; color: #c5d0e0; letter-spacing: .4px; text-transform: uppercase; margin-top: 3px; line-height: 1.35; }
 .month-card { background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.01)); border: 1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
 .month-card:last-child { margin-bottom: 0; }
-.month-view-tabs { display: grid; grid-template-columns: repeat(3, max-content); gap: 8px 10px; justify-content: start; justify-items: start; }
-.month-view-tab { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 7px 16px; font-size: 11px; font-weight: 800; letter-spacing: .5px; color: #c5d0e0; cursor: pointer; }
+.month-view-tabs { display: grid; grid-template-columns: repeat(4, max-content); gap: 8px 8px; justify-content: start; justify-items: start; }
+.month-view-tab { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 7px 13px; font-size: 11px; font-weight: 800; letter-spacing: .5px; color: #c5d0e0; cursor: pointer; }
 .month-view-tab.is-active { background: rgba(244,114,182,.1); border-color: #f472b6; color: #f9a8d4; box-shadow: 0 0 10px rgba(244,114,182,.25); }
 .month-view { display: none; margin-top: 12px; }
 .month-view.is-active { display: block; }
@@ -402,7 +449,7 @@ def render_ledger_summary(timeline: pd.DataFrame, gross_view: bool = False) -> N
     breakdowns panel, in the exact spot the old embedded title used to
     occupy, instead of in front of the whole combined component.
     """
-    summary, _, _, _, _, _, _ = _compute_summary_and_months(timeline, gross_view)
+    summary, _, _, _, _, _, _, _ = _compute_summary_and_months(timeline, gross_view)
     kpi_html = "".join(
         f'<div class="ledger-kpi"><div class="ledger-kpi-val">{escape(val)}</div>'
         f'<div class="ledger-kpi-lbl">{escape(label)}</div></div>'
@@ -422,14 +469,21 @@ def render_ledger_summary(timeline: pd.DataFrame, gross_view: bool = False) -> N
     components.html(html, height=225, scrolling=False)
 
 
-def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False) -> None:
+def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, initial_tab: str = "l10wk") -> None:
     """The tab-grid breakdowns panel + Action Items — everything that
     used to sit below "MONTHLY BREAKDOWN". No title of its own now; the
     native "BREAKDOWNS" row rendered just above this (in app.py) takes
     that place, matching the original layout position exactly.
+
+    `initial_tab` supports deep-linking here from elsewhere in the app
+    (e.g. the CITIES gauge on the Main page hero card) — it picks which
+    tab starts active. Server-side/one-shot: app.py reads+clears the
+    query param that drives this before calling here, so it only
+    affects the render immediately after navigating in, not every
+    subsequent rerun while already on this page.
     """
-    summary, career_months, calendar_months, eras, l10wk, top_days, top_clients = _compute_summary_and_months(
-        timeline, gross_view
+    summary, career_months, calendar_months, eras, l10wk, top_days, top_clients, top_cities = (
+        _compute_summary_and_months(timeline, gross_view)
     )
 
     career_cards = _build_month_cards(career_months, gross_view)
@@ -438,6 +492,7 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False) -
     l10wk_cards = _build_month_cards(l10wk, gross_view)
     day_cards = _build_day_cards(top_days)
     client_cards = _build_client_cards(top_clients, gross_view)
+    city_cards = _build_client_cards(top_cities, gross_view)
 
     action_html = "".join(
         f'<div class="action-item flag-{item["flag"]}">'
@@ -452,6 +507,16 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False) -
         for item in ACTION_ITEMS
     )
 
+    tabs = ["l10wk", "career", "calendar", "eras", "days", "clients", "cities"]
+    if initial_tab not in tabs:
+        initial_tab = "l10wk"
+
+    def _tab_class(name: str) -> str:
+        return "month-view-tab is-active" if name == initial_tab else "month-view-tab"
+
+    def _view_class(name: str) -> str:
+        return "month-view is-active" if name == initial_tab else "month-view"
+
     html = f"""
     <!DOCTYPE html>
     <html><head><meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -459,19 +524,21 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False) -
     </head><body>
       <div class="ledger-panel">
         <div class="month-view-tabs">
-          <div class="month-view-tab is-active" data-view="career">CAREER</div>
-          <div class="month-view-tab" data-view="eras">ERAS</div>
-          <div class="month-view-tab" data-view="calendar">CALENDAR</div>
-          <div class="month-view-tab" data-view="l10wk">L10WK</div>
-          <div class="month-view-tab" data-view="days">DAYS</div>
-          <div class="month-view-tab" data-view="clients">CLIENTS</div>
+          <div class="{_tab_class('l10wk')}" data-view="l10wk">L10WK</div>
+          <div class="{_tab_class('career')}" data-view="career">CAREER</div>
+          <div class="{_tab_class('calendar')}" data-view="calendar">CALENDAR</div>
+          <div class="{_tab_class('eras')}" data-view="eras">ERAS</div>
+          <div class="{_tab_class('days')}" data-view="days">DAYS</div>
+          <div class="{_tab_class('clients')}" data-view="clients">CLIENTS</div>
+          <div class="{_tab_class('cities')}" data-view="cities">CITIES</div>
         </div>
-        <div class="month-view is-active" data-view="career">{career_cards}</div>
-        <div class="month-view" data-view="calendar">{calendar_cards}</div>
-        <div class="month-view" data-view="eras">{era_cards}</div>
-        <div class="month-view" data-view="l10wk">{l10wk_cards}</div>
-        <div class="month-view" data-view="days">{day_cards}</div>
-        <div class="month-view" data-view="clients">{client_cards}</div>
+        <div class="{_view_class('l10wk')}" data-view="l10wk">{l10wk_cards}</div>
+        <div class="{_view_class('career')}" data-view="career">{career_cards}</div>
+        <div class="{_view_class('calendar')}" data-view="calendar">{calendar_cards}</div>
+        <div class="{_view_class('eras')}" data-view="eras">{era_cards}</div>
+        <div class="{_view_class('days')}" data-view="days">{day_cards}</div>
+        <div class="{_view_class('clients')}" data-view="clients">{client_cards}</div>
+        <div class="{_view_class('cities')}" data-view="cities">{city_cards}</div>
       </div>
 
       <div class="ledger-panel">
@@ -498,7 +565,7 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False) -
 
     height = (
         220
-        + max(len(career_months), len(calendar_months), len(eras), len(l10wk), len(top_days), len(top_clients)) * 190
+        + max(len(career_months), len(calendar_months), len(eras), len(l10wk), len(top_days), len(top_clients), len(top_cities)) * 190
         + len(ACTION_ITEMS) * 175
     )
     components.html(html, height=height, scrolling=False)

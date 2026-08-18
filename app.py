@@ -210,6 +210,15 @@ def main() -> None:
     elif view == "clienthub":
         render_client_standings(metrics, snapshot.sheets["Timeline"], gross_view)
     elif view == "ledger":
+        # One-shot deep link: read (and clear) which tab to open to, so
+        # this only applies on the render immediately after navigating
+        # in from elsewhere (e.g. the CITIES gauge on Main) — not on
+        # every later rerun while already on this page, which would
+        # otherwise keep yanking the user back to that tab even after
+        # they'd manually clicked a different one.
+        initial_ledger_tab = st.query_params.get("ledger_tab", "l10wk")
+        if "ledger_tab" in st.query_params:
+            del st.query_params["ledger_tab"]
         render_ledger_summary(snapshot.sheets["Timeline"], gross_view)
         # Native title+toggle row — this is the exact spot the old
         # embedded "MONTHLY BREAKDOWN" title sat, between the Financial
@@ -259,7 +268,7 @@ def main() -> None:
                 st.session_state["gross_annual_view"] = not gross_view
                 st.session_state["gross_toggle_anim_ledger"] = True
                 st.rerun()
-        render_ledger_breakdowns(snapshot.sheets["Timeline"], gross_view)
+        render_ledger_breakdowns(snapshot.sheets["Timeline"], gross_view, initial_tab=initial_ledger_tab)
     else:
         # render_dashboard() is one big components.html() iframe. The
         # previous attempt tried to pull the iframe itself up via
@@ -283,6 +292,12 @@ def main() -> None:
         # it just degrades into an ordinary, sensible extra button.
         if st.button("View Upcoming Events", key="hero_nav_events"):
             st.query_params["view"] = "addevent"
+            st.rerun()
+        # Same pattern as above — hero card's "CITIES" gauge clicks this
+        # via JS to deep-link straight to the Ledger page's CITIES tab.
+        if st.button("View Cities Breakdown", key="hero_nav_cities"):
+            st.query_params["view"] = "ledger"
+            st.query_params["ledger_tab"] = "cities"
             st.rerun()
 
 

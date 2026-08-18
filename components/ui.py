@@ -299,7 +299,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
         </div>
 
         <div class="gauges-grid">
-          <div class="gauge-item" title="Unique cities visited">
+          <div class="gauge-item gauge-clickable" id="gaugeCities" title="Jump to Cities Breakdown">
             <div class="gauge-val">{cities_value}</div>
             <div class="gauge-lbl">CITIES</div>
           </div>
@@ -406,15 +406,30 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
             }});
           }}
 
+          var gaugeCities = document.getElementById('gaugeCities');
+          if (gaugeCities) {{
+            gaugeCities.addEventListener('click', function() {{
+              try {{
+                var doc = window.parent.document;
+                var btns = doc.querySelectorAll('div[data-testid="stButton"] button');
+                for (var i = 0; i < btns.length; i++) {{
+                  if (btns[i].textContent.trim() === 'View Cities Breakdown') {{
+                    btns[i].click();
+                    break;
+                  }}
+                }}
+              }} catch (e) {{}}
+            }});
+          }}
+
           (function hideHeroNavHelper() {{
             try {{
               var doc = window.parent.document;
               var btns = doc.querySelectorAll('div[data-testid="stButton"] button');
               for (var i = 0; i < btns.length; i++) {{
-                if (btns[i].textContent.trim() === 'View Upcoming Events') {{
+                if (btns[i].textContent.trim() === 'View Upcoming Events' || btns[i].textContent.trim() === 'View Cities Breakdown') {{
                   var wrap = btns[i].closest('div[data-testid="stButton"]');
                   if (wrap) wrap.style.display = 'none';
-                  break;
                 }}
               }}
             }} catch (e) {{}}
