@@ -20,7 +20,34 @@ def load_css() -> str:
     return (ROOT / "assets" / "styles.css").read_text(encoding="utf-8")
 
 
-def render_header(active: str, show_money_toggle: bool = False) -> None:
+def _toggle_button_css(key: str, play_anim: bool, position_css: str = "", include_box_glow: bool = False) -> str:
+    """Builds the CSS for one gross/net toggle button instance, keyed to
+    whichever widget `key` is actually live this render. On the single
+    render right after a click, `key` is the "_anim" variant and this
+    also attaches the truck-approach + arrival-flash animation; every
+    other render it's just the steady position + on-state glow.
+    """
+    glow = (
+        "text-shadow: 0 0 8px rgba(250,204,21,.9), 0 0 16px rgba(250,204,21,.6), "
+        "0 0 28px rgba(250,204,21,.35);"
+    )
+    if include_box_glow:
+        glow += " box-shadow: 0 0 12px 2px rgba(255,255,255,.75) !important; border-color: rgba(255,255,255,.9) !important;"
+    css = (
+        f"div.st-key-{key} button {{ position: relative; {position_css} }}"
+        f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ {glow} }}"
+    )
+    if play_anim:
+        css += (
+            f"div.st-key-{key} button {{ animation: barrister-toggle-flash .5s ease-out 2s 1; }}"
+            f"div.st-key-{key} button::before {{ content: '\\1F69A'; position: absolute; right: -2px; "
+            "top: 50%; font-size: 16px; line-height: 1; pointer-events: none; "
+            "animation: barrister-truck-approach 2s ease-in forwards; }"
+        )
+    return css
+
+
+def render_header(active: str, show_money_toggle: bool = False, toggle_key: str = "gross_toggle_btn") -> None:
     title_col, toggle_col = st.columns([5, 1])
     with title_col:
         st.markdown(
@@ -33,10 +60,11 @@ def render_header(active: str, show_money_toggle: bool = False) -> None:
             gross_view = bool(st.session_state.get("gross_annual_view", False))
             if st.button(
                 "\U0001F4B5",
-                key="gross_toggle_btn",
+                key=toggle_key,
                 type="primary" if gross_view else "secondary",
             ):
                 st.session_state["gross_annual_view"] = not gross_view
+                st.session_state["gross_toggle_anim_main"] = True
                 st.rerun()
     cols = st.columns(5)
     labels = [
@@ -89,20 +117,12 @@ def main() -> None:
     # instead (see below) — it's used constantly on that page and forcing
     # a scroll up to the header every time was the whole complaint.
     show_money_toggle = view in ("main", "clienthub")
-    render_header(view, show_money_toggle)
+    main_toggle_anim = st.session_state.pop("gross_toggle_anim_main", False)
+    main_toggle_key = "gross_toggle_btn_anim" if main_toggle_anim else "gross_toggle_btn"
+    render_header(view, show_money_toggle, toggle_key=main_toggle_key)
     if show_money_toggle:
         st.markdown(
-            "<style>"
-            "div.st-key-gross_toggle_btn button { position: relative; left: -2px; top: 6px; }"
-            # Glow only appears when the toggle is actually ON (Streamlit
-            # marks the active button variant with this data attribute),
-            # so it doubles as the on/off indicator this button needs —
-            # placed on the button itself so it wraps the emoji glyph
-            # directly rather than a container that no longer exists.
-            "div.st-key-gross_toggle_btn button[data-testid='stBaseButton-primary'] "
-            "{ text-shadow: 0 0 8px rgba(250,204,21,.9), 0 0 16px rgba(250,204,21,.6), "
-            "0 0 28px rgba(250,204,21,.35); }"
-            "</style>",
+            f"<style>{_toggle_button_css(main_toggle_key, main_toggle_anim, position_css='left: -2px; top: 6px;', include_box_glow=True)}</style>",
             unsafe_allow_html=True,
         )
     gross_view = bool(st.session_state.get("gross_annual_view", False))
@@ -125,6 +145,8 @@ def main() -> None:
         # real Streamlit row (not part of either iframe) so the toggle
         # button stays clickable — components.html output is a static
         # snapshot, nothing inside it can trigger a Python rerun.
+        ledger_toggle_anim = st.session_state.pop("gross_toggle_anim_ledger", False)
+        ledger_toggle_key = "gross_toggle_btn_ledger_anim" if ledger_toggle_anim else "gross_toggle_btn_ledger"
         st.markdown(
             "<style>"
             ".ledger-breakdowns-title { font-family: 'Merriweather', Georgia, serif; "
@@ -133,27 +155,23 @@ def main() -> None:
             # Pulls this row up against the panel above, closing the gap
             # created by that panel's own trailing margin plus Streamlit's
             # normal spacing between elements.
-            "div[data-testid='stHorizontalBlock']:has(div.st-key-gross_toggle_btn_ledger) "
+            f"div[data-testid='stHorizontalBlock']:has(div.st-key-{ledger_toggle_key}) "
             "{ margin-top: -14px !important; gap: 0 !important; }"
             # Column itself gets zero right padding so its content can
             # actually reach the true right edge of the page's content
             # column — the same right edge the BREAKDOWNS panel's outer
             # border sits on below, since both the native row and the
             # iframe panel share that same column width.
-            "div[data-testid='stColumn']:has(div.st-key-gross_toggle_btn_ledger) "
+            f"div[data-testid='stColumn']:has(div.st-key-{ledger_toggle_key}) "
             "{ display: flex !important; justify-content: flex-end !important; padding-right: 0 !important; }"
             # Strip the big pill/oval button chrome — just the emoji,
             # tight and unobtrusive, nudged down ~8px to level with the
             # title text's own top margin, flush against the right edge.
-            "div.st-key-gross_toggle_btn_ledger button { background: transparent !important; "
+            f"div.st-key-{ledger_toggle_key} button {{ background: transparent !important; "
             "border: none !important; box-shadow: none !important; padding: 2px 0px 2px 2px !important; "
             "margin: 8px 0 0 !important; font-size: 22px !important; min-height: unset !important; }"
-            # Same on/off glow as the header instance — text-shadow around
-            # the emoji itself, since there's no container left to glow.
-            "div.st-key-gross_toggle_btn_ledger button[data-testid='stBaseButton-primary'] "
-            "{ text-shadow: 0 0 8px rgba(250,204,21,.9), 0 0 16px rgba(250,204,21,.6), "
-            "0 0 28px rgba(250,204,21,.35); }"
-            "</style>",
+            + _toggle_button_css(ledger_toggle_key, ledger_toggle_anim)
+            + "</style>",
             unsafe_allow_html=True,
         )
         title_col, toggle_col = st.columns([10, 1])
@@ -162,13 +180,25 @@ def main() -> None:
         with toggle_col:
             if st.button(
                 "\U0001F4B5",
-                key="gross_toggle_btn_ledger",
+                key=ledger_toggle_key,
                 type="primary" if gross_view else "secondary",
             ):
                 st.session_state["gross_annual_view"] = not gross_view
+                st.session_state["gross_toggle_anim_ledger"] = True
                 st.rerun()
         render_ledger_breakdowns(snapshot.sheets["Timeline"], gross_view)
     else:
+        # render_dashboard() is one big components.html() iframe — the
+        # gap between it and the nav tabs above is Streamlit's own
+        # external spacing (default inter-element gap + the iframe's own
+        # top inset), separate from the internal .panel{margin-bottom}
+        # spacing *inside* that iframe. Scoped to :first-of-type so this
+        # only touches this specific iframe, not Ledger's.
+        st.markdown(
+            "<style>div[data-testid='stIFrame']:first-of-type "
+            "{ margin-top: -10px !important; }</style>",
+            unsafe_allow_html=True,
+        )
         render_dashboard(metrics, snapshot.sheets["Timeline"], gross_view)
         # Hero card's "UPCOMING" KPI clicks this via JS (window.parent lookup by
         # button text) to trigger a real Streamlit rerun/navigation. Hidden by

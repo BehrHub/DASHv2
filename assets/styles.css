@@ -1402,6 +1402,23 @@ div.st-key-gross_toggle_btn {
   height: 100%;
 }
 
+/* Toggle-click flourish: a truck emoji rides in on a ::before
+   pseudo-element, then a brief brightness flash lands as it arrives.
+   Keyframes only — the actual selectors targeting a specific button's
+   .st-key-* class are built dynamically per-render in app.py, since
+   which exact key is "live" for the animation changes on the one
+   render right after a click. */
+@keyframes barrister-truck-approach {
+  0%   { transform: translateY(-50%) translateX(58px); opacity: 1; }
+  82%  { transform: translateY(-50%) translateX(0); opacity: 1; }
+  100% { transform: translateY(-50%) translateX(0); opacity: 0; }
+}
+@keyframes barrister-toggle-flash {
+  0%   { filter: brightness(1); }
+  15%  { filter: brightness(2.4); }
+  100% { filter: brightness(1); }
+}
+
 
 
 
