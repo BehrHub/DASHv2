@@ -20,15 +20,26 @@ def load_css() -> str:
     return (ROOT / "assets" / "styles.css").read_text(encoding="utf-8")
 
 
+@st.cache_data(show_spinner=False)
+def _icon_data_uri(filename: str) -> str:
+    """Base64-encodes a small icon once per session (cached) instead of
+    on every single rerun — these get embedded inline in CSS since
+    Streamlit doesn't serve arbitrary local files as static URLs."""
+    import base64
+
+    data = (ROOT / "assets" / "icons" / filename).read_bytes()
+    return f"data:image/png;base64,{base64.b64encode(data).decode('ascii')}"
+
+
 def _toggle_button_css(key: str, play_anim: bool, position_css: str = "") -> str:
     """Builds the CSS for one gross/net toggle button instance, keyed to
     whichever widget `key` is actually live this render. On the single
     render right after a click, `key` is the "_anim" variant and this
     also attaches the truck-approach + arrival-flash animation; every
-    other render it's just the steady position + on-state glow.
+    other render it's just the steady position + on-state icon swap.
 
     Both toggle instances (header + Ledger) are unified to the exact
-    same bare-emoji look here — no pill/oval background in any state.
+    same bare-icon look here — no pill/oval background in any state.
     Previously only the Ledger one had its chrome stripped, so the
     header instance still showed Streamlit's own type="primary" vs
     type="secondary" default styling underneath, which looked like 3-4
@@ -40,7 +51,13 @@ def _toggle_button_css(key: str, play_anim: bool, position_css: str = "") -> str
     clipping the truck the entire time it was positioned outside the
     button's own box, so it only became visible once it had already
     slid most of the way in.
+
+    ON state swaps the plain "\U0001F4B5" text label for the money-bags
+    icon (background-image, since the text itself is hidden via
+    font-size:0 — text-shadow has no effect on a background-image, so
+    the on-state glow uses filter:drop-shadow instead).
     """
+    moneybags_uri = _icon_data_uri("toggle-moneybags.png")
     css = (
         f"div.st-key-{key} button {{ position: relative; overflow: visible !important; "
         "background: transparent !important; border: none !important; box-shadow: none !important; "
@@ -48,14 +65,19 @@ def _toggle_button_css(key: str, play_anim: bool, position_css: str = "") -> str
         "padding: 0 !important; min-width: 0 !important; line-height: 1 !important; "
         f"{position_css} }}"
         f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ "
-        "text-shadow: 0 0 8px rgba(250,204,21,.9), 0 0 16px rgba(250,204,21,.6), "
-        "0 0 28px rgba(250,204,21,.35); }"
+        "font-size: 0 !important; "
+        f"background-image: url({moneybags_uri}) !important; "
+        "background-size: contain !important; background-repeat: no-repeat !important; "
+        "background-position: center !important; "
+        "filter: drop-shadow(0 0 6px rgba(250,204,21,.85)) drop-shadow(0 0 12px rgba(250,204,21,.5)); }"
     )
     if play_anim:
+        truck_uri = _icon_data_uri("toggle-truck.png")
         css += (
             f"div.st-key-{key} button {{ animation: barrister-toggle-flash .5s ease-out 2s 1; }}"
-            f"div.st-key-{key} button::before {{ content: '\\1F69A'; position: absolute; right: -2px; "
-            "top: 50%; font-size: 16px; line-height: 1; pointer-events: none; "
+            f"div.st-key-{key} button::before {{ content: ''; position: absolute; right: -2px; "
+            "top: 50%; width: 20px; height: 20px; pointer-events: none; "
+            f"background-image: url({truck_uri}); background-size: contain; background-repeat: no-repeat; "
             "animation: barrister-truck-approach 2s ease-in forwards; }"
         )
     return css
@@ -189,6 +211,11 @@ def main() -> None:
             + f"div.st-key-{ledger_toggle_key} button {{ width: auto !important; height: auto !important; "
             "border-radius: 0 !important; padding: 2px 0px 2px 2px !important; "
             "margin: 8px 0 0 !important; font-size: 22px !important; min-height: unset !important; }"
+            # ON state has no text (font-size:0 for the image swap), so
+            # the width:auto/height:auto above would leave it nothing to
+            # size against — give it an explicit box just for that state.
+            f"div.st-key-{ledger_toggle_key} button[data-testid='stBaseButton-primary'] "
+            "{ width: 26px !important; height: 26px !important; }"
             + "</style>",
             unsafe_allow_html=True,
         )
