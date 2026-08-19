@@ -35,18 +35,29 @@ def _toggle_button_css(
     key: str,
     play_anim: bool,
     position_css: str = "",
-    box_size: str = "44px",
+    box_size: str = "88px",
 ) -> str:
     """Builds the CSS for one gross/net toggle button instance, keyed to
-    whichever widget `key` is actually live this render. On the single
-    render right after a click that turns the toggle ON, `key` is the
-    "_anim" variant and this attaches the full car/moneybag/bank-reveal
-    sequence; every other render (including turning OFF, deliberately
-    kept instant/unanimated per the "for simplicity" request) it's just
-    the steady position + icon.
+    whichever widget `key` is actually live this render.
 
-    Both toggle instances (header + Ledger) share this bare-icon look —
-    no pill/oval background in any state.
+    Rebuilt after the previous version rendered huge/unstyled/misplaced
+    live — the button's actual text label was still the literal
+    "\U0001F4B5" emoji (only ever HIDDEN via font-size:0, never removed),
+    so if that CSS lost any cascade fight against Streamlit's own button
+    styling, the raw native emoji showed through at whatever size/place
+    the browser defaulted to — which is exactly what happened. Two
+    changes make this failure mode structurally impossible now instead
+    of just "hopefully covered by more CSS":
+      1. The button's actual label is now a plain space, not an emoji —
+         nothing left to leak through even in a worst case.
+      2. Sizing is applied to BOTH the wrapper div AND the button
+         (belt-and-suspenders), each with !important, instead of only
+         the button.
+
+    Single image asset now (toggle-bank-color.png only) — grayscale via
+    CSS filter for the off state instead of a separate black & white
+    file, exactly as originally proposed. filter:grayscale(100%)
+    preserves the PNG's alpha transparency; only hue/saturation change.
 
     `overflow: visible` is required — the global
     `div[data-testid="stButton"] button { overflow: hidden !important; }`
@@ -54,48 +65,42 @@ def _toggle_button_css(
     otherwise clip the car/moneybag the whole time they're positioned
     outside the button's own box.
 
-    Steady state is a bank icon: black & white when off, full color
-    (background-image swap, since text-shadow doesn't affect a
-    background-image) with a glow when on — grayscale-vs-color as the
-    on/off read, rather than two unrelated icons.
-
     Animated (turning-on) sequence, three stages chained by delay,
     total 4.5s:
       0.0s-3.0s  car drives in from off-screen left, steady/linear speed,
                  parking just left of the bank icon (::before pseudo-el)
       3.0s-4.5s  money bag pops from the car and arcs over to the bank
                  (::after pseudo-el, animation-delay: 3s)
-      4.5s       bag vanishes, bank instantly flips B&W -> color + flash,
+      4.5s       bag vanishes, bank instantly flips gray -> color + flash,
                  together (steps(1,end) keyframe, car stays parked/visible
                  the whole time — only the OFF direction makes it disappear)
     """
-    bank_bw_uri = _icon_data_uri("toggle-bank-bw.png")
-    bank_color_uri = _icon_data_uri("toggle-bank-color.png")
+    bank_uri = _icon_data_uri("toggle-bank-color.png")
     glow = (
         "filter: drop-shadow(0 0 14px rgba(250,204,21,.95)) "
         "drop-shadow(0 0 28px rgba(250,204,21,.7)) drop-shadow(0 0 46px rgba(250,204,21,.4));"
     )
     css = (
-        f"div.st-key-{key} button {{ position: relative; overflow: visible !important; "
+        f"div.st-key-{key} {{ display: flex !important; align-items: center !important; "
+        f"justify-content: center !important; width: {box_size} !important; height: {box_size} !important; "
+        f"overflow: visible !important; {position_css} }}"
+        f"div.st-key-{key} button {{ display: flex !important; align-items: center !important; "
+        "justify-content: center !important; position: relative !important; overflow: visible !important; "
+        "width: 100% !important; height: 100% !important; "
         "background: transparent !important; border: none !important; box-shadow: none !important; "
-        f"border-radius: 10px !important; width: {box_size} !important; height: {box_size} !important; "
-        f"padding: 0 !important; min-width: 0 !important; line-height: 1 !important; "
-        "font-size: 0 !important; "
-        f"background-image: url({bank_bw_uri}) !important; "
+        "border-radius: 10px !important; padding: 0 !important; min-width: 0 !important; "
+        "min-height: unset !important; line-height: 1 !important; font-size: 0 !important; "
+        f"background-image: url({bank_uri}) !important; "
         "background-size: contain !important; background-repeat: no-repeat !important; "
-        "background-position: center !important; "
-        f"{position_css} }}"
-        # No !important on background-image/filter here — CSS animations
-        # rank BELOW "important author" rules in the cascade, so an
-        # !important here would silently defeat the delayed-reveal
-        # animation below (it would never be able to override this rule
-        # during the animated render's first 4.5s). The specificity of
-        # this selector (class + attribute) is already enough to beat
-        # the base button rule above without needing !important.
-        f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ "
-        f"background-image: url({bank_color_uri}); "
-        "background-size: contain; background-repeat: no-repeat; background-position: center; "
-        f"{glow} }}"
+        "background-position: center !important; filter: grayscale(100%) !important; }"
+        # No !important on filter here — CSS animations rank BELOW
+        # "important author" rules in the cascade, so an !important here
+        # would silently defeat the delayed-reveal animation below (it
+        # would never be able to override this rule during the animated
+        # render's first 4.5s). The specificity of this selector (class +
+        # attribute) already beats the base button rule above without
+        # needing !important.
+        f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ {glow} }}"
     )
     if play_anim:
         car_uri = _icon_data_uri("toggle-car.png")
@@ -103,19 +108,17 @@ def _toggle_button_css(
         reveal_name = f"barrister-icon-reveal-{key}"
         css += (
             f"@keyframes {reveal_name} {{ "
-            f"0%, 99% {{ background-image: url({bank_bw_uri}); "
-            "background-size: contain; background-repeat: no-repeat; background-position: center; filter: none; } "
-            f"100% {{ background-image: url({bank_color_uri}); "
-            "background-size: contain; background-repeat: no-repeat; background-position: center; "
-            f"{glow} }} }}"
+            "0%, 99% { filter: grayscale(100%); } "
+            f"100% {{ {glow} }} }}"
             f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ "
             f"animation: {reveal_name} 4.5s steps(1, end) forwards, "
             "barrister-toggle-flash .5s ease-out 4.5s 1; }"
             # Car: drives in from the left, steady/linear speed, parks
             # just left of the bank icon — and STAYS visible/parked
-            # (no fade-out), unlike the old truck.
+            # (no fade-out). Sized 125% of the original (58x33, up from
+            # 46x26).
             f"div.st-key-{key} button::before {{ content: ''; position: absolute; right: -2px; "
-            "top: 50%; width: 46px; height: 26px; pointer-events: none; "
+            "top: 50%; width: 58px; height: 33px; pointer-events: none; "
             f"background-image: url({car_uri}); background-size: contain; background-repeat: no-repeat; "
             "animation: barrister-car-approach 3s linear forwards; }"
             # Money bag: pops from the car and tosses over to the bank in
@@ -129,7 +132,11 @@ def _toggle_button_css(
 
 
 def render_header(active: str, show_money_toggle: bool = False, toggle_key: str = "gross_toggle_btn") -> None:
-    title_col, toggle_col = st.columns([5, 1])
+    # 4:1 split (not the old 5:1) so toggle_col occupies exactly the same
+    # rightmost 1/5 of the row width as the nav row's 5 equal columns
+    # below it — meaning it lands precisely above LEDGER (the 5th nav
+    # button) by construction, not by guessing a pixel offset.
+    title_col, toggle_col = st.columns([4, 1])
     with title_col:
         st.markdown(
             '<div class="app-header-word-row"><a class="app-header-word" '
@@ -140,7 +147,7 @@ def render_header(active: str, show_money_toggle: bool = False, toggle_key: str 
         if show_money_toggle:
             gross_view = bool(st.session_state.get("gross_annual_view", False))
             if st.button(
-                "\U0001F4B5",
+                " ",
                 key=toggle_key,
                 type="primary" if gross_view else "secondary",
             ):
@@ -149,7 +156,7 @@ def render_header(active: str, show_money_toggle: bool = False, toggle_key: str 
                 # The car/moneybag/bank sequence only plays when turning
                 # ON — turning off is deliberately instant/unanimated
                 # ("for simplicity"), so no flag is set in that case and
-                # the next render just shows the plain B&W bank directly.
+                # the next render just shows the plain gray bank directly.
                 if turning_on:
                     st.session_state["gross_toggle_anim_main"] = True
                 st.rerun()
@@ -209,7 +216,7 @@ def main() -> None:
     render_header(view, show_money_toggle, toggle_key=main_toggle_key)
     if show_money_toggle:
         st.markdown(
-            f"<style>{_toggle_button_css(main_toggle_key, main_toggle_anim, position_css='left: -2px; top: 6px;')}</style>",
+            f"<style>{_toggle_button_css(main_toggle_key, main_toggle_anim, box_size='88px')}</style>",
             unsafe_allow_html=True,
         )
     gross_view = bool(st.session_state.get("gross_annual_view", False))
@@ -260,13 +267,12 @@ def main() -> None:
             # iframe panel share that same column width.
             f"div[data-testid='stColumn']:has(div.st-key-{ledger_toggle_key}) "
             "{ display: flex !important; justify-content: flex-end !important; padding-right: 0 !important; }"
-            # Ledger-specific position tweak only now — sizing, chrome-
-            # stripping, overflow-visible, and glow are all handled
-            # centrally by _toggle_button_css() for both instances.
+            # Ledger-specific: outer column stays right-aligned within
+            # the BREAKDOWNS row; sizing/chrome/glow/animation all come
+            # centrally from _toggle_button_css() for both instances.
             + _toggle_button_css(
                 ledger_toggle_key, ledger_toggle_anim,
-                position_css="margin: 4px 0 0;",
-                box_size="48px",
+                box_size="96px",
             )
             + "</style>",
             unsafe_allow_html=True,
@@ -276,7 +282,7 @@ def main() -> None:
             st.markdown('<div class="ledger-breakdowns-title">BREAKDOWNS</div>', unsafe_allow_html=True)
         with toggle_col:
             if st.button(
-                "\U0001F4B5",
+                " ",
                 key=ledger_toggle_key,
                 type="primary" if gross_view else "secondary",
             ):
