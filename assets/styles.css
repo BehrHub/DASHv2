@@ -1391,23 +1391,39 @@ div.st-key-gross_toggle_btn {
   height: 100%;
 }
 
-/* Toggle-click flourish: a truck rides in on a ::before pseudo-element,
-   then a brief brightness flash lands as it arrives. Keyframes only —
-   the actual selectors targeting a specific button's .st-key-* class
-   (and the icon-swap timing) are built dynamically per-render in
-   app.py, since which exact key is "live" changes on the one render
-   right after a click.
+/* Toggle-click sequence, replacing the old single truck animation:
+   a car drives in from off-screen left (::before pseudo-element),
+   parks just left of the bank icon, then a money bag pops from it and
+   arcs over to the bank (::after pseudo-element, delayed to start the
+   instant the car finishes). The actual selectors targeting a specific
+   button's .st-key-* class (and the bank icon-swap timing) are built
+   dynamically per-render in app.py, since which exact key is "live"
+   changes on the one render right after a click that turns the toggle
+   ON specifically — turning off is deliberately instant/unanimated.
 
-   Now travels the full width of the row — starting near the title text
-   on the left (BARRISTER on the header, BREAKDOWNS on Ledger) rather
-   than just off the button's own edge — for a longer, more visible
-   runway. scaleX(-1) mirrors the truck image so it visually faces the
-   direction of travel (left-to-right) instead of the artwork's
-   original right-to-left facing. */
-@keyframes barrister-truck-approach {
-  0%   { transform: translateY(-50%) translateX(-150px) scaleX(-1); opacity: 1; }
-  82%  { transform: translateY(-50%) translateX(0) scaleX(-1); opacity: 1; }
-  100% { transform: translateY(-50%) translateX(0) scaleX(-1); opacity: 0; }
+   Car: steady/linear speed the whole 3s (no easing curve), starting
+   far enough left to cross behind the title text, ending parked beside
+   the icon rather than on top of it. scaleX(-1) mirrors the source
+   artwork (which faces left) so it visually faces its direction of
+   travel. Stays fully visible/parked throughout — unlike the old
+   truck, it does NOT fade out on arrival.
+
+   Money bag: pops up from where the car parked, arcs upward mid-flight,
+   lands on the bank icon and vanishes there — timed via its own 1.5s
+   duration plus a 3s animation-delay (set in app.py) so it starts
+   exactly when the car's 3s drive-in ends. translateY(-50%) is the
+   vertical-centering baseline (matching the pseudo-element's
+   top:50% anchor) — more negative values arc it higher. */
+@keyframes barrister-car-approach {
+  0%   { transform: translateY(-50%) translateX(-380px) scaleX(-1); }
+  100% { transform: translateY(-50%) translateX(-64px) scaleX(-1); }
+}
+@keyframes barrister-moneybag-toss {
+  0%   { opacity: 0; transform: translateY(-140%) translateX(-64px) scale(.5); }
+  12%  { opacity: 1; transform: translateY(-140%) translateX(-64px) scale(1); }
+  55%  { opacity: 1; transform: translateY(-220%) translateX(-32px) scale(1.05); }
+  95%  { opacity: 1; transform: translateY(-50%) translateX(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-50%) translateX(0) scale(.9); }
 }
 @keyframes barrister-toggle-flash {
   0%   { filter: brightness(1); }

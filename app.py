@@ -35,45 +35,42 @@ def _toggle_button_css(
     key: str,
     play_anim: bool,
     position_css: str = "",
-    off_font_size: str = "30px",
     box_size: str = "44px",
 ) -> str:
     """Builds the CSS for one gross/net toggle button instance, keyed to
     whichever widget `key` is actually live this render. On the single
-    render right after a click, `key` is the "_anim" variant and this
-    also attaches the truck-approach + arrival-flash animation; every
-    other render it's just the steady position + on-state icon swap.
+    render right after a click that turns the toggle ON, `key` is the
+    "_anim" variant and this attaches the full car/moneybag/bank-reveal
+    sequence; every other render (including turning OFF, deliberately
+    kept instant/unanimated per the "for simplicity" request) it's just
+    the steady position + icon.
 
-    Both toggle instances (header + Ledger) are unified to the exact
-    same bare-icon look here — no pill/oval background in any state.
-    Previously only the Ledger one had its chrome stripped, so the
-    header instance still showed Streamlit's own type="primary" vs
-    type="secondary" default styling underneath, which looked like 3-4
-    different inconsistent "stages" rather than a clean on/off toggle.
+    Both toggle instances (header + Ledger) share this bare-icon look —
+    no pill/oval background in any state.
 
-    Sized up substantially from the original 26px box — next to
-    BARRISTER's now much larger Merriweather wordmark, the small version
-    was reading as basically invisible.
-
-    `overflow: visible` is required here — the global
+    `overflow: visible` is required — the global
     `div[data-testid="stButton"] button { overflow: hidden !important; }`
-    rule (needed elsewhere for nav-label text-ellipsis truncation) was
-    clipping the truck the entire time it was positioned outside the
-    button's own box, so it only became visible once it had already
-    slid most of the way in.
+    rule (needed elsewhere for nav-label text-ellipsis truncation) would
+    otherwise clip the car/moneybag the whole time they're positioned
+    outside the button's own box.
 
-    ON state swaps the plain "\U0001F4B5" text label for the money-bags
-    icon (background-image, since the text itself is hidden via
-    font-size:0 — text-shadow has no effect on a background-image, so
-    the on-state glow uses filter:drop-shadow instead).
+    Steady state is a bank icon: black & white when off, full color
+    (background-image swap, since text-shadow doesn't affect a
+    background-image) with a glow when on — grayscale-vs-color as the
+    on/off read, rather than two unrelated icons.
 
-    During the animated (post-click) render, the icon-swap itself is
-    DELAYED to land at the same instant the truck arrives (2s) rather
-    than switching instantly on click — a steps(1,end) keyframe holds
-    the plain "before" look for the truck's whole flight, then jumps to
-    the money-bags look + flash together at the very end.
+    Animated (turning-on) sequence, three stages chained by delay,
+    total 4.5s:
+      0.0s-3.0s  car drives in from off-screen left, steady/linear speed,
+                 parking just left of the bank icon (::before pseudo-el)
+      3.0s-4.5s  money bag pops from the car and arcs over to the bank
+                 (::after pseudo-el, animation-delay: 3s)
+      4.5s       bag vanishes, bank instantly flips B&W -> color + flash,
+                 together (steps(1,end) keyframe, car stays parked/visible
+                 the whole time — only the OFF direction makes it disappear)
     """
-    moneybags_uri = _icon_data_uri("toggle-moneybags.png")
+    bank_bw_uri = _icon_data_uri("toggle-bank-bw.png")
+    bank_color_uri = _icon_data_uri("toggle-bank-color.png")
     glow = (
         "filter: drop-shadow(0 0 14px rgba(250,204,21,.95)) "
         "drop-shadow(0 0 28px rgba(250,204,21,.7)) drop-shadow(0 0 46px rgba(250,204,21,.4));"
@@ -83,38 +80,50 @@ def _toggle_button_css(
         "background: transparent !important; border: none !important; box-shadow: none !important; "
         f"border-radius: 10px !important; width: {box_size} !important; height: {box_size} !important; "
         f"padding: 0 !important; min-width: 0 !important; line-height: 1 !important; "
-        f"font-size: {off_font_size} !important; "
+        "font-size: 0 !important; "
+        f"background-image: url({bank_bw_uri}) !important; "
+        "background-size: contain !important; background-repeat: no-repeat !important; "
+        "background-position: center !important; "
         f"{position_css} }}"
-        # No !important on font-size/background-image/filter here — CSS
-        # animations rank BELOW "important author" rules in the cascade,
-        # so an !important here would silently defeat the delayed-reveal
+        # No !important on background-image/filter here — CSS animations
+        # rank BELOW "important author" rules in the cascade, so an
+        # !important here would silently defeat the delayed-reveal
         # animation below (it would never be able to override this rule
-        # during the animated render's first 2s). The specificity of
+        # during the animated render's first 4.5s). The specificity of
         # this selector (class + attribute) is already enough to beat
-        # Streamlit's own base button styling without needing !important.
+        # the base button rule above without needing !important.
         f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ "
-        "font-size: 0; "
-        f"background-image: url({moneybags_uri}); "
-        "background-size: contain; background-repeat: no-repeat; "
-        "background-position: center; "
+        f"background-image: url({bank_color_uri}); "
+        "background-size: contain; background-repeat: no-repeat; background-position: center; "
         f"{glow} }}"
     )
     if play_anim:
-        truck_uri = _icon_data_uri("toggle-truck.png")
+        car_uri = _icon_data_uri("toggle-car.png")
+        moneybag_uri = _icon_data_uri("toggle-moneybag.png")
         reveal_name = f"barrister-icon-reveal-{key}"
         css += (
             f"@keyframes {reveal_name} {{ "
-            f"0%, 99% {{ font-size: {off_font_size}; background-image: none; filter: none; }} "
-            f"100% {{ font-size: 0; background-image: url({moneybags_uri}); "
+            f"0%, 99% {{ background-image: url({bank_bw_uri}); "
+            "background-size: contain; background-repeat: no-repeat; background-position: center; filter: none; } "
+            f"100% {{ background-image: url({bank_color_uri}); "
             "background-size: contain; background-repeat: no-repeat; background-position: center; "
             f"{glow} }} }}"
             f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ "
-            f"animation: {reveal_name} 2s steps(1, end) forwards, "
-            "barrister-toggle-flash .5s ease-out 2s 1; }"
+            f"animation: {reveal_name} 4.5s steps(1, end) forwards, "
+            "barrister-toggle-flash .5s ease-out 4.5s 1; }"
+            # Car: drives in from the left, steady/linear speed, parks
+            # just left of the bank icon — and STAYS visible/parked
+            # (no fade-out), unlike the old truck.
             f"div.st-key-{key} button::before {{ content: ''; position: absolute; right: -2px; "
-            "top: 50%; width: 34px; height: 34px; pointer-events: none; "
-            f"background-image: url({truck_uri}); background-size: contain; background-repeat: no-repeat; "
-            "animation: barrister-truck-approach 2s ease-in forwards; }"
+            "top: 50%; width: 46px; height: 26px; pointer-events: none; "
+            f"background-image: url({car_uri}); background-size: contain; background-repeat: no-repeat; "
+            "animation: barrister-car-approach 3s linear forwards; }"
+            # Money bag: pops from the car and tosses over to the bank in
+            # an arc, timed to start the instant the car finishes parking.
+            f"div.st-key-{key} button::after {{ content: ''; position: absolute; right: -2px; "
+            "top: 50%; width: 26px; height: 26px; pointer-events: none; opacity: 0; "
+            f"background-image: url({moneybag_uri}); background-size: contain; background-repeat: no-repeat; "
+            "animation: barrister-moneybag-toss 1.5s ease-in 3s forwards; }"
         )
     return css
 
@@ -135,8 +144,14 @@ def render_header(active: str, show_money_toggle: bool = False, toggle_key: str 
                 key=toggle_key,
                 type="primary" if gross_view else "secondary",
             ):
-                st.session_state["gross_annual_view"] = not gross_view
-                st.session_state["gross_toggle_anim_main"] = True
+                turning_on = not gross_view
+                st.session_state["gross_annual_view"] = turning_on
+                # The car/moneybag/bank sequence only plays when turning
+                # ON — turning off is deliberately instant/unanimated
+                # ("for simplicity"), so no flag is set in that case and
+                # the next render just shows the plain B&W bank directly.
+                if turning_on:
+                    st.session_state["gross_toggle_anim_main"] = True
                 st.rerun()
     cols = st.columns(5)
     labels = [
@@ -251,7 +266,7 @@ def main() -> None:
             + _toggle_button_css(
                 ledger_toggle_key, ledger_toggle_anim,
                 position_css="margin: 4px 0 0;",
-                off_font_size="40px", box_size="48px",
+                box_size="48px",
             )
             + "</style>",
             unsafe_allow_html=True,
@@ -265,8 +280,10 @@ def main() -> None:
                 key=ledger_toggle_key,
                 type="primary" if gross_view else "secondary",
             ):
-                st.session_state["gross_annual_view"] = not gross_view
-                st.session_state["gross_toggle_anim_ledger"] = True
+                turning_on = not gross_view
+                st.session_state["gross_annual_view"] = turning_on
+                if turning_on:
+                    st.session_state["gross_toggle_anim_ledger"] = True
                 st.rerun()
         render_ledger_breakdowns(snapshot.sheets["Timeline"], gross_view, initial_tab=initial_ledger_tab)
     else:
