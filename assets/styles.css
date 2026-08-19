@@ -1393,37 +1393,45 @@ div.st-key-gross_toggle_btn {
 
 /* Toggle-click sequence, replacing the old single truck animation:
    a car drives in from off-screen left (::before pseudo-element),
-   parks just left of the bank icon, then a money bag pops from it and
-   arcs over to the bank (::after pseudo-element, delayed to start the
-   instant the car finishes). The actual selectors targeting a specific
-   button's .st-key-* class (and the bank icon-swap timing) are built
+   parks just left of the bank icon, sits for a couple seconds, then
+   clears on its own — then a money bag pops from it and arcs over to
+   the bank (::after pseudo-element, delayed to start the instant the
+   car finishes driving). The actual selectors targeting a specific
+   button's .st-key-* class (and the bank glow timing) are built
    dynamically per-render in app.py, since which exact key is "live"
    changes on the one render right after a click that turns the toggle
    ON specifically — turning off is deliberately instant/unanimated.
 
-   Car: steady/linear speed the whole 3s (no easing curve), starting
-   far enough left to cross behind the title text, ending parked beside
-   the icon rather than on top of it. scaleX(-1) mirrors the source
-   artwork (which faces left) so it visually faces its direction of
-   travel. Stays fully visible/parked throughout — unlike the old
-   truck, it does NOT fade out on arrival.
+   Car: steady/linear speed for the drive itself (first 3s of a 5s
+   total animation — 60% of 5s = 3s, so the actual travel pace is
+   unchanged), starting far enough left to cross behind the title text,
+   parking beside the icon rather than on top of it. Stays visible for
+   2 more seconds after parking, then clears (fades out) on its own —
+   Streamlit strips <script> tags from regular markdown, so a real JS
+   timer isn't available here; stretching the CSS animation itself to
+   include the "sit and then clear" phase is the actual mechanism, not
+   a workaround. scaleX(-1) mirrors the source artwork (which faces
+   left) so it visually faces its direction of travel.
 
-   Money bag: pops up from where the car parked, arcs upward mid-flight,
-   lands on the bank icon and vanishes there — timed via its own 1.5s
-   duration plus a 3s animation-delay (set in app.py) so it starts
-   exactly when the car's 3s drive-in ends. translateY(-50%) is the
-   vertical-centering baseline (matching the pseudo-element's
-   top:50% anchor) — more negative values arc it higher. */
+   Money bag: pops from the middle-to-back portion of the parked car
+   (not the front/nose), arcs upward mid-flight, lands toward the lower
+   "door" portion of the bank icon (not dead-center) and vanishes there
+   — timed via its own 1.5s duration plus a 3s animation-delay (set in
+   app.py) so it starts exactly when the car's drive-in ends. translateY
+   values are relative to the pseudo-element's top:50% anchor — more
+   negative is higher up the screen, values closer to 0 sit lower. */
 @keyframes barrister-car-approach {
-  0%   { transform: translateY(-50%) translateX(-380px) scaleX(-1); }
-  100% { transform: translateY(-50%) translateX(-64px) scaleX(-1); }
+  0%   { transform: translateY(-50%) translateX(-380px) scaleX(-1); opacity: 1; }
+  60%  { transform: translateY(-50%) translateX(-64px) scaleX(-1); opacity: 1; }
+  96%  { transform: translateY(-50%) translateX(-64px) scaleX(-1); opacity: 1; }
+  100% { transform: translateY(-50%) translateX(-64px) scaleX(-1); opacity: 0; }
 }
 @keyframes barrister-moneybag-toss {
-  0%   { opacity: 0; transform: translateY(-140%) translateX(-64px) scale(.5); }
-  12%  { opacity: 1; transform: translateY(-140%) translateX(-64px) scale(1); }
-  55%  { opacity: 1; transform: translateY(-220%) translateX(-32px) scale(1.05); }
-  95%  { opacity: 1; transform: translateY(-50%) translateX(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-50%) translateX(0) scale(.9); }
+  0%   { opacity: 0; transform: translateY(-90%) translateX(-150px) scale(.5); }
+  12%  { opacity: 1; transform: translateY(-90%) translateX(-150px) scale(1); }
+  55%  { opacity: 1; transform: translateY(-170%) translateX(-75px) scale(1.05); }
+  95%  { opacity: 1; transform: translateY(-20%) translateX(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-20%) translateX(0) scale(.9); }
 }
 @keyframes barrister-toggle-flash {
   0%   { filter: brightness(1); }

@@ -136,7 +136,7 @@ def _toggle_button_css(
             f"div.st-key-{key} button::before {{ content: ''; position: absolute; right: -2px; "
             "top: 50%; width: 145px; height: 83px; pointer-events: none; "
             f"background-image: url({car_uri}); background-size: contain; background-repeat: no-repeat; "
-            "animation: barrister-car-approach 3s linear forwards; }"
+            "animation: barrister-car-approach 5s linear forwards; }"
             # Money bag: pops from the car and tosses over to the bank in
             # an arc, timed to start the instant the car finishes parking.
             f"div.st-key-{key} button::after {{ content: ''; position: absolute; right: -2px; "
@@ -271,11 +271,14 @@ def main() -> None:
             ".ledger-breakdowns-title { font-family: 'Merriweather', Georgia, serif; "
             "font-size: clamp(1.6rem, 3.3vw, 2.6rem); font-weight: 850; line-height: .94; "
             "letter-spacing: -.028em; color: #fff; margin: 6px 0 0 -4px; }"
-            # Pulls this row up against the panel above, closing the gap
-            # created by that panel's own trailing margin plus Streamlit's
-            # normal spacing between elements.
+            # Pulls this row up against the panel above slightly — much
+            # less aggressively than before (-14px), since that value
+            # was tuned for the old 48px icon. At the current 72px size
+            # the icon carries more of its own visual weight in the row,
+            # so a big pull now overcorrected and shoved it toward/into
+            # the panel above.
             f"div[data-testid='stHorizontalBlock']:has(div.st-key-{ledger_toggle_key}) "
-            "{ margin-top: -14px !important; gap: 0 !important; }"
+            "{ margin-top: -4px !important; gap: 0 !important; }"
             # Column itself gets zero right padding so its content can
             # actually reach the true right edge of the page's content
             # column — the same right edge the BREAKDOWNS panel's outer
@@ -293,7 +296,7 @@ def main() -> None:
             + "</style>",
             unsafe_allow_html=True,
         )
-        title_col, toggle_col = st.columns([10, 1])
+        title_col, toggle_col = st.columns([9, 1])
         with title_col:
             st.markdown('<div class="ledger-breakdowns-title">BREAKDOWNS</div>', unsafe_allow_html=True)
         with toggle_col:
