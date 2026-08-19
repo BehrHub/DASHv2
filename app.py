@@ -35,7 +35,7 @@ def _toggle_button_css(
     key: str,
     play_anim: bool,
     position_css: str = "",
-    box_size: str = "88px",
+    box_size: str = "66px",
 ) -> str:
     """Builds the CSS for one gross/net toggle button instance, keyed to
     whichever widget `key` is actually live this render.
@@ -86,7 +86,7 @@ def _toggle_button_css(
         f"overflow: visible !important; {position_css} }}"
         f"div.st-key-{key} button {{ display: flex !important; align-items: center !important; "
         "justify-content: center !important; position: relative !important; overflow: visible !important; "
-        "width: 100% !important; height: 100% !important; "
+        f"width: {box_size} !important; height: {box_size} !important; "
         "background: transparent !important; border: none !important; box-shadow: none !important; "
         "border-radius: 10px !important; padding: 0 !important; min-width: 0 !important; "
         "min-height: unset !important; line-height: 1 !important; font-size: 0 !important; "
@@ -216,7 +216,7 @@ def main() -> None:
     render_header(view, show_money_toggle, toggle_key=main_toggle_key)
     if show_money_toggle:
         st.markdown(
-            f"<style>{_toggle_button_css(main_toggle_key, main_toggle_anim, box_size='88px')}</style>",
+            f"<style>{_toggle_button_css(main_toggle_key, main_toggle_anim, box_size='66px')}</style>",
             unsafe_allow_html=True,
         )
     gross_view = bool(st.session_state.get("gross_annual_view", False))
@@ -272,7 +272,7 @@ def main() -> None:
             # centrally from _toggle_button_css() for both instances.
             + _toggle_button_css(
                 ledger_toggle_key, ledger_toggle_anim,
-                box_size="96px",
+                box_size="72px",
             )
             + "</style>",
             unsafe_allow_html=True,
