@@ -54,10 +54,17 @@ def _toggle_button_css(
          (belt-and-suspenders), each with !important, instead of only
          the button.
 
-    Single image asset now (toggle-bank-color.png only) — grayscale via
-    CSS filter for the off state instead of a separate black & white
-    file, exactly as originally proposed. filter:grayscale(100%)
-    preserves the PNG's alpha transparency; only hue/saturation change.
+    Single image asset (toggle-bank-color.png) — always shown in full
+    color, no grayscale/desaturation ever. A CSS `filter` on a parent
+    element composites its ENTIRE rendered subtree, including any
+    ::before/::after pseudo-elements — so the earlier grayscale-toggle
+    approach was also grayscaling the car and money bag pseudo-elements
+    sitting on that same button, which should never change color at
+    all. Dropping grayscale entirely sidesteps that rather than fighting
+    it. On/off is now signaled purely by an outline glow
+    (filter:drop-shadow, which paints color around the alpha edge
+    without touching the icon's own pixels) — not a brightness pulse on
+    the icon itself.
 
     `overflow: visible` is required — the global
     `div[data-testid="stButton"] button { overflow: hidden !important; }`
@@ -71,11 +78,17 @@ def _toggle_button_css(
                  parking just left of the bank icon (::before pseudo-el)
       3.0s-4.5s  money bag pops from the car and arcs over to the bank
                  (::after pseudo-el, animation-delay: 3s)
-      4.5s       bag vanishes, bank instantly flips gray -> color + flash,
-                 together (steps(1,end) keyframe, car stays parked/visible
-                 the whole time — only the OFF direction makes it disappear)
+      4.5s       bag vanishes, outline glow appears around the bank
+                 (steps(1,end) keyframe), car stays parked/visible the
+                 whole time — only the OFF direction makes it disappear
     """
     bank_uri = _icon_data_uri("toggle-bank-color.png")
+    # Outline glow only — filter:drop-shadow() paints a colored blur
+    # along the element's alpha edge, sitting around/behind it, without
+    # touching the icon's own pixel brightness/color. That's the
+    # "shines on the outline, not on the icon itself" look. No
+    # brightness/grayscale filter anywhere anymore — the bank stays in
+    # full color always; this glow is now the ONLY on/off signal.
     glow = (
         "filter: drop-shadow(0 0 14px rgba(250,204,21,.95)) "
         "drop-shadow(0 0 28px rgba(250,204,21,.7)) drop-shadow(0 0 46px rgba(250,204,21,.4));"
@@ -92,7 +105,7 @@ def _toggle_button_css(
         "min-height: unset !important; line-height: 1 !important; font-size: 0 !important; "
         f"background-image: url({bank_uri}) !important; "
         "background-size: contain !important; background-repeat: no-repeat !important; "
-        "background-position: center !important; filter: grayscale(100%) !important; }"
+        "background-position: center !important; }"
         # No !important on filter here — CSS animations rank BELOW
         # "important author" rules in the cascade, so an !important here
         # would silently defeat the delayed-reveal animation below (it
@@ -108,17 +121,20 @@ def _toggle_button_css(
         reveal_name = f"barrister-icon-reveal-{key}"
         css += (
             f"@keyframes {reveal_name} {{ "
-            "0%, 99% { filter: grayscale(100%); } "
+            "0%, 99% { filter: none; } "
             f"100% {{ {glow} }} }}"
             f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ "
-            f"animation: {reveal_name} 4.5s steps(1, end) forwards, "
-            "barrister-toggle-flash .5s ease-out 4.5s 1; }"
+            f"animation: {reveal_name} 4.5s steps(1, end) forwards; }}"
             # Car: drives in from the left, steady/linear speed, parks
             # just left of the bank icon — and STAYS visible/parked
-            # (no fade-out). Sized 125% of the original (58x33, up from
-            # 46x26).
+            # (no fade-out). Own natural color throughout — it isn't
+            # affected by the glow above since that only ever applies to
+            # the primary-state selector, not this pseudo-element's own
+            # rule (car pseudo-element carries no filter property at all).
+            # Sized 250% of the original (145x83, up from 58x33) — i.e.
+            # +150% on top of the current size, per request.
             f"div.st-key-{key} button::before {{ content: ''; position: absolute; right: -2px; "
-            "top: 50%; width: 58px; height: 33px; pointer-events: none; "
+            "top: 50%; width: 145px; height: 83px; pointer-events: none; "
             f"background-image: url({car_uri}); background-size: contain; background-repeat: no-repeat; "
             "animation: barrister-car-approach 3s linear forwards; }"
             # Money bag: pops from the car and tosses over to the bank in
