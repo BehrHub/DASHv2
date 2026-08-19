@@ -75,16 +75,25 @@ def _toggle_button_css(
     Animated (turning-on) sequence, drastically simplified from the
     previous multi-stage toss/arc version — a single combined car+bag
     image (drawn by the user, not composited) drives straight across in
-    one constant-speed pass, 4s total. The glow-trigger point is now a
-    real calculated value instead of a guessed pixel arc: with the car
+    one constant-speed pass, 4s total. The glow-trigger point is a real
+    calculated value instead of a guessed pixel arc: with the car
     starting at translateX(-500px) and ending at translateX(300px), it
     fully clears the bank icon's position (translateX=0) the instant
-    translateX reaches its own width (180px) — which works out to
-    exactly 85% of the 4s animation, i.e. 3.4s. No "sit and disappear"
-    timer needed either, unlike the old parked-car version — once the
-    drive reaches its endpoint the car is already off-screen by
-    construction, nothing further to clean up.
+    translateX reaches its own width — currently 90px (car shrunk 50%
+    from the original 180px), which works out to 73.75% of the 4s
+    animation, i.e. 2.95s. This number moves whenever the car's width
+    changes (it's recalculated from CAR_W below, not hand-typed), which
+    is the whole point of the straight-line approach — no re-guessing
+    needed after a resize. No "sit and disappear" timer needed either —
+    once the drive reaches its endpoint the car is already off-screen
+    by construction, nothing further to clean up.
     """
+    # Recomputed from actual car width whenever it changes — see the
+    # module docstring above for the underlying math.
+    _CAR_W, _CAR_H = 90, 38
+    _START_X, _END_X = -500, 300
+    _pass_pct = (_CAR_W - _START_X) / (_END_X - _START_X) * 100
+
     bank_uri = _icon_data_uri("toggle-bank-color.png")
     # Outline glow only — filter:drop-shadow() paints a colored blur
     # along the element's alpha edge, sitting around/behind it, without
@@ -113,7 +122,7 @@ def _toggle_button_css(
         # "important author" rules in the cascade, so an !important here
         # would silently defeat the delayed-reveal animation below (it
         # would never be able to override this rule during the animated
-        # render's first 3.4s). The specificity of this selector (class +
+        # render's first 2.95s). The specificity of this selector (class +
         # attribute) already beats the base button rule above without
         # needing !important.
         f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ {glow} }}"
@@ -121,10 +130,11 @@ def _toggle_button_css(
     if play_anim:
         car_uri = _icon_data_uri("toggle-car-bag.png")
         reveal_name = f"barrister-icon-reveal-{key}"
+        hold_pct = _pass_pct - 0.1
         css += (
             f"@keyframes {reveal_name} {{ "
-            "0%, 84.9% { filter: none; } "
-            f"85% {{ {glow} }} }}"
+            f"0%, {hold_pct:.2f}% {{ filter: none; }} "
+            f"{_pass_pct:.2f}% {{ {glow} }} }}"
             f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ "
             f"animation: {reveal_name} 4s steps(1, end) forwards; }}"
             # Car+bag: one straight, constant-speed pass across the whole
@@ -134,7 +144,7 @@ def _toggle_button_css(
             # (that rule only ever targets the primary-state button
             # selector, not this pseudo-element).
             f"div.st-key-{key} button::before {{ content: ''; position: absolute; right: -2px; "
-            "top: 50%; width: 180px; height: 75px; pointer-events: none; "
+            f"top: 50%; width: {_CAR_W}px; height: {_CAR_H}px; pointer-events: none; "
             f"background-image: url({car_uri}); background-size: contain; background-repeat: no-repeat; "
             "animation: barrister-car-drive-through 4s linear forwards; }"
         )
@@ -226,7 +236,7 @@ def main() -> None:
     render_header(view, show_money_toggle, toggle_key=main_toggle_key)
     if show_money_toggle:
         st.markdown(
-            f"<style>{_toggle_button_css(main_toggle_key, main_toggle_anim, box_size='66px')}</style>",
+            f"<style>{_toggle_button_css(main_toggle_key, main_toggle_anim, box_size='66px', position_css='margin-top: 5px;')}</style>",
             unsafe_allow_html=True,
         )
     gross_view = bool(st.session_state.get("gross_annual_view", False))
@@ -289,13 +299,13 @@ def main() -> None:
             # Ledger-specific: outer column stays right-aligned within
             # the BREAKDOWNS row; sizing/chrome/glow/animation all come
             # centrally from _toggle_button_css() for both instances.
-            # The extra margin-right here is the direct pixel backstop
-            # mentioned above — pulls the icon in from the true right
-            # edge so it can't overflow past the panel's border below,
-            # even if the anchor attempt above isn't perfectly flush.
+            # margin-right is the direct pixel backstop mentioned above —
+            # was 22px, still overflowing past the panel's border below,
+            # so bumped to 29px (22+7). margin-top matches the same 5px
+            # downward nudge applied to the header instance.
             + _toggle_button_css(
                 ledger_toggle_key, ledger_toggle_anim,
-                position_css="margin-right: 22px;",
+                position_css="margin-right: 29px; margin-top: 5px;",
                 box_size="72px",
             )
             + "</style>",
