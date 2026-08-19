@@ -35,7 +35,8 @@ def _toggle_button_css(
     key: str,
     play_anim: bool,
     position_css: str = "",
-    box_size: str = "66px",
+    box_w: str = "125px",
+    box_h: str = "71px",
 ) -> str:
     """Builds the CSS for one gross/net toggle button instance, keyed to
     whichever widget `key` is actually live this render.
@@ -54,47 +55,51 @@ def _toggle_button_css(
          (belt-and-suspenders), each with !important, instead of only
          the button.
 
-    Single image asset (toggle-bank-color.png) — always shown in full
-    color, no grayscale/desaturation ever. A CSS `filter` on a parent
-    element composites its ENTIRE rendered subtree, including any
-    ::before/::after pseudo-elements — so the earlier grayscale-toggle
-    approach was also grayscaling the car and money bag pseudo-elements
-    sitting on that same button, which should never change color at
-    all. Dropping grayscale entirely sidesteps that rather than fighting
-    it. On/off is now signaled purely by an outline glow
-    (filter:drop-shadow, which paints color around the alpha edge
-    without touching the icon's own pixels) — not a brightness pulse on
-    the icon itself.
+    Box is now a real rectangle (box_w x box_h), not a forced square —
+    the current bank illustration is a wide building shot (~1.76:1),
+    not the roughly-square flat emoji this replaced. Forcing it into a
+    square box would letterbox it (visible blank space above/below).
+
+    Single image asset (toggle-bank-building.png) — always shown in
+    full color, no grayscale/desaturation ever. A CSS `filter` on a
+    parent element composites its ENTIRE rendered subtree, including
+    any ::before pseudo-element — so a grayscale-toggle approach here
+    would also grayscale the car sitting on that same button, which
+    should never change color at all. On/off is signaled purely by an
+    outline glow (filter:drop-shadow, which paints color around the
+    alpha edge without touching the icon's own pixels) — not a
+    brightness pulse on the icon itself.
 
     `overflow: visible` is required — the global
     `div[data-testid="stButton"] button { overflow: hidden !important; }`
     rule (needed elsewhere for nav-label text-ellipsis truncation) would
-    otherwise clip the car/moneybag the whole time they're positioned
-    outside the button's own box.
+    otherwise clip the car the whole time it's positioned outside the
+    button's own box.
 
-    Animated (turning-on) sequence, drastically simplified from the
-    previous multi-stage toss/arc version — a single combined car+bag
-    image (drawn by the user, not composited) drives straight across in
-    one constant-speed pass, 4s total. The glow-trigger point is a real
-    calculated value instead of a guessed pixel arc: with the car
-    starting at translateX(-500px) and ending at translateX(300px), it
-    fully clears the bank icon's position (translateX=0) the instant
-    translateX reaches its own width — currently 90px (car shrunk 50%
-    from the original 180px), which works out to 73.75% of the 4s
-    animation, i.e. 2.95s. This number moves whenever the car's width
-    changes (it's recalculated from CAR_W below, not hand-typed), which
-    is the whole point of the straight-line approach — no re-guessing
-    needed after a resize. No "sit and disappear" timer needed either —
-    once the drive reaches its endpoint the car is already off-screen
-    by construction, nothing further to clean up.
+    Animated (turning-on) sequence — a single combined car+bag image
+    drives straight across at constant speed, 4s total. The glow-trigger
+    point is a real calculated value, and now properly accounts for the
+    bank's own WIDTH, not just treating it as a zero-width point at
+    translateX=0 (a fine approximation back when the icon was small and
+    roughly square, but wrong now that it's a wide building graphic).
+    The car has fully cleared the building once its trailing edge passes
+    the building's LEFT edge (which sits at translateX = -box_w, since
+    the car's own translateX is anchored to the icon's right edge) —
+    i.e. PASS_X = CAR_W - box_w. That value is negative whenever the
+    building is wider than the car, meaning the glow now correctly
+    fires while the car is still mid-crossing the building's width, not
+    only after clearing its right edge. Recalculated per-instance from
+    the actual box_w passed in, since header and Ledger use different
+    sizes. No "sit and disappear" timer needed either — once the drive
+    reaches its endpoint the car is already off-screen by construction.
     """
-    # Recomputed from actual car width whenever it changes — see the
-    # module docstring above for the underlying math.
     _CAR_W, _CAR_H = 90, 38
     _START_X, _END_X = -500, 300
-    _pass_pct = (_CAR_W - _START_X) / (_END_X - _START_X) * 100
+    _box_w_num = float(box_w.replace("px", ""))
+    _pass_x = _CAR_W - _box_w_num
+    _pass_pct = (_pass_x - _START_X) / (_END_X - _START_X) * 100
 
-    bank_uri = _icon_data_uri("toggle-bank-color.png")
+    bank_uri = _icon_data_uri("toggle-bank-building.png")
     # Outline glow only — filter:drop-shadow() paints a colored blur
     # along the element's alpha edge, sitting around/behind it, without
     # touching the icon's own pixel brightness/color. That's the
@@ -107,11 +112,11 @@ def _toggle_button_css(
     )
     css = (
         f"div.st-key-{key} {{ display: flex !important; align-items: center !important; "
-        f"justify-content: center !important; width: {box_size} !important; height: {box_size} !important; "
+        f"justify-content: center !important; width: {box_w} !important; height: {box_h} !important; "
         f"overflow: visible !important; {position_css} }}"
         f"div.st-key-{key} button {{ display: flex !important; align-items: center !important; "
         "justify-content: center !important; position: relative !important; overflow: visible !important; "
-        f"width: {box_size} !important; height: {box_size} !important; "
+        f"width: {box_w} !important; height: {box_h} !important; "
         "background: transparent !important; border: none !important; box-shadow: none !important; "
         "border-radius: 10px !important; padding: 0 !important; min-width: 0 !important; "
         "min-height: unset !important; line-height: 1 !important; font-size: 0 !important; "
@@ -122,9 +127,8 @@ def _toggle_button_css(
         # "important author" rules in the cascade, so an !important here
         # would silently defeat the delayed-reveal animation below (it
         # would never be able to override this rule during the animated
-        # render's first 2.95s). The specificity of this selector (class +
-        # attribute) already beats the base button rule above without
-        # needing !important.
+        # render). The specificity of this selector (class + attribute)
+        # already beats the base button rule above without !important.
         f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ {glow} }}"
     )
     if play_anim:
@@ -236,7 +240,7 @@ def main() -> None:
     render_header(view, show_money_toggle, toggle_key=main_toggle_key)
     if show_money_toggle:
         st.markdown(
-            f"<style>{_toggle_button_css(main_toggle_key, main_toggle_anim, box_size='66px', position_css='margin-top: 5px;')}</style>",
+            f"<style>{_toggle_button_css(main_toggle_key, main_toggle_anim, box_w='125px', box_h='71px', position_css='margin-top: 5px;')}</style>",
             unsafe_allow_html=True,
         )
     gross_view = bool(st.session_state.get("gross_annual_view", False))
@@ -306,7 +310,8 @@ def main() -> None:
             + _toggle_button_css(
                 ledger_toggle_key, ledger_toggle_anim,
                 position_css="margin-right: 29px; margin-top: 5px;",
-                box_size="72px",
+                box_w="137px",
+                box_h="78px",
             )
             + "</style>",
             unsafe_allow_html=True,
