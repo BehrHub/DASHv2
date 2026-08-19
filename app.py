@@ -107,8 +107,8 @@ def _toggle_button_css(
     # brightness/grayscale filter anywhere anymore — the bank stays in
     # full color always; this glow is now the ONLY on/off signal.
     glow = (
-        "filter: drop-shadow(0 0 14px rgba(250,204,21,.95)) "
-        "drop-shadow(0 0 28px rgba(250,204,21,.7)) drop-shadow(0 0 46px rgba(250,204,21,.4));"
+        "filter: drop-shadow(0 0 14px rgba(224,251,255,.95)) "
+        "drop-shadow(0 0 28px rgba(103,232,249,.7)) drop-shadow(0 0 46px rgba(34,211,238,.4));"
     )
     css = (
         f"div.st-key-{key} {{ display: flex !important; align-items: center !important; "
@@ -240,7 +240,7 @@ def main() -> None:
     render_header(view, show_money_toggle, toggle_key=main_toggle_key)
     if show_money_toggle:
         st.markdown(
-            f"<style>{_toggle_button_css(main_toggle_key, main_toggle_anim, box_w='125px', box_h='71px', position_css='margin-top: 5px;')}</style>",
+            f"<style>{_toggle_button_css(main_toggle_key, main_toggle_anim, box_w='125px', box_h='71px', position_css='margin-top: 1px;')}</style>",
             unsafe_allow_html=True,
         )
     gross_view = bool(st.session_state.get("gross_annual_view", False))
@@ -309,7 +309,7 @@ def main() -> None:
             # downward nudge applied to the header instance.
             + _toggle_button_css(
                 ledger_toggle_key, ledger_toggle_anim,
-                position_css="margin-right: 29px; margin-top: 5px;",
+                position_css="margin-right: 29px; margin-top: 1px;",
                 box_w="137px",
                 box_h="78px",
             )
