@@ -70,6 +70,40 @@ def _compute_l10wk(dated: pd.DataFrame) -> list[dict]:
     return weeks
 
 
+def _compute_l10d(dated: pd.DataFrame, limit: int = 10) -> list[dict]:
+    """Last N actual worked calendar days (only days with >=1 event —
+    not just any 10 consecutive calendar dates, which could include
+    empty ones). Reuses the exact same card shape as L10WK/CAREER/
+    CALENDAR (built with the same _build_month_cards renderer), just at
+    daily granularity — "days_worked" is trivially 1 for a single day
+    with data, and "AVG REV/DAY" collapses to equal "REVENUE" for the
+    same reason, which is expected at this granularity, not a bug.
+    """
+    if dated.empty:
+        return []
+
+    unique_days = sorted(dated["__date"].dt.normalize().unique())
+    recent_days = unique_days[-limit:]
+
+    days: list[dict] = []
+    for day in recent_days:
+        day_ts = pd.Timestamp(day)
+        subset = dated[dated["__date"].dt.normalize() == day_ts]
+        events = len(subset)
+        confirmed = int((subset["Verified?"] == "Yes").sum())
+        revenue = float(subset.loc[subset["Verified?"] == "Yes", "__amount"].sum())
+        avg = revenue / confirmed if confirmed else 0.0
+        label = day_ts.strftime("%b %d")
+        days.append({
+            "label": label,
+            "start": label,
+            "end": label,
+            "events": events, "confirmed": confirmed, "days_worked": 1,
+            "revenue": revenue, "avg": avg,
+        })
+    return days
+
+
 def _compute_top_days(dated: pd.DataFrame, limit: int = 10) -> list[dict]:
     """Top N calendar days ranked by confirmed revenue earned that day
     (not per event) — reuses the same DAYS-tab card shape regardless of
@@ -165,7 +199,7 @@ def _compute_top_cities(dated: pd.DataFrame, limit: int = 10) -> list[dict]:
 
 def _compute_summary_and_months(
     timeline: pd.DataFrame, gross_view: bool = False
-) -> tuple[list[tuple[str, str]], list[dict], list[dict], list[dict], list[dict], list[dict], list[dict], list[dict]]:
+) -> tuple[list[tuple[str, str]], list[dict], list[dict], list[dict], list[dict], list[dict], list[dict], list[dict], list[dict]]:
     working = timeline.copy()
     working["__date"] = pd.to_datetime(working["Service Date"], errors="coerce")
     working["__amount"] = pd.to_numeric(working["Amount"], errors="coerce").fillna(0)
@@ -207,11 +241,12 @@ def _compute_summary_and_months(
     eras = _compute_eras(dated)
 
     l10wk = _compute_l10wk(dated)[::-1]
+    l10d = _compute_l10d(dated)[::-1]
     top_days = _compute_top_days(dated)
     top_clients = _compute_top_clients(dated)
     top_cities = _compute_top_cities(dated)
 
-    return summary, career_months, calendar_months, eras, l10wk, top_days, top_clients, top_cities
+    return summary, career_months, calendar_months, eras, l10wk, top_days, top_clients, top_cities, l10d
 
 
 def _compute_career_months(dated: pd.DataFrame) -> list[dict]:
@@ -449,7 +484,7 @@ def render_ledger_summary(timeline: pd.DataFrame, gross_view: bool = False) -> N
     breakdowns panel, in the exact spot the old embedded title used to
     occupy, instead of in front of the whole combined component.
     """
-    summary, _, _, _, _, _, _, _ = _compute_summary_and_months(timeline, gross_view)
+    summary, _, _, _, _, _, _, _, _ = _compute_summary_and_months(timeline, gross_view)
     kpi_html = "".join(
         f'<div class="ledger-kpi"><div class="ledger-kpi-val">{escape(val)}</div>'
         f'<div class="ledger-kpi-lbl">{escape(label)}</div></div>'
@@ -482,7 +517,7 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, i
     affects the render immediately after navigating in, not every
     subsequent rerun while already on this page.
     """
-    summary, career_months, calendar_months, eras, l10wk, top_days, top_clients, top_cities = (
+    summary, career_months, calendar_months, eras, l10wk, top_days, top_clients, top_cities, l10d = (
         _compute_summary_and_months(timeline, gross_view)
     )
 
@@ -490,6 +525,7 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, i
     calendar_cards = _build_month_cards(calendar_months, gross_view)
     era_cards = _build_month_cards(eras, gross_view)
     l10wk_cards = _build_month_cards(l10wk, gross_view)
+    l10d_cards = _build_month_cards(l10d, gross_view)
     day_cards = _build_day_cards(top_days)
     client_cards = _build_client_cards(top_clients, gross_view)
     city_cards = _build_client_cards(top_cities, gross_view)
@@ -507,7 +543,9 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, i
         for item in ACTION_ITEMS
     )
 
-    tabs = ["l10wk", "career", "calendar", "eras", "days", "clients", "cities"]
+    # Requested order — row 1: L10WK, ERAS, CITIES, CALENDAR
+    #                   row 2: L10D, DAYS, CLIENTS, CAREER
+    tabs = ["l10wk", "eras", "cities", "calendar", "l10d", "days", "clients", "career"]
     if initial_tab not in tabs:
         initial_tab = "l10wk"
 
@@ -525,20 +563,22 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, i
       <div class="ledger-panel">
         <div class="month-view-tabs">
           <div class="{_tab_class('l10wk')}" data-view="l10wk">L10WK</div>
-          <div class="{_tab_class('career')}" data-view="career">CAREER</div>
-          <div class="{_tab_class('calendar')}" data-view="calendar">CALENDAR</div>
           <div class="{_tab_class('eras')}" data-view="eras">ERAS</div>
+          <div class="{_tab_class('cities')}" data-view="cities">CITIES</div>
+          <div class="{_tab_class('calendar')}" data-view="calendar">CALENDAR</div>
+          <div class="{_tab_class('l10d')}" data-view="l10d">L10D</div>
           <div class="{_tab_class('days')}" data-view="days">DAYS</div>
           <div class="{_tab_class('clients')}" data-view="clients">CLIENTS</div>
-          <div class="{_tab_class('cities')}" data-view="cities">CITIES</div>
+          <div class="{_tab_class('career')}" data-view="career">CAREER</div>
         </div>
         <div class="{_view_class('l10wk')}" data-view="l10wk">{l10wk_cards}</div>
-        <div class="{_view_class('career')}" data-view="career">{career_cards}</div>
-        <div class="{_view_class('calendar')}" data-view="calendar">{calendar_cards}</div>
         <div class="{_view_class('eras')}" data-view="eras">{era_cards}</div>
+        <div class="{_view_class('cities')}" data-view="cities">{city_cards}</div>
+        <div class="{_view_class('calendar')}" data-view="calendar">{calendar_cards}</div>
+        <div class="{_view_class('l10d')}" data-view="l10d">{l10d_cards}</div>
         <div class="{_view_class('days')}" data-view="days">{day_cards}</div>
         <div class="{_view_class('clients')}" data-view="clients">{client_cards}</div>
-        <div class="{_view_class('cities')}" data-view="cities">{city_cards}</div>
+        <div class="{_view_class('career')}" data-view="career">{career_cards}</div>
       </div>
 
       <div class="ledger-panel">
@@ -565,7 +605,7 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, i
 
     height = (
         220
-        + max(len(career_months), len(calendar_months), len(eras), len(l10wk), len(top_days), len(top_clients), len(top_cities)) * 190
+        + max(len(career_months), len(calendar_months), len(eras), len(l10wk), len(l10d), len(top_days), len(top_clients), len(top_cities)) * 190
         + len(ACTION_ITEMS) * 175
     )
     components.html(html, height=height, scrolling=False)

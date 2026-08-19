@@ -1,5 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&display=swap');
 
+/* Locks the page's horizontal margins in place — nothing constrained
+   this before, so when the toggle-button car's absolute position
+   travels past the viewport edge (which it's supposed to, that's the
+   "drives off-screen" effect), the browser was treating it as real
+   document width and making the ENTIRE PAGE horizontally scrollable to
+   accommodate it — not just that one element spilling over, the whole
+   layout would loosen and pan sideways. Targeting several likely
+   container levels defensively, since Streamlit's exact DOM structure
+   for the top-level scroll container isn't something inspectable from
+   here — whichever one actually owns the scroll, this covers it. This
+   still lets the car visually travel past the edge and get clipped
+   there (exactly the intended "off-screen" look), it just stops that
+   from ALSO dragging the whole page's scrollable width along with it. */
+html, body {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"],
+.main {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+
 :root {
   color-scheme: dark;
 
