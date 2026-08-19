@@ -72,15 +72,18 @@ def _toggle_button_css(
     otherwise clip the car/moneybag the whole time they're positioned
     outside the button's own box.
 
-    Animated (turning-on) sequence, three stages chained by delay,
-    total 4.5s:
-      0.0s-3.0s  car drives in from off-screen left, steady/linear speed,
-                 parking just left of the bank icon (::before pseudo-el)
-      3.0s-4.5s  money bag pops from the car and arcs over to the bank
-                 (::after pseudo-el, animation-delay: 3s)
-      4.5s       bag vanishes, outline glow appears around the bank
-                 (steps(1,end) keyframe), car stays parked/visible the
-                 whole time — only the OFF direction makes it disappear
+    Animated (turning-on) sequence, drastically simplified from the
+    previous multi-stage toss/arc version — a single combined car+bag
+    image (drawn by the user, not composited) drives straight across in
+    one constant-speed pass, 4s total. The glow-trigger point is now a
+    real calculated value instead of a guessed pixel arc: with the car
+    starting at translateX(-500px) and ending at translateX(300px), it
+    fully clears the bank icon's position (translateX=0) the instant
+    translateX reaches its own width (180px) — which works out to
+    exactly 85% of the 4s animation, i.e. 3.4s. No "sit and disappear"
+    timer needed either, unlike the old parked-car version — once the
+    drive reaches its endpoint the car is already off-screen by
+    construction, nothing further to clean up.
     """
     bank_uri = _icon_data_uri("toggle-bank-color.png")
     # Outline glow only — filter:drop-shadow() paints a colored blur
@@ -110,39 +113,30 @@ def _toggle_button_css(
         # "important author" rules in the cascade, so an !important here
         # would silently defeat the delayed-reveal animation below (it
         # would never be able to override this rule during the animated
-        # render's first 4.5s). The specificity of this selector (class +
+        # render's first 3.4s). The specificity of this selector (class +
         # attribute) already beats the base button rule above without
         # needing !important.
         f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ {glow} }}"
     )
     if play_anim:
-        car_uri = _icon_data_uri("toggle-car.png")
-        moneybag_uri = _icon_data_uri("toggle-moneybag.png")
+        car_uri = _icon_data_uri("toggle-car-bag.png")
         reveal_name = f"barrister-icon-reveal-{key}"
         css += (
             f"@keyframes {reveal_name} {{ "
-            "0%, 99% { filter: none; } "
-            f"100% {{ {glow} }} }}"
+            "0%, 84.9% { filter: none; } "
+            f"85% {{ {glow} }} }}"
             f"div.st-key-{key} button[data-testid='stBaseButton-primary'] {{ "
-            f"animation: {reveal_name} 4.5s steps(1, end) forwards; }}"
-            # Car: drives in from the left, steady/linear speed, parks
-            # just left of the bank icon — and STAYS visible/parked
-            # (no fade-out). Own natural color throughout — it isn't
-            # affected by the glow above since that only ever applies to
-            # the primary-state selector, not this pseudo-element's own
-            # rule (car pseudo-element carries no filter property at all).
-            # Sized 250% of the original (145x83, up from 58x33) — i.e.
-            # +150% on top of the current size, per request.
+            f"animation: {reveal_name} 4s steps(1, end) forwards; }}"
+            # Car+bag: one straight, constant-speed pass across the whole
+            # width, right through the bank icon's own position — no
+            # parking, no separate toss element, no disappear-timer.
+            # Own natural color throughout, unaffected by the glow above
+            # (that rule only ever targets the primary-state button
+            # selector, not this pseudo-element).
             f"div.st-key-{key} button::before {{ content: ''; position: absolute; right: -2px; "
-            "top: 50%; width: 145px; height: 83px; pointer-events: none; "
+            "top: 50%; width: 180px; height: 75px; pointer-events: none; "
             f"background-image: url({car_uri}); background-size: contain; background-repeat: no-repeat; "
-            "animation: barrister-car-approach 5s linear forwards; }"
-            # Money bag: pops from the car and tosses over to the bank in
-            # an arc, timed to start the instant the car finishes parking.
-            f"div.st-key-{key} button::after {{ content: ''; position: absolute; right: -2px; "
-            "top: 50%; width: 26px; height: 26px; pointer-events: none; opacity: 0; "
-            f"background-image: url({moneybag_uri}); background-size: contain; background-repeat: no-repeat; "
-            "animation: barrister-moneybag-toss 1.5s ease-in 3s forwards; }"
+            "animation: barrister-car-drive-through 4s linear forwards; }"
         )
     return css
 
@@ -278,19 +272,30 @@ def main() -> None:
             # so a big pull now overcorrected and shoved it toward/into
             # the panel above.
             f"div[data-testid='stHorizontalBlock']:has(div.st-key-{ledger_toggle_key}) "
-            "{ margin-top: -4px !important; gap: 0 !important; }"
+            "{ margin-top: -4px !important; margin-right: 0 !important; "
+            "padding-right: 0 !important; gap: 0 !important; }"
             # Column itself gets zero right padding so its content can
             # actually reach the true right edge of the page's content
             # column — the same right edge the BREAKDOWNS panel's outer
             # border sits on below, since both the native row and the
-            # iframe panel share that same column width.
+            # iframe panel share that same column width. Still overflowing
+            # past that edge in practice even with both zeroed out, so a
+            # direct pixel correction on the icon itself is layered on top
+            # as a guaranteed backstop rather than relying on the anchor
+            # alone.
             f"div[data-testid='stColumn']:has(div.st-key-{ledger_toggle_key}) "
-            "{ display: flex !important; justify-content: flex-end !important; padding-right: 0 !important; }"
+            "{ display: flex !important; justify-content: flex-end !important; "
+            "padding-right: 0 !important; margin-right: 0 !important; }"
             # Ledger-specific: outer column stays right-aligned within
             # the BREAKDOWNS row; sizing/chrome/glow/animation all come
             # centrally from _toggle_button_css() for both instances.
+            # The extra margin-right here is the direct pixel backstop
+            # mentioned above — pulls the icon in from the true right
+            # edge so it can't overflow past the panel's border below,
+            # even if the anchor attempt above isn't perfectly flush.
             + _toggle_button_css(
                 ledger_toggle_key, ledger_toggle_anim,
+                position_css="margin-right: 22px;",
                 box_size="72px",
             )
             + "</style>",
