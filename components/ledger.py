@@ -469,7 +469,7 @@ def _build_day_cards(days: list[dict]) -> str:
         '</div>'
         '<div class="month-revenue-row">'
         f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(d["revenue"]))}</div><div class="month-revenue-lbl">TOTAL REVENUE</div></div>'
-        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(gross_up(d["revenue"])))}</div><div class="month-revenue-lbl">GROSS REVENUE</div></div>'
+        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(gross_up(d["revenue"])))}</div><div class="month-revenue-lbl">GROSS REV</div></div>'
         f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(annualize_gross(d["revenue"], DAYS_PER_YEAR)))}</div><div class="month-revenue-lbl">ANNUALIZED</div></div>'
         '</div></div>'
         for d in days
