@@ -5,7 +5,7 @@ from html import escape
 import pandas as pd
 import streamlit.components.v1 as components
 
-from services.money_view import annualize_gross, gross_up, DAYS_PER_YEAR, MONTHS_PER_YEAR
+from services.money_view import annualize_gross, gross_up, DAYS_PER_YEAR, WEEKS_PER_YEAR, MONTHS_PER_YEAR
 from services.tz import eastern_today_naive
 
 
@@ -423,7 +423,20 @@ body{color:#fff}
 """
 
 
-def _build_month_cards(months: list[dict], gross_view: bool = False) -> str:
+def _build_month_cards(months: list[dict], gross_view: bool = False, periods_per_year: float = MONTHS_PER_YEAR) -> str:
+    """periods_per_year controls how REVENUE gets annualized when gross
+    is on — must match what period each card actually represents.
+    Was previously hardcoded to MONTHS_PER_YEAR everywhere, which is
+    correct for CAREER/CALENDAR/ERAS (real month-length periods) but
+    was mathematically wrong for L10WK and L10DAY: a week's revenue x12
+    doesn't represent a year (that's ~12 weeks, not 52), and a day's
+    revenue x12 represents 12 days, nowhere close to annualized. Callers
+    for those two now pass WEEKS_PER_YEAR / DAYS_PER_YEAR respectively.
+
+    AVG REV/DAY now uses gross_up() only (matching AVG/EVENT's existing
+    treatment) instead of annualize_gross() — it shows the grossed-up
+    per-day figure, not an annualized rate, for every tab.
+    """
     revenue_lbl = "REVENUE"
     avg_lbl = "AVG / EVENT"
     avg_day_lbl = "AVG REV/DAY"
@@ -439,9 +452,9 @@ def _build_month_cards(months: list[dict], gross_view: bool = False) -> str:
         f'<div class="month-stat"><div class="month-stat-val">{m["days_worked"]}</div><div class="month-stat-lbl">DAYS WORKED</div></div>'
         '</div>'
         '<div class="month-revenue-row">'
-        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(annualize_gross(m["revenue"], MONTHS_PER_YEAR) if gross_view else m["revenue"]))}</div><div class="month-revenue-lbl">{revenue_lbl}</div></div>'
+        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(annualize_gross(m["revenue"], periods_per_year) if gross_view else m["revenue"]))}</div><div class="month-revenue-lbl">{revenue_lbl}</div></div>'
         f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(gross_up(m["avg"]) if gross_view else m["avg"]))}</div><div class="month-revenue-lbl">{avg_lbl}</div></div>'
-        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(annualize_gross((m["revenue"] / m["days_worked"]) if m["days_worked"] else 0.0, DAYS_PER_YEAR) if gross_view else ((m["revenue"] / m["days_worked"]) if m["days_worked"] else 0.0)))}</div><div class="month-revenue-lbl">{avg_day_lbl}</div></div>'
+        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(gross_up((m["revenue"] / m["days_worked"]) if m["days_worked"] else 0.0) if gross_view else ((m["revenue"] / m["days_worked"]) if m["days_worked"] else 0.0)))}</div><div class="month-revenue-lbl">{avg_day_lbl}</div></div>'
         '</div></div>'
         for m in months
     )
@@ -524,8 +537,8 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, i
     career_cards = _build_month_cards(career_months, gross_view)
     calendar_cards = _build_month_cards(calendar_months, gross_view)
     era_cards = _build_month_cards(eras, gross_view)
-    l10wk_cards = _build_month_cards(l10wk, gross_view)
-    l10d_cards = _build_month_cards(l10d, gross_view)
+    l10wk_cards = _build_month_cards(l10wk, gross_view, periods_per_year=WEEKS_PER_YEAR)
+    l10d_cards = _build_month_cards(l10d, gross_view, periods_per_year=DAYS_PER_YEAR)
     day_cards = _build_day_cards(top_days)
     client_cards = _build_client_cards(top_clients, gross_view)
     city_cards = _build_client_cards(top_cities, gross_view)
@@ -543,9 +556,12 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, i
         for item in ACTION_ITEMS
     )
 
-    # Requested order — row 1: L10WK, ERAS, CITIES, CALENDAR
-    #                   row 2: L10D, DAYS, CLIENTS, CAREER
-    tabs = ["l10wk", "eras", "cities", "calendar", "l10d", "days", "clients", "career"]
+    # Requested order — row 1: L10WK, ERAS, CAREER, CALENDAR
+    #                   row 2: L10DAY, DAYS, CLIENTS, CITIES
+    # Internal key stays "l10d" (matches _compute_l10d/l10d_cards above
+    # and the deep-link query param elsewhere) — only the visible label
+    # text changed to "L10DAY".
+    tabs = ["l10wk", "eras", "career", "calendar", "l10d", "days", "clients", "cities"]
     if initial_tab not in tabs:
         initial_tab = "l10wk"
 
@@ -564,21 +580,21 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, i
         <div class="month-view-tabs">
           <div class="{_tab_class('l10wk')}" data-view="l10wk">L10WK</div>
           <div class="{_tab_class('eras')}" data-view="eras">ERAS</div>
-          <div class="{_tab_class('cities')}" data-view="cities">CITIES</div>
+          <div class="{_tab_class('career')}" data-view="career">CAREER</div>
           <div class="{_tab_class('calendar')}" data-view="calendar">CALENDAR</div>
-          <div class="{_tab_class('l10d')}" data-view="l10d">L10D</div>
+          <div class="{_tab_class('l10d')}" data-view="l10d">L10DAY</div>
           <div class="{_tab_class('days')}" data-view="days">DAYS</div>
           <div class="{_tab_class('clients')}" data-view="clients">CLIENTS</div>
-          <div class="{_tab_class('career')}" data-view="career">CAREER</div>
+          <div class="{_tab_class('cities')}" data-view="cities">CITIES</div>
         </div>
         <div class="{_view_class('l10wk')}" data-view="l10wk">{l10wk_cards}</div>
         <div class="{_view_class('eras')}" data-view="eras">{era_cards}</div>
-        <div class="{_view_class('cities')}" data-view="cities">{city_cards}</div>
+        <div class="{_view_class('career')}" data-view="career">{career_cards}</div>
         <div class="{_view_class('calendar')}" data-view="calendar">{calendar_cards}</div>
         <div class="{_view_class('l10d')}" data-view="l10d">{l10d_cards}</div>
         <div class="{_view_class('days')}" data-view="days">{day_cards}</div>
         <div class="{_view_class('clients')}" data-view="clients">{client_cards}</div>
-        <div class="{_view_class('career')}" data-view="career">{career_cards}</div>
+        <div class="{_view_class('cities')}" data-view="cities">{city_cards}</div>
       </div>
 
       <div class="ledger-panel">
