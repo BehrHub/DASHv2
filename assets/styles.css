@@ -1227,22 +1227,20 @@ body,
   font-weight: 850;
   line-height: .94;
   letter-spacing: -.028em;
-  color: #e0fbff;
+  color: #ffffff;
+  -webkit-text-stroke: 1px #000000;
   text-decoration: none !important;
   border-bottom: none !important;
   outline: none !important;
   cursor: pointer;
-  text-shadow:
-    0 0 9px rgba(103, 232, 249, 0.4),
-    0 0 18px rgba(34, 211, 238, 0.28),
-    0 14px 28px rgba(0, 0, 0, 0.35);
+  text-shadow: 0 14px 28px rgba(0, 0, 0, 0.35);
 }
 .app-header-word:link,
 .app-header-word:visited,
 .app-header-word:hover,
 .app-header-word:active,
 .app-header-word:focus {
-  color: #e0fbff !important;
+  color: #ffffff !important;
   text-decoration: none !important;
   border-bottom: none !important;
   outline: none !important;
