@@ -99,7 +99,7 @@ def _real_timeline() -> pd.DataFrame:
         ("Giant Food Stores", "Maryland", "Completed", 103.33, "Yes", "2026-07-16", "Olney, MD"),
         ("WeWork", "Washington, D.C.", "Completed", 90, "Yes", "2026-07-17", "Washington, DC"),
         ("Hebrew Home GW", "Maryland", "Completed", 50, "Yes", "2026-07-17", "North Bethesda, MD"),
-        ("Homesense", "Maryland", "Completed", 180, "Yes", "2026-07-20", "Owings Mills, MD"),
+        ("HomeSense", "Maryland", "Completed", 180, "Yes", "2026-07-20", "Owings Mills, MD"),
         ("Autumn Lake Healthcare", "Maryland", "Completed", 50, "Yes", "2026-07-20", "Glen Burnie, MD"),
         ("Autumn Lake Healthcare", "Maryland", "Completed", 50, "Yes", "2026-07-20", "Glen Burnie, MD"),
         ("Marshalls", "Maryland", "Completed", 120, "Yes", "2026-07-21", "Owings Mills, MD"),

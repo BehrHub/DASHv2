@@ -16,7 +16,7 @@ REAL_CLIENTS = [
     "Bloomingdale's", "Carvana", "Davis Polk & Wardwell", "Dunkin'",
     "East Coast Warehouse of Maryland", "Food Lion", "Giant Food Stores",
     "Hampton Inn & Suites", "Hebrew Home GW",
-    "Hilton Garden Inn", "HomeGoods", "Homesense", "Joint Base Andrews",
+    "Hilton Garden Inn", "HomeGoods", "HomeSense", "Joint Base Andrews",
     "Macy's", "Marshalls", "Maryland Baptist Age Home",
     "Montpelier Liquors", "Senator A. Alsobrooks",
     "Senator C. Van Hollen", "PepsiCo",

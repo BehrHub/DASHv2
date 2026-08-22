@@ -330,14 +330,15 @@ def render_logo_studio_page(timeline: pd.DataFrame) -> None:
         unsafe_allow_html=True,
     )
     st.caption(
-        "Calibrate a raw logo and save it — Client Hub picks it up immediately for this session. "
-        "Download the result below to make it permanent across reboots (same as the Ledger workbook export)."
+        "Calibrate a raw logo and save it —  \n"
+        "Client Hub picks it up immediately for this session. Download the result below to make it "
+        "permanent across reboots (same as Ledger workbook)"
     )
 
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     uploaded = st.file_uploader(
-        "Upload raw logo(s) — straight from your phone, no git needed for this part",
+        "Upload raw logo(s) — straight from your phone",
         type=["png", "jpg", "jpeg", "webp"],
         accept_multiple_files=True,
         key="logostudio_uploader",
@@ -346,11 +347,7 @@ def render_logo_studio_page(timeline: pd.DataFrame) -> None:
         for f in uploaded:
             (raw_dir / f.name).write_bytes(f.getvalue())
         st.success(f"Added {len(uploaded)} file(s) to the staging folder below \u2014 pick one to calibrate.")
-    st.caption(
-        "Uploads land here live for this session only (same filesystem limitation as everything else "
-        "on Streamlit Cloud) \u2014 that's fine, since only the final calibrated tile below needs to survive; "
-        "just re-upload if you come back after a reboot and it's gone."
-    )
+    st.caption("Uploads land here live for this session only")
 
     raw_files = list_raw_logos(raw_dir)
     if not raw_files:
@@ -363,21 +360,47 @@ def render_logo_studio_page(timeline: pd.DataFrame) -> None:
     logo_files, _dupes = discover_logos(logos_dir)
     client_names = sorted(timeline["Client"].dropna().unique()) if "Client" in timeline.columns else []
     missing = [c for c in client_names if resolve_client_logo(c, logo_files) is None]
+    has_logo = [c for c in client_names if c not in missing]
+
+    # Every client is selectable now, not just ones missing a logo —
+    # picking an existing one (e.g. Dunkin') loads ITS real saved
+    # scale/x/y so a bad crop can actually be fixed, not just new ones
+    # added. format_func decorates the on-screen label only; the
+    # underlying selectbox value stays the plain client name.
+    NEW_NAME_SENTINEL = "\u2795 Type a new client name..."
+    dropdown_options = [NEW_NAME_SENTINEL] + missing + has_logo
+
+    def _format_client_option(name: str) -> str:
+        if name == NEW_NAME_SENTINEL:
+            return name
+        return f"\u26A0\uFE0F {name} (needs a logo)" if name in missing else f"\u2705 {name} (recalibrate)"
+
+    def _sync_manual_field() -> None:
+        # Explicitly pushes the dropdown's choice into the text input's
+        # own session-state entry BEFORE that widget is instantiated
+        # below. This runs as Streamlit's on_change callback, which
+        # fires before the script reruns from the top — a plain
+        # value=... argument on an already-keyed widget is silently
+        # ignored on every render after the first, which was the actual
+        # bug (manual field stuck on whatever loaded initially,
+        # regardless of later dropdown changes).
+        choice = st.session_state.get("logostudio_client_select")
+        if choice and choice != NEW_NAME_SENTINEL:
+            st.session_state["logostudio_manual"] = choice
 
     col1, col2 = st.columns(2)
     with col1:
         raw_choice = st.selectbox("Raw logo file", raw_files, key="logostudio_raw")
     with col2:
-        client_choice = None
-        if missing:
-            client_choice = st.selectbox("Client missing a logo", missing, key="logostudio_client_missing")
-        else:
-            st.success("Every current client already has a logo.")
-        manual_key = st.text_input(
-            "...or type a client name / key directly", value=client_choice or "", key="logostudio_manual"
+        client_select = st.selectbox(
+            "Client", dropdown_options, format_func=_format_client_option,
+            key="logostudio_client_select", on_change=_sync_manual_field,
         )
+        manual_key = st.text_input("OR type a new client name below", key="logostudio_manual")
 
-    target_client_name = (manual_key or "").strip() or client_choice
+    target_client_name = (manual_key or "").strip() or (
+        client_select if client_select != NEW_NAME_SENTINEL else None
+    )
     if not target_client_name:
         st.warning("Pick or type which client this logo is for.")
         return
@@ -430,7 +453,7 @@ def render_logo_studio_page(timeline: pd.DataFrame) -> None:
             st.success(f"Saved to assets/logos/{target_filename} and cleared the logo cache — check Client Hub now.")
     with dl_col:
         st.download_button(
-            "\u2B07\uFE0F Download this tile (to commit permanently)",
+            "\u2B07\uFE0F Download this tile  \n(to commit permanently)",
             data=preview_bytes,
             file_name=target_filename,
             mime="image/png",
@@ -439,10 +462,12 @@ def render_logo_studio_page(timeline: pd.DataFrame) -> None:
 
     st.divider()
     st.caption(
-        "Streamlit Cloud's filesystem doesn't survive a reboot/redeploy — Save above is real and immediate "
-        "for right now, but for it to still be there after your next git push, download the tile above and "
-        "commit it to assets/logos/, same as any other asset in this repo. Download the updated "
-        "logo_profiles.json below too, so re-calibrating later starts from these values instead of defaults."
+        "Streamlit's filesystem doesn't survive a reboot/redeploy.  \n"
+        "Save above is real and immediate for right now, BUT for it to still be there after your next "
+        "git push,  \n"
+        "-  download the tile above and commit it to assets/logos (same as any other asset in this repo)  \n"
+        "-  download the updated logo_profiles.json below too (so re-calibrating later starts from these "
+        "values instead of defaults)"
     )
     if profiles_path.exists():
         st.download_button(
@@ -588,6 +613,12 @@ def main() -> None:
                     st.session_state["gross_toggle_anim_ledger"] = True
                 st.rerun()
         render_ledger_breakdowns(snapshot.sheets["Timeline"], gross_view, initial_tab=initial_ledger_tab)
+        st.markdown(
+            '<div style="text-align:center;margin-top:18px;font-size:10.5px;color:#3d4657;">'
+            '<a href="?entered=1&view=logostudio" target="_self" style="color:#3d4657;text-decoration:none;">'
+            "Logo Studio</a></div>",
+            unsafe_allow_html=True,
+        )
     elif view == "logostudio":
         render_logo_studio_page(snapshot.sheets["Timeline"])
     else:
