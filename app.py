@@ -289,6 +289,149 @@ def render_header(active: str, show_money_toggle: bool = False, toggle_key: str 
                     st.rerun()
 
 
+def render_logo_studio_page(timeline: pd.DataFrame) -> None:
+    """Hidden admin tool (reachable via ?view=logostudio, not a nav-bar
+    tab) closing the loop the person asked for: drop a raw logo into
+    assets/logos_raw/, calibrate scale/x/y with a live preview showing
+    exactly how it'll look in a real Client Hub row, save it, and
+    Client Hub picks it up on its very next render — no redeploy needed
+    for the current session, since it clears the same st.cache_data
+    caches discover_logos()/logo_data_uri() rely on.
+
+    Rebuilds the ORIGINAL Barrister2.0 "Logo Factory" tool's actual
+    convention (scale relative to the source's own trimmed content,
+    then an x/y pixel offset onto a fixed tile) rather than inventing a
+    new one — its logo_profiles.json schema is reused as-is, so the 27
+    already-calibrated logos and any new ones share one file.
+
+    Honest limitation, stated up front in the UI: Streamlit Cloud's
+    filesystem doesn't survive a reboot/redeploy. Save here is real and
+    immediate for the current running session, but permanence requires
+    downloading the result and committing it — same tradeoff as the
+    Master Workbook export on the Events page, for the same reason.
+    """
+    from services.logo_studio import (
+        list_raw_logos, load_profiles, save_profiles, render_calibrated_tile,
+        preview_png_bytes, DEFAULT_PROFILE,
+    )
+    from services.logo_source import (
+        discover_logos, resolve_client_logo, normalize_client_filename,
+        CLIENT_LOGO_FILENAMES, logo_data_uri,
+    )
+    import base64
+
+    raw_dir = ROOT / "assets" / "logos_raw"
+    logos_dir = ROOT / "assets" / "logos"
+    profiles_path = logos_dir / "logo_profiles.json"
+
+    st.markdown(
+        '<div style="font-family:\'Merriweather\',Georgia,serif;font-size:clamp(1.6rem,3.3vw,2.4rem);'
+        'font-weight:850;color:#fff;margin-bottom:2px;">LOGO STUDIO</div>',
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "Calibrate a raw logo and save it — Client Hub picks it up immediately for this session. "
+        "Download the result below to make it permanent across reboots (same as the Ledger workbook export)."
+    )
+
+    raw_files = list_raw_logos(raw_dir)
+    if not raw_files:
+        st.info("No raw logos waiting in `assets/logos_raw/`. Add a transparent PNG there, push, then come back.")
+        return
+
+    logo_files, _dupes = discover_logos(logos_dir)
+    client_names = sorted(timeline["Client"].dropna().unique()) if "Client" in timeline.columns else []
+    missing = [c for c in client_names if resolve_client_logo(c, logo_files) is None]
+
+    col1, col2 = st.columns(2)
+    with col1:
+        raw_choice = st.selectbox("Raw logo file", raw_files, key="logostudio_raw")
+    with col2:
+        client_choice = None
+        if missing:
+            client_choice = st.selectbox("Client missing a logo", missing, key="logostudio_client_missing")
+        else:
+            st.success("Every current client already has a logo.")
+        manual_key = st.text_input(
+            "...or type a client name / key directly", value=client_choice or "", key="logostudio_manual"
+        )
+
+    target_client_name = (manual_key or "").strip() or client_choice
+    if not target_client_name:
+        st.warning("Pick or type which client this logo is for.")
+        return
+
+    target_filename = CLIENT_LOGO_FILENAMES.get(
+        target_client_name.strip().casefold(), f"{normalize_client_filename(target_client_name)}.png"
+    )
+    st.caption(f"Will save as \u2192 `assets/logos/{target_filename}`")
+
+    profiles = load_profiles(profiles_path)
+    stem = Path(target_filename).stem
+    existing = profiles.get(stem, dict(profiles.get("_defaults", DEFAULT_PROFILE)))
+
+    s1, s2, s3 = st.columns(3)
+    with s1:
+        scale = st.slider("Scale", 0.20, 2.00, float(existing.get("scale", 0.78)), 0.01, key="logostudio_scale")
+    with s2:
+        x = st.slider("X offset", -48, 48, int(existing.get("x", 0)), 1, key="logostudio_x")
+    with s3:
+        y = st.slider("Y offset", -48, 48, int(existing.get("y", 0)), 1, key="logostudio_y")
+
+    raw_path = raw_dir / raw_choice
+    preview_bytes = preview_png_bytes(raw_path, scale, x, y)
+
+    st.markdown("#### Preview")
+    pcol1, pcol2 = st.columns([1, 2])
+    with pcol1:
+        st.image(preview_bytes, width=120, caption="Isolated tile")
+    with pcol2:
+        b64 = base64.b64encode(preview_bytes).decode("ascii")
+        st.markdown(
+            f'<div style="background:rgba(15,20,32,.4);border:1px solid rgba(255,255,255,.05);'
+            f'border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;max-width:320px;">'
+            f'<img src="data:image/png;base64,{b64}" style="width:52px;height:52px;border-radius:10px;flex-shrink:0;">'
+            f'<div style="font-size:14px;font-weight:700;color:#e5edf9;">{target_client_name}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        st.caption("Exactly how it'll look in a real Client Hub row")
+
+    save_col, dl_col = st.columns(2)
+    with save_col:
+        if st.button("\U0001F4BE Save (live for this session)", type="primary", width="stretch"):
+            tile = render_calibrated_tile(raw_path, scale, x, y)
+            tile.save(logos_dir / target_filename)
+            profiles[stem] = {"scale": scale, "x": x, "y": y}
+            save_profiles(profiles_path, profiles)
+            discover_logos.clear()
+            logo_data_uri.clear()
+            st.success(f"Saved to assets/logos/{target_filename} and cleared the logo cache — check Client Hub now.")
+    with dl_col:
+        st.download_button(
+            "\u2B07\uFE0F Download this tile (to commit permanently)",
+            data=preview_bytes,
+            file_name=target_filename,
+            mime="image/png",
+            width="stretch",
+        )
+
+    st.divider()
+    st.caption(
+        "Streamlit Cloud's filesystem doesn't survive a reboot/redeploy — Save above is real and immediate "
+        "for right now, but for it to still be there after your next git push, download the tile above and "
+        "commit it to assets/logos/, same as any other asset in this repo. Download the updated "
+        "logo_profiles.json below too, so re-calibrating later starts from these values instead of defaults."
+    )
+    if profiles_path.exists():
+        st.download_button(
+            "\u2B07\uFE0F Download logo_profiles.json",
+            data=profiles_path.read_bytes(),
+            file_name="logo_profiles.json",
+            mime="application/json",
+        )
+
+
 def main() -> None:
     st.set_page_config(
         page_title="Barrister Preview",
@@ -424,6 +567,8 @@ def main() -> None:
                     st.session_state["gross_toggle_anim_ledger"] = True
                 st.rerun()
         render_ledger_breakdowns(snapshot.sheets["Timeline"], gross_view, initial_tab=initial_ledger_tab)
+    elif view == "logostudio":
+        render_logo_studio_page(snapshot.sheets["Timeline"])
     else:
         # render_dashboard() is one big components.html() iframe. The
         # previous attempt tried to pull the iframe itself up via

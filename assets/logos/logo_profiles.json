@@ -1,0 +1,128 @@
+{
+  "_defaults": {
+    "scale": 0.78,
+    "x": 0,
+    "y": 0
+  },
+  "usda": {
+    "scale": 0.7,
+    "x": 0,
+    "y": 7
+  },
+  "hilton": {
+    "scale": 0.72,
+    "x": 0,
+    "y": 0
+  },
+  "hamptoninn": {
+    "scale": 0.88,
+    "x": 0,
+    "y": 4
+  },
+  "bloomingdales": {
+    "scale": 0.79,
+    "x": 3,
+    "y": 0
+  },
+  "verizon": {
+    "scale": 0.76,
+    "x": 0,
+    "y": -3
+  },
+  "davispolk": {
+    "scale": 0.75,
+    "x": 0,
+    "y": 4
+  },
+  "macys": {
+    "scale": 0.78,
+    "x": 0,
+    "y": 2
+  },
+  "tjmaxx": {
+    "scale": 0.78,
+    "x": 0,
+    "y": 9
+  },
+  "marshalls": {
+    "scale": 0.78,
+    "x": 0,
+    "y": 3
+  },
+  "homegoods": {
+    "scale": 0.78,
+    "x": 0,
+    "y": -1
+  },
+  "homesense": {
+    "scale": 1.38,
+    "x": 0,
+    "y": 10
+  },
+  "underarmour": {
+    "scale": 0.62,
+    "x": 0,
+    "y": 4
+  },
+  "dunkin": {
+    "scale": 0.76
+  },
+  "baskinrobbins": {
+    "scale": 0.6,
+    "x": 0,
+    "y": 3
+  },
+  "711": {
+    "scale": 0.61,
+    "x": 0,
+    "y": 0
+  },
+  "pepsi": {
+    "scale": 0.8
+  },
+  "residential": {
+    "scale": 0.58,
+    "x": 0,
+    "y": 5
+  },
+  "foodlion": {
+    "scale": 0.54,
+    "x": 1,
+    "y": 0
+  },
+  "giant": {
+    "scale": 0.57,
+    "x": 0,
+    "y": -6
+  },
+  "weis": {
+    "scale": 0.69,
+    "x": 0,
+    "y": 0
+  },
+  "atriumvillage": {
+    "scale": 0.58
+  },
+  "marylandbaptistagehome": {
+    "scale": 0.56
+  },
+  "hebrewhomegw": {
+    "scale": 0.72
+  },
+  "vanhollen": {
+    "scale": 0.88
+  },
+  "jointbaseandrews": {
+    "scale": 0.88,
+    "x": 0,
+    "y": -12
+  },
+  "alsobrooks": {
+    "scale": 0.88
+  },
+  "montpelierliquors": {
+    "scale": 0.76,
+    "x": 0,
+    "y": 12
+  }
+}
