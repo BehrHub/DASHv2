@@ -249,6 +249,22 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
         '</div>'
     )
 
+    livery_clients = [
+        item["client"] for item in directory
+        if resolve_client_logo(str(item["client"]), logo_files) is not None
+    ]
+    livery_tiles = "".join(
+        f'<div class="livery-tile"><img src="{logo_data_uri(resolve_client_logo(str(name), logo_files))}" alt=""></div>'
+        for name in livery_clients
+    )
+    # Duplicated back-to-back so a translateX(-50%) loop is seamless —
+    # standard marquee technique, avoids any visible snap/reset.
+    livery_html = (
+        f'<div class="livery-panel"><div class="livery-title">CURRENT SPONSORS</div>'
+        f'<div class="livery-track">{livery_tiles}{livery_tiles}</div></div>'
+        if livery_clients else ""
+    )
+
     html = f"""<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>
     *{{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}}html,body{{width:100%;overflow:hidden;background:transparent}}body{{color:#fff}}
     .client-card-container{{background:radial-gradient(circle at 50% -20%,rgba(244,114,182,.08),transparent 44%),rgba(23,27,40,.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:20px;box-shadow:0 15px 35px rgba(0,0,0,.5)}}
@@ -269,7 +285,13 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     .detail-visit-title{{font-size:11px;font-weight:800;letter-spacing:.6px;color:#7dd3fc;margin-bottom:8px}}.detail-visit-list{{display:flex;flex-direction:column;gap:5px;max-height:260px;overflow-y:auto}}
     .detail-visit-row{{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:8px;background:rgba(255,255,255,.03);border-radius:8px;padding:6px 8px}}.detail-visit-num{{font-size:11px;font-weight:800;color:#64748b}}.detail-visit-date{{font-size:12px;font-weight:700;color:#fff}}.detail-visit-loc{{font-size:11px;color:#7dd3fc;margin-top:1px}}.detail-visit-amt{{font-size:12.5px;font-weight:800;color:#34d399;white-space:nowrap}}
     @media(max-width:520px){{.client-card-container{{padding:16px 14px}}.client-row{{grid-template-columns:44px 1fr;padding:9px 10px}}.row-avatar{{width:44px;height:44px}}.row-stat-val{{font-size:13px}}.detail-stat-grid{{grid-template-columns:repeat(2,1fr)}}}}
-    </style></head><body><div class="client-card-container"><div class="client-header-title">CLIENT STANDINGS</div>{legend_html}<input id="client-search" type="search" class="search-box" placeholder="Search current client directory..."><div class="client-list">{''.join(rows)}</div></div><script>
+    .livery-panel{{background:linear-gradient(160deg,#12161f,#0a0d13);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:18px 0;margin-top:16px;box-shadow:0 15px 35px rgba(0,0,0,.5);overflow:hidden;position:relative;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}}
+    .livery-title{{font-size:12px;font-weight:900;letter-spacing:1.5px;color:#64748b;text-transform:uppercase;text-align:center;margin-bottom:14px}}
+    .livery-track{{display:flex;width:max-content;animation:livery-scroll 26s linear infinite}}
+    .livery-tile{{width:76px;height:76px;margin:0 9px;background:#fff;border-radius:14px;border:1px solid rgba(0,0,0,.15);box-shadow:0 4px 10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:8px}}
+    .livery-tile img{{width:100%;height:100%;object-fit:contain}}
+    @keyframes livery-scroll{{0%{{transform:translateX(0)}}100%{{transform:translateX(-50%)}}}}
+    </style></head><body><div class="client-card-container"><div class="client-header-title">CLIENT STANDINGS</div>{legend_html}<input id="client-search" type="search" class="search-box" placeholder="Search current client directory..."><div class="client-list">{''.join(rows)}</div></div>{livery_html}<script>
     const q=document.getElementById('client-search');
     const clickable=[...document.querySelectorAll('.client-row')];
     if(q)q.addEventListener('input',()=>{{
@@ -291,5 +313,5 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
       }});
     }});
     </script></body></html>"""
-    height = 480 + max(len(directory), 1) * 90
+    height = 480 + max(len(directory), 1) * 90 + (150 if livery_clients else 0)
     components.html(html, height=height, scrolling=False)
