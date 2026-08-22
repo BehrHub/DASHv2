@@ -334,9 +334,30 @@ def render_logo_studio_page(timeline: pd.DataFrame) -> None:
         "Download the result below to make it permanent across reboots (same as the Ledger workbook export)."
     )
 
+    raw_dir.mkdir(parents=True, exist_ok=True)
+
+    uploaded = st.file_uploader(
+        "Upload raw logo(s) — straight from your phone, no git needed for this part",
+        type=["png", "jpg", "jpeg", "webp"],
+        accept_multiple_files=True,
+        key="logostudio_uploader",
+    )
+    if uploaded:
+        for f in uploaded:
+            (raw_dir / f.name).write_bytes(f.getvalue())
+        st.success(f"Added {len(uploaded)} file(s) to the staging folder below \u2014 pick one to calibrate.")
+    st.caption(
+        "Uploads land here live for this session only (same filesystem limitation as everything else "
+        "on Streamlit Cloud) \u2014 that's fine, since only the final calibrated tile below needs to survive; "
+        "just re-upload if you come back after a reboot and it's gone."
+    )
+
     raw_files = list_raw_logos(raw_dir)
     if not raw_files:
-        st.info("No raw logos waiting in `assets/logos_raw/`. Add a transparent PNG there, push, then come back.")
+        st.info(
+            "No raw logos waiting yet. Upload one above (works straight from your phone's Photos), "
+            "or push a file into `assets/logos_raw/` from your Mac the normal way — either works."
+        )
         return
 
     logo_files, _dupes = discover_logos(logos_dir)

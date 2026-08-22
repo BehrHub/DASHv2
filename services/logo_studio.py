@@ -16,7 +16,7 @@ def list_raw_logos(raw_dir: Path) -> list[str]:
         return []
     return sorted(
         p.name for p in raw_dir.iterdir()
-        if p.suffix.lower() in (".png", ".jpg", ".jpeg") and not p.name.startswith(".")
+        if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp") and not p.name.startswith(".")
     )
 
 
