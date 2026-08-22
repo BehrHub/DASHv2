@@ -537,6 +537,12 @@ def main() -> None:
         )
     elif view == "clienthub":
         render_client_standings(metrics, snapshot.sheets["Timeline"], gross_view)
+        st.markdown(
+            '<div style="text-align:center;margin-top:18px;font-size:10.5px;color:#3d4657;">'
+            '<a href="?entered=1&view=logostudio" target="_self" style="color:#3d4657;text-decoration:none;">'
+            "Logo Studio</a></div>",
+            unsafe_allow_html=True,
+        )
     elif view == "ledger":
         # One-shot deep link: read (and clear) which tab to open to, so
         # this only applies on the render immediately after navigating
@@ -613,12 +619,6 @@ def main() -> None:
                     st.session_state["gross_toggle_anim_ledger"] = True
                 st.rerun()
         render_ledger_breakdowns(snapshot.sheets["Timeline"], gross_view, initial_tab=initial_ledger_tab)
-        st.markdown(
-            '<div style="text-align:center;margin-top:18px;font-size:10.5px;color:#3d4657;">'
-            '<a href="?entered=1&view=logostudio" target="_self" style="color:#3d4657;text-decoration:none;">'
-            "Logo Studio</a></div>",
-            unsafe_allow_html=True,
-        )
     elif view == "logostudio":
         render_logo_studio_page(snapshot.sheets["Timeline"])
     else:
