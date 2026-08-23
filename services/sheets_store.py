@@ -212,3 +212,24 @@ def next_event_id(timeline: pd.DataFrame, pipeline: pd.DataFrame) -> str:
                 nums.append(int(s[1:]))
     n = (max(nums) + 1) if nums else 1
     return f"S{n:04d}"
+
+
+LOGOS_SHEET = "Logos"
+LOGO_HEADERS = ["Key", "Filename", "Scale", "X", "Y", "ImageBase64"]
+
+
+def read_logos() -> pd.DataFrame:
+    return _cached_read(LOGOS_SHEET, tuple(LOGO_HEADERS))
+
+
+def save_logo(key: str, filename: str, scale: float, x: int, y: int, image_base64: str) -> None:
+    """Upserts one logo (calibration + the actual image bytes, base64-
+    encoded as plain text) by Key -- same find-or-append mechanism as
+    events, using update_row's existing column-1 lookup. A single small
+    PNG (a few KB) base64-encodes to a few thousand characters, well
+    under a Sheet cell's ~50,000-character limit.
+    """
+    update_row(
+        LOGOS_SHEET, LOGO_HEADERS, key,
+        {"Key": key, "Filename": filename, "Scale": scale, "X": x, "Y": y, "ImageBase64": image_base64},
+    )

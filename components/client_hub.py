@@ -189,6 +189,8 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
         3: ("rank-medal rank-bronze", "3"),
     }
 
+    from services.logo_studio import sync_logos_from_sheet
+    sync_logos_from_sheet(str(LOGOS_DIR), str(LOGOS_DIR / "logo_profiles.json"))
     logo_files, _duplicate_logos = discover_logos(LOGOS_DIR)
 
     rows = []
@@ -276,7 +278,7 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     .tier-silver{{background:linear-gradient(135deg,#f1f5f9,#a8b3c2);color:#1e293b;box-shadow:0 0 6px rgba(168,179,194,.4)}}
     .tier-bronze{{background:linear-gradient(135deg,#e3a565,#b6702f);color:#2c1300;box-shadow:0 0 6px rgba(182,112,47,.4)}}
     .tier-wooden{{background:linear-gradient(135deg,#8a5a34,#5c3a20);color:#fbe9d4;box-shadow:0 0 6px rgba(92,58,32,.4)}}
-    .tier-legend{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 8px;margin-bottom:26px}}
+    .tier-legend{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 8px;margin-top:16px;margin-bottom:14px}}
     .tier-legend-item{{display:flex;align-items:center;gap:4px;font-size:9px;font-weight:800;letter-spacing:.2px;color:#94a3b8;text-transform:uppercase;line-height:1}}
     .search-box{{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px 12px;font-size:12px;color:#d7deea;outline:none;margin-top:14px}}.client-list{{display:flex;flex-direction:column;gap:6px}}.client-row{{display:grid;grid-template-columns:54px 1fr;grid-template-rows:auto auto;column-gap:12px;row-gap:6px;background:rgba(15,20,32,.4);border:1px solid rgba(255,255,255,.05);border-radius:14px;padding:12px 14px;cursor:pointer}}.client-row:hover{{border-color:rgba(244,114,182,.3)}}.row-identity{{grid-row:1/3;grid-column:1;display:flex;align-items:center;justify-content:center}}.row-badge-wrap{{position:relative}}.row-rank{{position:absolute;top:-6px;left:-6px;width:20px;height:20px;border-radius:50%;background:#161c2b;border:2px solid rgba(15,20,32,1);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#94a3b8;box-shadow:0 2px 5px rgba(0,0,0,.5);z-index:1}}.row-rank.rank-medal{{box-shadow:0 2px 6px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.55);border-width:2px}}.row-rank.rank-gold{{background:linear-gradient(135deg,#fff6d8,#e8b923 55%,#a9760a);color:#3a2600}}.row-rank.rank-silver{{background:linear-gradient(135deg,#f4f7fb,#c3cad4 55%,#8b95a1);color:#20242b}}.row-rank.rank-bronze{{background:linear-gradient(135deg,#f2c199,#c97a3d 55%,#7c4a20);color:#2a1608}}.row-header{{grid-row:1;grid-column:2;min-width:0;display:flex;align-items:center;gap:8px}}.row-avatar{{width:52px;height:52px;border-radius:10px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#38bdf8;flex-shrink:0}}.row-avatar.has-logo{{background:transparent;padding:0}}.row-avatar img{{width:100%;height:100%;object-fit:contain;border-radius:6px}}.row-name{{flex:1;min-width:0;overflow:hidden;font-size:14px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}}.row-stats{{grid-row:2;grid-column:2;display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,1fr);gap:6px 10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)}}.row-stat{{display:flex;align-items:baseline;justify-content:space-between}}.row-stat-val{{font-size:16px;font-weight:800;color:#e5edf9;line-height:1.2}}.row-stat-lbl{{font-size:9.5px;font-weight:700;letter-spacing:.4px;color:#64748b;text-transform:uppercase}}.row-chevron{{font-size:16px;color:#64748b;text-align:center;transition:transform .2s ease;flex-shrink:0}}.client-row.is-open .row-chevron{{transform:rotate(90deg);color:#f472b6}}.empty-directory{{padding:12px;color:#64748b;font-size:12px;text-align:center}}
     .client-detail-panel{{display:none;margin-top:6px;padding:14px;background:rgba(15,20,32,.6);border:1px solid rgba(244,114,182,.25);border-radius:14px}}.client-detail-panel.is-visible{{display:block}}
@@ -287,11 +289,11 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     @media(max-width:520px){{.client-card-container{{padding:16px 14px}}.client-row{{grid-template-columns:44px 1fr;padding:9px 10px}}.row-avatar{{width:44px;height:44px}}.row-stat-val{{font-size:13px}}.detail-stat-grid{{grid-template-columns:repeat(2,1fr)}}}}
     .livery-panel{{background:linear-gradient(160deg,#12161f,#0a0d13);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:18px 0;margin-bottom:16px;box-shadow:0 15px 35px rgba(0,0,0,.5);overflow:hidden;position:relative;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}}
     .livery-title{{font-size:12px;font-weight:900;letter-spacing:1.5px;color:#64748b;text-transform:uppercase;text-align:center;margin-bottom:14px}}
-    .livery-track{{display:flex;width:max-content;animation:livery-scroll 36s linear infinite}}
+    .livery-track{{display:flex;width:max-content;animation:livery-scroll 60s linear infinite}}
     .livery-tile{{width:76px;height:76px;margin:0 9px;background:#fff;border-radius:14px;border:1px solid rgba(0,0,0,.15);box-shadow:0 4px 10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:8px}}
     .livery-tile img{{width:100%;height:100%;object-fit:contain}}
     @keyframes livery-scroll{{0%{{transform:translateX(0)}}100%{{transform:translateX(-50%)}}}}
-    </style></head><body>{livery_html}<div class="client-card-container"><div class="client-header-title">CLIENT STANDINGS</div>{legend_html}<div class="client-list">{''.join(rows)}</div><input id="client-search" type="search" class="search-box" placeholder="Search current client directory..."></div><script>
+    </style></head><body>{livery_html}<div class="client-card-container"><div class="client-header-title">CLIENT STANDINGS</div><div class="client-list">{''.join(rows)}</div>{legend_html}<input id="client-search" type="search" class="search-box" placeholder="Search current client directory..."></div><script>
     const q=document.getElementById('client-search');
     const clickable=[...document.querySelectorAll('.client-row')];
     if(q)q.addEventListener('input',()=>{{

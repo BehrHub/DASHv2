@@ -319,6 +319,7 @@ def render_logo_studio_page(timeline: pd.DataFrame) -> None:
         CLIENT_LOGO_FILENAMES, logo_data_uri,
     )
     import base64
+    import io
 
     raw_dir = ROOT / "assets" / "logos_raw"
     logos_dir = ROOT / "assets" / "logos"
@@ -357,6 +358,8 @@ def render_logo_studio_page(timeline: pd.DataFrame) -> None:
         )
         return
 
+    from services.logo_studio import sync_logos_from_sheet
+    sync_logos_from_sheet(str(logos_dir), str(profiles_path))
     logo_files, _dupes = discover_logos(logos_dir)
     client_names = sorted(timeline["Client"].dropna().unique()) if "Client" in timeline.columns else []
     missing = [c for c in client_names if resolve_client_logo(c, logo_files) is None]
@@ -441,19 +444,43 @@ def render_logo_studio_page(timeline: pd.DataFrame) -> None:
         )
         st.caption("Exactly how it'll look in a real Client Hub row")
 
+    from services import sheets_store
+
     save_col, dl_col = st.columns(2)
     with save_col:
-        if st.button("\U0001F4BE Save (live for this session)", type="primary", width="stretch"):
+        if st.button("\U0001F4BE Save", type="primary", width="stretch"):
             tile = render_calibrated_tile(raw_path, scale, x, y)
+            tile_bytes_io = io.BytesIO()
+            tile.save(tile_bytes_io, format="PNG")
+            tile_bytes = tile_bytes_io.getvalue()
+
             tile.save(logos_dir / target_filename)
             profiles[stem] = {"scale": scale, "x": x, "y": y}
             save_profiles(profiles_path, profiles)
             discover_logos.clear()
             logo_data_uri.clear()
-            st.success(f"Saved to assets/logos/{target_filename} and cleared the logo cache — check Client Hub now.")
+
+            if sheets_store.is_configured():
+                try:
+                    sheets_store.save_logo(
+                        key=stem, filename=target_filename, scale=scale, x=x, y=y,
+                        image_base64=base64.b64encode(tile_bytes).decode("ascii"),
+                    )
+                    sync_logos_from_sheet.clear()
+                    st.success(
+                        f"Saved to Google Sheets \u2014 assets/logos/{target_filename} is now permanent. "
+                        "No download needed, this survives reboots. Check Client Hub now."
+                    )
+                except Exception as exc:
+                    st.warning(
+                        f"Saved locally for this session, but the Sheets write failed ({exc}) \u2014 "
+                        "download the tile below and commit it manually so this survives a reboot."
+                    )
+            else:
+                st.success(f"Saved to assets/logos/{target_filename} for this session \u2014 check Client Hub now.")
     with dl_col:
         st.download_button(
-            "\u2B07\uFE0F Download this tile  \n(to commit permanently)",
+            "\u2B07\uFE0F Download this tile  \n(backup copy)",
             data=preview_bytes,
             file_name=target_filename,
             mime="image/png",
@@ -461,21 +488,27 @@ def render_logo_studio_page(timeline: pd.DataFrame) -> None:
         )
 
     st.divider()
-    st.caption(
-        "Streamlit's filesystem doesn't survive a reboot/redeploy.  \n"
-        "Save above is real and immediate for right now, BUT for it to still be there after your next "
-        "git push,  \n"
-        "-  download the tile above and commit it to assets/logos (same as any other asset in this repo)  \n"
-        "-  download the updated logo_profiles.json below too (so re-calibrating later starts from these "
-        "values instead of defaults)"
-    )
-    if profiles_path.exists():
-        st.download_button(
-            "\u2B07\uFE0F Download logo_profiles.json",
-            data=profiles_path.read_bytes(),
-            file_name="logo_profiles.json",
-            mime="application/json",
+    if sheets_store.is_configured():
+        st.caption(
+            "Save writes straight to the Google Sheet backing this app \u2014 same place your event data "
+            "lives \u2014 so it survives reboots/redeploys on its own. The download button above is just an "
+            "optional backup copy, not a required step."
         )
+    else:
+        st.caption(
+            "Google Sheets isn't configured for this app, so Save only writes to local disk, which does "
+            "NOT survive a reboot/redeploy.  \n"
+            "-  download the tile above and commit it to assets/logos (same as any other asset in this repo)  \n"
+            "-  download the updated logo_profiles.json below too (so re-calibrating later starts from these "
+            "values instead of defaults)"
+        )
+        if profiles_path.exists():
+            st.download_button(
+                "\u2B07\uFE0F Download logo_profiles.json",
+                data=profiles_path.read_bytes(),
+                file_name="logo_profiles.json",
+                mime="application/json",
+            )
 
 
 def main() -> None:
@@ -522,7 +555,7 @@ def main() -> None:
     render_header(view, show_money_toggle, toggle_key=main_toggle_key)
     if show_money_toggle:
         st.markdown(
-            f"<style>{_toggle_button_css(main_toggle_key, main_toggle_anim, box_w='125px', box_h='71px', position_css='margin-top: 1px;')}</style>",
+            f"<style>{_toggle_button_css(main_toggle_key, main_toggle_anim, box_w='94px', box_h='53px', position_css='margin-top: 1px;')}</style>",
             unsafe_allow_html=True,
         )
     gross_view = bool(st.session_state.get("gross_annual_view", False))
@@ -598,8 +631,8 @@ def main() -> None:
             + _toggle_button_css(
                 ledger_toggle_key, ledger_toggle_anim,
                 position_css="margin-right: 29px; margin-top: 1px;",
-                box_w="137px",
-                box_h="78px",
+                box_w="103px",
+                box_h="58px",
             )
             + "</style>",
             unsafe_allow_html=True,

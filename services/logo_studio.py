@@ -31,6 +31,69 @@ def save_profiles(profiles_path: Path, profiles: dict) -> None:
     profiles_path.write_text(json.dumps(profiles, indent=2) + "\n")
 
 
+@st.cache_data(ttl=60, show_spinner=False)
+def sync_logos_from_sheet(logos_dir_str: str, profiles_path_str: str) -> int:
+    """Restores every logo persisted in the Google Sheets 'Logos' tab
+    onto local (ephemeral) disk. Streamlit Cloud's filesystem doesn't
+    survive a reboot/redeploy -- that's the actual root cause behind
+    "I saved it and it reverted": the previous version only ever wrote
+    to local disk, which a fresh container wipes completely, same as
+    every other local-write-only approach this app has moved away from
+    (see the sheets_store module docstring for the identical story with
+    event data). The Sheet lives outside the container, so it survives.
+
+    Call this before anything reads assets/logos/ -- Client Hub display,
+    Logo Studio's "existing calibration" lookup, etc. Cached 60s (same
+    throttling pattern as sheets_store's own reads) so this isn't
+    re-hitting the Sheets API + rewriting every file on every single
+    rerun, just whenever the cache goes stale.
+
+    Returns how many logos were restored -- safe to ignore, useful only
+    for an optional status message.
+    """
+    from services import sheets_store
+    import base64
+
+    logos_dir = Path(logos_dir_str)
+    profiles_path = Path(profiles_path_str)
+
+    if not sheets_store.is_configured():
+        return 0
+    try:
+        df = sheets_store.read_logos()
+    except Exception:
+        return 0
+    if df.empty:
+        return 0
+
+    profiles = load_profiles(profiles_path)
+    restored = 0
+    for _, row in df.iterrows():
+        key = str(row.get("Key", "")).strip()
+        filename = str(row.get("Filename", "")).strip()
+        if not key or not filename:
+            continue
+        b64 = str(row.get("ImageBase64", "")).strip()
+        if b64:
+            try:
+                logos_dir.mkdir(parents=True, exist_ok=True)
+                (logos_dir / filename).write_bytes(base64.b64decode(b64))
+                restored += 1
+            except Exception:
+                continue
+        try:
+            profiles[key] = {
+                "scale": float(row.get("Scale", DEFAULT_PROFILE["scale"])),
+                "x": int(float(row.get("X", 0) or 0)),
+                "y": int(float(row.get("Y", 0) or 0)),
+            }
+        except (TypeError, ValueError):
+            pass
+    if restored:
+        save_profiles(profiles_path, profiles)
+    return restored
+
+
 def _rounded_white_tile(tile_size: int) -> Image.Image:
     """White rounded-square backing with a soft dark border, matching
     the existing 27 calibrated logos exactly (reverse-engineered from
