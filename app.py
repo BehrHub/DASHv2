@@ -388,8 +388,26 @@ def render_logo_studio_page(timeline: pd.DataFrame) -> None:
         # bug (manual field stuck on whatever loaded initially,
         # regardless of later dropdown changes).
         choice = st.session_state.get("logostudio_client_select")
-        if choice and choice != NEW_NAME_SENTINEL:
-            st.session_state["logostudio_manual"] = choice
+        if not choice or choice == NEW_NAME_SENTINEL:
+            return
+        st.session_state["logostudio_manual"] = choice
+
+        # Also auto-select the matching raw source file, if one exists,
+        # for the SAME reason — this is what actually makes "select an
+        # existing client, see their logo to edit" work. Previously
+        # nothing populated because assets/logos_raw/ genuinely had no
+        # source images at all for the 27 already-calibrated logos, only
+        # their final processed tiles — recalibrating those tiles
+        # directly wouldn't work correctly (the trim-to-content step
+        # would just see an opaque white square, not the real logo
+        # bounds), so the true original sources were brought in
+        # separately, under the same filenames as their calibrated
+        # counterparts, specifically so this lookup can find them.
+        expected_filename = CLIENT_LOGO_FILENAMES.get(
+            choice.strip().casefold(), f"{normalize_client_filename(choice)}.png"
+        )
+        if expected_filename in raw_files:
+            st.session_state["logostudio_raw"] = expected_filename
 
     col1, col2 = st.columns(2)
     with col1:
@@ -571,8 +589,9 @@ def main() -> None:
     elif view == "clienthub":
         render_client_standings(metrics, snapshot.sheets["Timeline"], gross_view)
         st.markdown(
-            '<div style="text-align:center;margin-top:18px;font-size:10.5px;color:#3d4657;">'
-            '<a href="?entered=1&view=logostudio" target="_self" style="color:#3d4657;text-decoration:none;">'
+            '<div style="text-align:center;margin-top:18px;font-size:10.5px;">'
+            '<a href="?entered=1&view=logostudio" target="_self" style="color:#e8c94a;text-decoration:none;'
+            'text-shadow:0 0 6px rgba(250,204,21,.85),0 0 14px rgba(250,204,21,.5);">'
             "Logo Studio</a></div>",
             unsafe_allow_html=True,
         )
