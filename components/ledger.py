@@ -260,12 +260,18 @@ def _compute_career_months(dated: pd.DataFrame) -> list[dict]:
     career_start = dated["__date"].min().normalize()
     dated = dated.assign(__month_idx=dated["__date"].apply(lambda d: _month_index(d, career_start)))
     latest_month_idx = int(dated["__month_idx"].max())
-    # Always show one month beyond the last one with real data, as a
-    # live "current period" card — it'll show real zeros until dated
-    # events actually land in that window.
-    cycle_count = latest_month_idx + 2
 
     today = eastern_today_naive()
+    # Show up through whichever is LATER: the last month with real data,
+    # or the month "today" actually falls in (as a live, real-zeros
+    # "current period" card if nothing's booked in it yet) — never one
+    # month beyond that. The previous "+2" always added an extra month
+    # regardless of where today already was, which is exactly why a
+    # genuinely future, empty Month 6 kept showing up even though today
+    # was already inside Month 5.
+    current_month_idx = _month_index(today, career_start)
+    cycle_count = max(latest_month_idx, current_month_idx) + 1
+
     for i in range(cycle_count):
         start = career_start + pd.DateOffset(months=i)
         end = career_start + pd.DateOffset(months=i + 1) - pd.Timedelta(days=1)

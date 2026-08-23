@@ -350,5 +350,20 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     # Static fallback only -- covers the brief instant before the JS
     # above runs and takes over for real. Deliberately modest now that
     # it's not the only thing standing between "cut off" and "huge gap".
-    height = 900 + max(len(directory), 1) * 40
+    # The window.frameElement + ResizeObserver auto-resize approach from
+    # the last round evidently isn't firing in this Streamlit iframe
+    # context (most likely a cross-origin restriction blocking access
+    # to the iframe element from within its own content, which I can't
+    # fully verify without a live browser) -- the static fallback height
+    # was all that was ever actually applying, and it was tuned far too
+    # small (900 + 40/row), which is why this got WORSE than either
+    # previous attempt rather than better. Reverting to a static formula
+    # as the real mechanism again, calibrated as a middle point between
+    # the two prior data points: 90/row undershot (cut off ~2 of 31
+    # clients), 130/row overshot (created a large empty gap before Logo
+    # Studio) -- splitting the difference here rather than guessing
+    # fresh. The JS observer is left in place in case it does help in
+    # some contexts, but the static number is what's actually load-
+    # bearing now.
+    height = 550 + max(len(directory), 1) * 110 + (160 if livery_clients else 0)
     components.html(html, height=height, scrolling=False)
