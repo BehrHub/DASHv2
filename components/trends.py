@@ -202,7 +202,7 @@ TRENDS_CSS_RULES = """
 .trend-annualized-badge { display: block; font-size: 10px; font-weight: 800; color: #7dd3fc; letter-spacing: .3px; margin-bottom: 8px; }
 .trend-view { display: none; }
 .trend-view.is-active { display: block; }
-.trend-plot { position: relative; height: 190px; margin-bottom: 8px; }
+.trend-plot { position: relative; height: 158px; margin-bottom: 8px; }
 .trend-grid-wrap { position: absolute; left: 0; right: 0; bottom: 0; height: 128px; }
 .trend-grid-line { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,.07); }
 .trend-grid-line.is-base { background: rgba(255,255,255,.18); }

@@ -165,13 +165,22 @@ JOURNEY_CSS = """
 .journey-fuel-button:hover { border-color: rgba(244,114,182,.6); background: linear-gradient(135deg, rgba(60,25,55,.92), rgba(13,17,26,.96)); }
 .journey-track { position: relative; display: grid; gap: .72rem; margin: .2rem 0 1rem; padding: .4rem 0 .6rem 1.2rem; }
 .journey-track::before { content: ""; position: absolute; top: 2.8rem; bottom: 2.8rem; left: .68rem; width: 4px; border-radius: 999px; background: repeating-linear-gradient(to bottom, #f8fafc 0 12px, #05070b 12px 22px); box-shadow: 0 0 16px rgba(248,250,252,.18); opacity: .82; }
-.journey-replay-car { position: absolute; left: -.12rem; top: .9rem; z-index: 5; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; padding: 0; appearance: none; -webkit-appearance: none; border-radius: 999px; background: #05070b; border: 1px solid rgba(248,250,252,.2); box-shadow: 0 0 0 2px rgba(244,114,182,.25), 0 0 13px rgba(244,114,182,.4), 0 7px 15px rgba(0,0,0,.4); color: #fff; font-size: 1rem; line-height: 1; opacity: 0; pointer-events: none; cursor: pointer; transform: translateY(-50%); transition-property: top, opacity; transition-timing-function: cubic-bezier(.2,.72,.22,1); }
+.journey-replay-car { position: absolute; left: -.12rem; top: .9rem; z-index: 5; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; padding: 0; appearance: none; -webkit-appearance: none; border-radius: 999px; background: #05070b; border: 1px solid rgba(248,250,252,.2); box-shadow: 0 0 0 2px rgba(244,114,182,.25), 0 0 13px rgba(244,114,182,.4), 0 7px 15px rgba(0,0,0,.4); color: #fff; font-size: 1rem; line-height: 1; opacity: 0; pointer-events: none; cursor: pointer; transform: translateY(-50%); transition-property: top, opacity; transition-timing-function: cubic-bezier(.2,.72,.22,1); }
 .journey-car-icon { display: block; width: 78%; height: 78%; object-fit: contain; transform: scaleX(-1); transform-origin: center center; }
 .journey-track.replay-active .journey-replay-car { opacity: 1; pointer-events: auto; }
 .journey-stop.new-client-celebration { animation: journeyClientGlow 1.45s ease-out both; }
 @keyframes journeyClientGlow { 0% { box-shadow: 0 0 0 rgba(244,114,182,0); } 30% { box-shadow: 0 0 26px rgba(244,114,182,.55); } 100% { box-shadow: 0 0 0 rgba(244,114,182,0); } }
-.journey-achievement-badge { position: absolute; left: 1.7rem; top: 50%; z-index: 6; padding: .18rem .38rem; border: 1px solid rgba(244,114,182,.4); border-radius: 999px; background: rgba(5,7,11,.92); color: #f9a8d4; font-size: .55rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; box-shadow: 0 0 14px rgba(244,114,182,.25); opacity: 0; pointer-events: none; transform: translateY(-50%) translateX(-3px); transition: opacity .18s ease, transform .18s ease; white-space: nowrap; }
+.journey-achievement-badge { position: absolute; left: 2.6rem; top: 50%; z-index: 6; padding: .18rem .38rem; border: 1px solid rgba(244,114,182,.4); border-radius: 999px; background: rgba(5,7,11,.92); color: #f9a8d4; font-size: .55rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; box-shadow: 0 0 14px rgba(244,114,182,.25); opacity: 0; pointer-events: none; transform: translateY(-50%) translateX(-3px); transition: opacity .18s ease, transform .18s ease; white-space: nowrap; }
 .journey-achievement-badge.is-visible { opacity: 1; transform: translateY(-50%) translateX(0); }
+.journey-puff { position: absolute; left: 6px; top: 50%; width: 8px; height: 8px; border-radius: 50%; background: rgba(203,213,225,.6); opacity: 0; pointer-events: none; }
+.journey-replay-car.is-turbo .journey-puff { animation: journeySmokePuff .9s ease-out infinite; }
+.journey-replay-car.is-turbo .journey-puff:nth-child(2) { animation-delay: .3s; }
+.journey-replay-car.is-turbo .journey-puff:nth-child(3) { animation-delay: .6s; }
+@keyframes journeySmokePuff {
+  0% { opacity: 0; transform: translate(0, -50%) scale(.4); }
+  18% { opacity: .75; }
+  100% { opacity: 0; transform: translate(-26px, calc(-50% - 16px)) scale(1.7); }
+}
 .journey-finish-line { position: relative; z-index: 1; margin-left: .2rem; padding: .55rem .75rem; display: flex; align-items: center; justify-content: space-between; gap: .75rem; border: 1px dashed rgba(248,250,252,.42); border-radius: 12px; background: repeating-linear-gradient(45deg, rgba(248,250,252,.14) 0 8px, rgba(5,7,11,.85) 8px 16px); color: #f8fafc; font-size: .72rem; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; opacity: 0; transform: translateY(4px); transition: opacity .25s ease, transform .25s ease; }
 .journey-finish-line.is-visible { opacity: 1; transform: translateY(0); }
 .journey-replay-summary { position: fixed; left: 50%; right: auto; bottom: max(1rem, env(safe-area-inset-bottom)); z-index: 50; width: min(310px, calc(100vw - 2rem)); padding: .9rem; border: 1px solid rgba(244,114,182,.32); border-radius: 16px; background: linear-gradient(145deg, rgba(35,20,35,.98), rgba(5,7,11,.98)); box-shadow: 0 18px 44px rgba(0,0,0,.5), 0 0 24px rgba(244,114,182,.12), inset 0 1px 0 rgba(255,255,255,.06); color: #eef6ff; pointer-events: auto; opacity: 0; transform: translate(-50%, 10px) scale(.98); transition: opacity .24s ease, transform .24s ease; }
@@ -204,8 +213,8 @@ JOURNEY_CSS = """
   .journey-track { padding-left: .85rem; gap: .52rem; }
   .journey-track::before { left: .42rem; }
   .journey-fuel-button { width: 32px; height: 32px; font-size: .95rem; }
-  .journey-replay-car { left: -.24rem; width: 36px; height: 36px; font-size: .92rem; }
-  .journey-achievement-badge { left: 1.5rem; font-size: .5rem; padding: .15rem .32rem; }
+  .journey-replay-car { left: -.24rem; width: 72px; height: 72px; font-size: .92rem; }
+  .journey-achievement-badge { left: 2.3rem; font-size: .5rem; padding: .15rem .32rem; }
   .journey-replay-summary { width: min(300px, calc(100vw - 1.4rem)); padding: .78rem; }
   .journey-summary-grid { gap: .34rem; }
   .journey-stop { grid-template-columns: 42px 1fr; gap: .52rem; padding: .54rem .58rem; border-radius: 13px; }
@@ -283,7 +292,7 @@ def render_barrister_journey(timeline: pd.DataFrame) -> None:
         f'<div id="journeyTrack" class="journey-track" data-completed-visits="{escape(str(completed_visits))}" '
         f'data-unique-clients="{escape(str(unique_clients))}" data-jurisdictions="{escape(str(jurisdictions))}" '
         f'data-unique-cities="{escape(str(unique_cities))}" data-known-revenue="{escape(format_currency(known_revenue))}">'
-        f'<button id="journeyReplayCar" class="journey-replay-car" type="button" aria-label="Pause or resume career replay"><img class="journey-car-icon" src="{_journey_car_data_uri()}" alt=""><span id="journeyAchievementBadge" class="journey-achievement-badge">+CLIENT</span></button>'
+        f'<button id="journeyReplayCar" class="journey-replay-car" type="button" aria-label="Pause or resume career replay"><img class="journey-car-icon" src="{_journey_car_data_uri()}" alt=""><span class="journey-puff"></span><span class="journey-puff"></span><span class="journey-puff"></span><span id="journeyAchievementBadge" class="journey-achievement-badge">+CLIENT</span></button>'
         '<div id="journeyReplaySummary" class="journey-replay-summary" aria-live="polite"></div>'
         '<div class="journey-start journey-stop-test-white"><span>START \U0001F3C1</span><button id="journeyFuelButton" class="journey-fuel-button" type="button" aria-label="Start or restart career replay" title="Start or restart career replay">\u26FD</button></div>'
     ]
@@ -418,7 +427,7 @@ def render_journey_replay_script() -> None:
                 let animationFrame = null;
                 let activeScroller = null;
                 let previousScrollerOverflow = "";
-                const speedLevels = [1.00, 1.70, 2.50, 0.00];
+                const speedLevels = [1.25, 2.50, 0.00];
                 const basePixelsPerSecond = 145;
 
                 function stops() {
@@ -512,6 +521,7 @@ def render_journey_replay_script() -> None:
                     sequenceId += 1;
                     running = false;
                     paused = false;
+                    car.classList.remove("is-turbo");
                     doc.body.style.overflow = "";
                     doc.documentElement.style.overflow = "";
                     if (activeScroller) {
@@ -581,6 +591,7 @@ def render_journey_replay_script() -> None:
                     const finishTarget = finishLine || replayStops[replayStops.length - 1];
                     car.style.transitionDuration = "0ms";
                     car.style.opacity = "1";
+                    car.classList.remove("is-turbo");
                     speedIndex = 0;
                     nextStopIndex = 0;
                     replayY = yFor(start);
@@ -594,6 +605,7 @@ def render_journey_replay_script() -> None:
                         return;
                     }
                     speedIndex = (speedIndex + 1) % speedLevels.length;
+                    car.classList.toggle("is-turbo", speedLevels[speedIndex] === 2.50);
                 }
 
                 function togglePause() {

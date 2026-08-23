@@ -319,13 +319,36 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
         if(willOpen){{panel.classList.add('is-visible');el.classList.add('is-open');}}
       }});
     }});
+    // Real fix instead of another guessed constant: measure the
+    // iframe's OWN actual content height and resize itself to match,
+    // via window.frameElement -- valid same-origin access since
+    // Streamlit generates both the parent page and this iframe's
+    // content from the same server. A ResizeObserver on <body> re-fires
+    // this on ANY layout change (logo images finishing async load,
+    // a detail panel expanding, the search filter hiding/showing rows)
+    // without needing to manually call it at every single interaction
+    // site. This is what actually solves both "cut off at client #29"
+    // and "huge dead gap before Logo Studio" permanently, rather than
+    // continuing to hand-tune a height=... formula that breaks again
+    // the next time the row layout changes.
+    (function autoResizeIframe() {{
+      function resize() {{
+        if (window.frameElement) {{
+          window.frameElement.style.height = document.documentElement.scrollHeight + 'px';
+        }}
+      }}
+      resize();
+      if (window.ResizeObserver) {{
+        new ResizeObserver(resize).observe(document.body);
+      }} else {{
+        window.addEventListener('load', resize);
+        setTimeout(resize, 300);
+        setTimeout(resize, 1000);
+      }}
+    }})();
     </script></body></html>"""
-    # Each client-row got noticeably taller since this was last tuned —
-    # bigger 52px logo badge, 2x2 stat grid instead of 4-across, plus
-    # the legend/search now sitting below the list instead of above —
-    # 90px/row was undershooting badly (cutting off ~2 of 31 real
-    # clients). Recalculated generously rather than precisely, since
-    # exact rendered height isn't something verifiable without a live
-    # browser — better to leave a little blank space than cut content.
-    height = 620 + max(len(directory), 1) * 130 + (180 if livery_clients else 0)
+    # Static fallback only -- covers the brief instant before the JS
+    # above runs and takes over for real. Deliberately modest now that
+    # it's not the only thing standing between "cut off" and "huge gap".
+    height = 900 + max(len(directory), 1) * 40
     components.html(html, height=height, scrolling=False)

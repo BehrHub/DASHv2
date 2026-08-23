@@ -556,16 +556,12 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, i
         for item in ACTION_ITEMS
     )
 
-    # Requested order — row 1: L10WK, ERAS, CAREER, CALENDAR
-    #                   row 2: ERAS, DAYS, CLIENTS, CITIES
-    # Swapped from the original L10WK/ERAS/CAREER/CALENDAR + L10DAY/DAYS/
-    # CLIENTS/CITIES — this groups row 1 as every date-sorted-descending
-    # (most-recent-first) tab and row 2 as every ascending one (ERAS is
-    # chronological Intro->Momentum->Speed; DAYS/CLIENTS/CITIES are rank
-    # 1->N). Internal key stays "l10d" (matches _compute_l10d/l10d_cards
-    # above and the deep-link query param elsewhere) — only the visible
-    # label text says "L10DAY".
-    tabs = ["l10wk", "l10d", "career", "calendar", "eras", "days", "clients", "cities"]
+    # Requested order — row 1: L10DAY, L10WK, CAREER, CALENDAR
+    #                   row 2: DAYS, ERAS, CITIES, CLIENTS
+    # Internal key stays "l10d" (matches _compute_l10d/l10d_cards above
+    # and the deep-link query param elsewhere) — only the visible label
+    # text says "L10DAY".
+    tabs = ["l10d", "l10wk", "career", "calendar", "days", "eras", "cities", "clients"]
     if initial_tab not in tabs:
         initial_tab = "l10wk"
 
@@ -582,23 +578,23 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, i
     </head><body>
       <div class="ledger-panel">
         <div class="month-view-tabs">
-          <div class="{_tab_class('l10wk')}" data-view="l10wk">L10WK</div>
           <div class="{_tab_class('l10d')}" data-view="l10d">L10DAY</div>
+          <div class="{_tab_class('l10wk')}" data-view="l10wk">L10WK</div>
           <div class="{_tab_class('career')}" data-view="career">CAREER</div>
           <div class="{_tab_class('calendar')}" data-view="calendar">CALENDAR</div>
-          <div class="{_tab_class('eras')}" data-view="eras">ERAS</div>
           <div class="{_tab_class('days')}" data-view="days">DAYS</div>
-          <div class="{_tab_class('clients')}" data-view="clients">CLIENTS</div>
+          <div class="{_tab_class('eras')}" data-view="eras">ERAS</div>
           <div class="{_tab_class('cities')}" data-view="cities">CITIES</div>
+          <div class="{_tab_class('clients')}" data-view="clients">CLIENTS</div>
         </div>
-        <div class="{_view_class('l10wk')}" data-view="l10wk">{l10wk_cards}</div>
         <div class="{_view_class('l10d')}" data-view="l10d">{l10d_cards}</div>
+        <div class="{_view_class('l10wk')}" data-view="l10wk">{l10wk_cards}</div>
         <div class="{_view_class('career')}" data-view="career">{career_cards}</div>
         <div class="{_view_class('calendar')}" data-view="calendar">{calendar_cards}</div>
-        <div class="{_view_class('eras')}" data-view="eras">{era_cards}</div>
         <div class="{_view_class('days')}" data-view="days">{day_cards}</div>
-        <div class="{_view_class('clients')}" data-view="clients">{client_cards}</div>
+        <div class="{_view_class('eras')}" data-view="eras">{era_cards}</div>
         <div class="{_view_class('cities')}" data-view="cities">{city_cards}</div>
+        <div class="{_view_class('clients')}" data-view="clients">{client_cards}</div>
       </div>
 
       <div class="ledger-panel">
