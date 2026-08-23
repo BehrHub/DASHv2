@@ -289,11 +289,16 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     @media(max-width:520px){{.client-card-container{{padding:16px 14px}}.client-row{{grid-template-columns:44px 1fr;padding:9px 10px}}.row-avatar{{width:44px;height:44px}}.row-stat-val{{font-size:13px}}.detail-stat-grid{{grid-template-columns:repeat(2,1fr)}}}}
     .livery-panel{{background:linear-gradient(160deg,#12161f,#0a0d13);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:18px 0;margin-bottom:16px;box-shadow:0 15px 35px rgba(0,0,0,.5);overflow:hidden;position:relative;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}}
     .livery-title{{font-size:12px;font-weight:900;letter-spacing:1.5px;color:#64748b;text-transform:uppercase;text-align:center;margin-bottom:14px}}
-    .livery-track{{display:flex;width:max-content;animation:livery-scroll 60s linear infinite}}
+    .livery-track{{display:flex;width:max-content;animation:livery-scroll 80s linear infinite}}
+    .livery-panel.is-paused .livery-track{{animation-play-state:paused}}
     .livery-tile{{width:76px;height:76px;margin:0 9px;background:#fff;border-radius:14px;border:1px solid rgba(0,0,0,.15);box-shadow:0 4px 10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:8px}}
     .livery-tile img{{width:100%;height:100%;object-fit:contain}}
     @keyframes livery-scroll{{0%{{transform:translateX(0)}}100%{{transform:translateX(-50%)}}}}
     </style></head><body>{livery_html}<div class="client-card-container"><div class="client-header-title">CLIENT STANDINGS</div><div class="client-list">{''.join(rows)}</div>{legend_html}<input id="client-search" type="search" class="search-box" placeholder="Search current client directory..."></div><script>
+    (function liveryClickToPause() {{
+      const panel = document.querySelector('.livery-panel');
+      if (panel) panel.addEventListener('click', () => panel.classList.toggle('is-paused'));
+    }})();
     const q=document.getElementById('client-search');
     const clickable=[...document.querySelectorAll('.client-row')];
     if(q)q.addEventListener('input',()=>{{
@@ -315,5 +320,12 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
       }});
     }});
     </script></body></html>"""
-    height = 480 + max(len(directory), 1) * 90 + (150 if livery_clients else 0)
+    # Each client-row got noticeably taller since this was last tuned —
+    # bigger 52px logo badge, 2x2 stat grid instead of 4-across, plus
+    # the legend/search now sitting below the list instead of above —
+    # 90px/row was undershooting badly (cutting off ~2 of 31 real
+    # clients). Recalculated generously rather than precisely, since
+    # exact rendered height isn't something verifiable without a live
+    # browser — better to leave a little blank space than cut content.
+    height = 620 + max(len(directory), 1) * 130 + (180 if livery_clients else 0)
     components.html(html, height=height, scrolling=False)
