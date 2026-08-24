@@ -173,10 +173,18 @@ JOURNEY_CSS = """
 @keyframes journeyClientGlow { 0% { box-shadow: 0 0 0 rgba(244,114,182,0); } 30% { box-shadow: 0 0 26px rgba(244,114,182,.55); } 100% { box-shadow: 0 0 0 rgba(244,114,182,0); } }
 .journey-achievement-badge { position: absolute; left: 2.6rem; top: 50%; z-index: 6; padding: .18rem .38rem; border: 1px solid rgba(244,114,182,.4); border-radius: 999px; background: rgba(5,7,11,.92); color: #f9a8d4; font-size: .55rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; box-shadow: 0 0 14px rgba(244,114,182,.25); opacity: 0; pointer-events: none; transform: translateY(-50%) translateX(-3px); transition: opacity .18s ease, transform .18s ease; white-space: nowrap; }
 .journey-achievement-badge.is-visible { opacity: 1; transform: translateY(-50%) translateX(0); }
-.journey-puff { position: absolute; left: 6px; top: 50%; width: 10px; height: 14px; border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%; background: radial-gradient(circle at 50% 68%, #fff6cc 0%, #ffcf5c 28%, #ff8a1f 55%, #ff3b1f 78%, #b81900 100%); opacity: 0; pointer-events: none; filter: blur(.2px); }
-.journey-replay-car.is-turbo .journey-puff { animation: journeyFireFlicker .38s ease-in-out infinite; }
-.journey-replay-car.is-turbo .journey-puff:nth-child(2) { animation-delay: .1s; }
-.journey-replay-car.is-turbo .journey-puff:nth-child(3) { animation-delay: .2s; }
+.journey-puff { position: absolute; left: 6px; top: 50%; opacity: 0; pointer-events: none; }
+.journey-replay-car.is-smoke .journey-puff { width: 8px; height: 8px; border-radius: 50%; background: rgba(203,213,225,.6); animation: journeySmokePuff .9s ease-out infinite; }
+.journey-replay-car.is-turbo .journey-puff { width: 10px; height: 14px; border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%; background: radial-gradient(circle at 50% 68%, #fff6cc 0%, #ffcf5c 28%, #ff8a1f 55%, #ff3b1f 78%, #b81900 100%); filter: blur(.2px); animation: journeyFireFlicker .38s ease-in-out infinite; }
+.journey-replay-car .journey-puff:nth-child(2) { animation-delay: .1s !important; }
+.journey-replay-car .journey-puff:nth-child(3) { animation-delay: .2s !important; }
+.journey-replay-car.is-smoke .journey-puff:nth-child(2) { animation-delay: .3s !important; }
+.journey-replay-car.is-smoke .journey-puff:nth-child(3) { animation-delay: .6s !important; }
+@keyframes journeySmokePuff {
+  0% { opacity: 0; transform: translate(0, -50%) scale(.4); }
+  18% { opacity: .75; }
+  100% { opacity: 0; transform: translate(-26px, calc(-50% - 16px)) scale(1.7); }
+}
 @keyframes journeyFireFlicker {
   0% { opacity: 0; transform: translate(0, -50%) scale(.5) rotate(-5deg); }
   28% { opacity: 1; transform: translate(-5px, calc(-50% - 3px)) scale(1.15) rotate(4deg); }
@@ -443,7 +451,7 @@ def render_journey_replay_script() -> None:
                 let animationFrame = null;
                 let activeScroller = null;
                 let previousScrollerOverflow = "";
-                const speedLevels = [1.25, 2.50, 0.00];
+                const speedLevels = [1.00, 1.65, 2.75, 0.00];
                 const basePixelsPerSecond = 145;
 
                 function stops() {
@@ -524,7 +532,7 @@ def render_journey_replay_script() -> None:
                     sequenceId += 1;
                     running = false;
                     paused = false;
-                    car.classList.remove("is-turbo");
+                    car.classList.remove("is-turbo", "is-smoke");
                     doc.body.style.overflow = "";
                     doc.documentElement.style.overflow = "";
                     if (activeScroller) {
@@ -593,7 +601,7 @@ def render_journey_replay_script() -> None:
                     const finishTarget = finishLine || replayStops[replayStops.length - 1];
                     car.style.transitionDuration = "0ms";
                     car.style.opacity = "1";
-                    car.classList.remove("is-turbo");
+                    car.classList.remove("is-turbo", "is-smoke");
                     speedIndex = 0;
                     nextStopIndex = 0;
                     replayY = yFor(start);
@@ -607,7 +615,8 @@ def render_journey_replay_script() -> None:
                         return;
                     }
                     speedIndex = (speedIndex + 1) % speedLevels.length;
-                    car.classList.toggle("is-turbo", speedLevels[speedIndex] === 2.50);
+                    car.classList.toggle("is-smoke", speedLevels[speedIndex] === 1.65);
+                    car.classList.toggle("is-turbo", speedLevels[speedIndex] === 2.75);
                 }
 
                 function togglePause() {
