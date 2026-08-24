@@ -166,6 +166,7 @@ JOURNEY_CSS = """
 .journey-track { position: relative; display: grid; gap: .72rem; margin: .2rem 0 1rem; padding: .4rem 0 .6rem 1.2rem; }
 .journey-track::before { content: ""; position: absolute; top: 2.8rem; bottom: 2.8rem; left: .68rem; width: 4px; border-radius: 999px; background: repeating-linear-gradient(to bottom, #f8fafc 0 12px, #05070b 12px 22px); box-shadow: 0 0 16px rgba(248,250,252,.18); opacity: .82; }
 .journey-replay-car { position: absolute; left: -.12rem; top: .9rem; z-index: 5; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; padding: 0; appearance: none; -webkit-appearance: none; background: transparent; border: none; box-shadow: none; color: #fff; font-size: 1rem; line-height: 1; opacity: 0; pointer-events: none; cursor: pointer; transform: translateY(-50%); transition-property: top, opacity; transition-timing-function: cubic-bezier(.2,.72,.22,1); }
+.journey-car-departing { transition: transform 900ms cubic-bezier(.4,0,.7,1) !important; transform: translateY(-50%) translateX(140vw) !important; }
 .journey-car-icon { display: block; width: 78%; height: 78%; object-fit: contain; transform: scaleX(-1); transform-origin: center center; }
 .journey-track.replay-active .journey-replay-car { opacity: 1; pointer-events: auto; }
 .journey-stop.new-client-celebration { animation: journeyClientGlow 1.45s ease-out both; }
@@ -183,12 +184,6 @@ JOURNEY_CSS = """
 }
 .journey-finish-line { position: relative; z-index: 1; margin-left: .2rem; padding: .55rem .75rem; display: flex; align-items: center; justify-content: space-between; gap: .75rem; border: 1px dashed rgba(248,250,252,.42); border-radius: 12px; background: repeating-linear-gradient(45deg, rgba(248,250,252,.14) 0 8px, rgba(5,7,11,.85) 8px 16px); color: #f8fafc; font-size: .72rem; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; opacity: 0; transform: translateY(4px); transition: opacity .25s ease, transform .25s ease; }
 .journey-finish-line.is-visible { opacity: 1; transform: translateY(0); }
-.journey-replay-summary { position: fixed; left: 50%; right: auto; bottom: max(1rem, env(safe-area-inset-bottom)); z-index: 50; width: min(310px, calc(100vw - 2rem)); padding: .9rem; border: 1px solid rgba(244,114,182,.32); border-radius: 16px; background: linear-gradient(145deg, rgba(35,20,35,.98), rgba(5,7,11,.98)); box-shadow: 0 18px 44px rgba(0,0,0,.5), 0 0 24px rgba(244,114,182,.12), inset 0 1px 0 rgba(255,255,255,.06); color: #eef6ff; pointer-events: auto; opacity: 0; transform: translate(-50%, 10px) scale(.98); transition: opacity .24s ease, transform .24s ease; }
-.journey-replay-summary.is-visible { transform: translate(-50%, 0) scale(1); opacity: 1; }
-.journey-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .42rem; margin-top: .65rem; }
-.journey-summary-stat { padding: .52rem; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; background: rgba(15,23,42,.75); }
-.journey-summary-value { color: #fff; font-size: .98rem; font-weight: 860; line-height: 1; }
-.journey-summary-label { margin-top: .18rem; color: #9fb1c8; font-size: .56rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
 .journey-start { position: relative; z-index: 1; margin-left: .2rem; padding: .7rem .85rem; border: 1px solid rgba(244,114,182,.4); border-radius: 12px; background: linear-gradient(135deg, rgba(60,25,55,.78), rgba(5,7,11,.9)); color: #f8fafc; font-size: .82rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .journey-checkpoint { position: relative; z-index: 1; margin-left: .2rem; padding: .48rem .7rem; border: 1px solid rgba(56,189,248,.36); border-radius: 999px; background: rgba(15,23,42,.9); color: #7dd3fc; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; width: fit-content; max-width: 100%; }
 .journey-milestone { position: relative; z-index: 1; margin-left: .2rem; padding: .56rem .78rem; border: 1px solid rgba(253,230,138,.46); border-radius: 12px; background: linear-gradient(135deg, rgba(91,64,16,.85), rgba(13,17,26,.9)); color: #ffe8a3; font-size: .74rem; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; width: fit-content; max-width: 100%; box-shadow: 0 10px 22px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06); }
@@ -215,8 +210,6 @@ JOURNEY_CSS = """
   .journey-fuel-button { width: 32px; height: 32px; font-size: .95rem; }
   .journey-replay-car { left: -.24rem; width: 72px; height: 72px; font-size: .92rem; }
   .journey-achievement-badge { left: 2.3rem; font-size: .5rem; padding: .15rem .32rem; }
-  .journey-replay-summary { width: min(300px, calc(100vw - 1.4rem)); padding: .78rem; }
-  .journey-summary-grid { gap: .34rem; }
   .journey-stop { grid-template-columns: 42px 1fr; gap: .52rem; padding: .54rem .58rem; border-radius: 13px; }
   .journey-stop::before { left: -.76rem; width: 10px; height: 10px; }
   .journey-number { font-size: .58rem; border-radius: 10px; }
@@ -293,7 +286,6 @@ def render_barrister_journey(timeline: pd.DataFrame) -> None:
         f'data-unique-clients="{escape(str(unique_clients))}" data-jurisdictions="{escape(str(jurisdictions))}" '
         f'data-unique-cities="{escape(str(unique_cities))}" data-known-revenue="{escape(format_currency(known_revenue))}">'
         f'<button id="journeyReplayCar" class="journey-replay-car" type="button" aria-label="Pause or resume career replay"><img class="journey-car-icon" src="{_journey_car_data_uri()}" alt=""><span class="journey-puff"></span><span class="journey-puff"></span><span class="journey-puff"></span><span id="journeyAchievementBadge" class="journey-achievement-badge">+CLIENT</span></button>'
-        '<div id="journeyReplaySummary" class="journey-replay-summary" aria-live="polite"></div>'
         '<div class="journey-start journey-stop-test-white"><span>START \U0001F3C1</span><button id="journeyFuelButton" class="journey-fuel-button" type="button" aria-label="Start or restart career replay" title="Start or restart career replay">\u26FD</button></div>'
     ]
 
@@ -377,7 +369,6 @@ def render_journey_replay_script() -> None:
                 const track = doc.getElementById("journeyTrack");
                 let car = doc.getElementById("journeyReplayCar");
                 let badge = doc.getElementById("journeyAchievementBadge");
-                const summary = doc.getElementById("journeyReplaySummary");
                 const finishLine = doc.getElementById("journeyFinishLine");
                 const journeyTopButton = doc.getElementById("journeyTopButton");
 
@@ -389,11 +380,31 @@ def render_journey_replay_script() -> None:
                 if (journeyTopButton) {
                     journeyTopButton.addEventListener("click", function(event) {
                         event.preventDefault();
-                        try {
-                            window.parent.scrollTo({top: 0, behavior: "smooth"});
-                        } catch (e) {
-                            window.scrollTo({top: 0, behavior: "smooth"});
-                        }
+                        // Repurposed from the old (non-functional) scroll-
+                        // to-top behavior: the car takes off from wherever
+                        // it currently sits, positioned at the trophy if it
+                        // wasn't already visible from an active replay,
+                        // drives off the right edge, then navigates to
+                        // Events once it's had time to fully clear the
+                        // screen. window.parent.location is used (not a
+                        // plain <a href>) since this is running inside a
+                        // components.html() iframe, not the top-level page
+                        // — same reasoning as the splash screen's own
+                        // navigation, just via JS instead of a real link.
+                        const trophyRect = journeyTopButton.getBoundingClientRect();
+                        const trackRect2 = track.getBoundingClientRect();
+                        car.style.top = ((trophyRect.top - trackRect2.top) + (trophyRect.height / 2)) + "px";
+                        car.style.opacity = "1";
+                        car.style.pointerEvents = "none";
+                        void car.offsetWidth;
+                        car.classList.add("journey-car-departing");
+                        win.setTimeout(function () {
+                            try {
+                                window.parent.location.href = window.parent.location.pathname + "?entered=1&view=addevent";
+                            } catch (e) {
+                                window.location.href = window.location.pathname + "?entered=1&view=addevent";
+                            }
+                        }, 950);
                     });
                 }
 
@@ -478,18 +489,6 @@ def render_journey_replay_script() -> None:
                     }, 1050);
                 }
 
-                function showSummary() {
-                    summary.innerHTML = `
-                        <div class="journey-summary-grid">
-                            <div class="journey-summary-stat"><div class="journey-summary-value">${track.dataset.completedVisits || "0"}</div><div class="journey-summary-label">Completed Visits</div></div>
-                            <div class="journey-summary-stat"><div class="journey-summary-value">${track.dataset.uniqueClients || "0"}</div><div class="journey-summary-label">Unique Clients</div></div>
-                            <div class="journey-summary-stat"><div class="journey-summary-value">${track.dataset.uniqueCities || "0"}</div><div class="journey-summary-label">Unique Cities Visited</div></div>
-                            <div class="journey-summary-stat"><div class="journey-summary-value">${track.dataset.jurisdictions || "0"}</div><div class="journey-summary-label">Jurisdictions</div></div>
-                        </div>
-                    `;
-                    summary.classList.add("is-visible");
-                }
-
                 function scrollWithCar() {
                     const scroller = replayScroller();
                     const trackRect = track.getBoundingClientRect();
@@ -560,7 +559,6 @@ def render_journey_replay_script() -> None:
                             if (finishLine) {
                                 finishLine.classList.add("is-visible");
                             }
-                            showSummary();
                             running = false;
                             animationFrame = null;
                             return;
