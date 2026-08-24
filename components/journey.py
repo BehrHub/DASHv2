@@ -173,14 +173,15 @@ JOURNEY_CSS = """
 @keyframes journeyClientGlow { 0% { box-shadow: 0 0 0 rgba(244,114,182,0); } 30% { box-shadow: 0 0 26px rgba(244,114,182,.55); } 100% { box-shadow: 0 0 0 rgba(244,114,182,0); } }
 .journey-achievement-badge { position: absolute; left: 2.6rem; top: 50%; z-index: 6; padding: .18rem .38rem; border: 1px solid rgba(244,114,182,.4); border-radius: 999px; background: rgba(5,7,11,.92); color: #f9a8d4; font-size: .55rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; box-shadow: 0 0 14px rgba(244,114,182,.25); opacity: 0; pointer-events: none; transform: translateY(-50%) translateX(-3px); transition: opacity .18s ease, transform .18s ease; white-space: nowrap; }
 .journey-achievement-badge.is-visible { opacity: 1; transform: translateY(-50%) translateX(0); }
-.journey-puff { position: absolute; left: 6px; top: 50%; width: 8px; height: 8px; border-radius: 50%; background: rgba(203,213,225,.6); opacity: 0; pointer-events: none; }
-.journey-replay-car.is-turbo .journey-puff { animation: journeySmokePuff .9s ease-out infinite; }
-.journey-replay-car.is-turbo .journey-puff:nth-child(2) { animation-delay: .3s; }
-.journey-replay-car.is-turbo .journey-puff:nth-child(3) { animation-delay: .6s; }
-@keyframes journeySmokePuff {
-  0% { opacity: 0; transform: translate(0, -50%) scale(.4); }
-  18% { opacity: .75; }
-  100% { opacity: 0; transform: translate(-26px, calc(-50% - 16px)) scale(1.7); }
+.journey-puff { position: absolute; left: 6px; top: 50%; width: 10px; height: 14px; border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%; background: radial-gradient(circle at 50% 68%, #fff6cc 0%, #ffcf5c 28%, #ff8a1f 55%, #ff3b1f 78%, #b81900 100%); opacity: 0; pointer-events: none; filter: blur(.2px); }
+.journey-replay-car.is-turbo .journey-puff { animation: journeyFireFlicker .38s ease-in-out infinite; }
+.journey-replay-car.is-turbo .journey-puff:nth-child(2) { animation-delay: .1s; }
+.journey-replay-car.is-turbo .journey-puff:nth-child(3) { animation-delay: .2s; }
+@keyframes journeyFireFlicker {
+  0% { opacity: 0; transform: translate(0, -50%) scale(.5) rotate(-5deg); }
+  28% { opacity: 1; transform: translate(-5px, calc(-50% - 3px)) scale(1.15) rotate(4deg); }
+  60% { opacity: .85; transform: translate(-11px, calc(-50% - 1px)) scale(.85) rotate(-3deg); }
+  100% { opacity: 0; transform: translate(-19px, -50%) scale(.4) rotate(5deg); }
 }
 .journey-finish-line { position: relative; z-index: 1; margin-left: .2rem; padding: .55rem .75rem; display: flex; align-items: center; justify-content: space-between; gap: .75rem; border: 1px dashed rgba(248,250,252,.42); border-radius: 12px; background: repeating-linear-gradient(45deg, rgba(248,250,252,.14) 0 8px, rgba(5,7,11,.85) 8px 16px); color: #f8fafc; font-size: .72rem; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; opacity: 0; transform: translateY(4px); transition: opacity .25s ease, transform .25s ease; }
 .journey-finish-line.is-visible { opacity: 1; transform: translateY(0); }
@@ -400,10 +401,14 @@ def render_journey_replay_script() -> None:
                         car.classList.add("journey-car-departing");
                         win.setTimeout(function () {
                             try {
-                                window.parent.location.href = window.parent.location.pathname + "?entered=1&view=addevent";
-                            } catch (e) {
-                                window.location.href = window.location.pathname + "?entered=1&view=addevent";
-                            }
+                                var btns = doc.querySelectorAll('div[data-testid="stButton"] button');
+                                for (var i = 0; i < btns.length; i++) {
+                                    if (btns[i].textContent.trim() === "Journey Go To Events") {
+                                        btns[i].click();
+                                        break;
+                                    }
+                                }
+                            } catch (e) {}
                         }, 950);
                     });
                 }
@@ -650,6 +655,43 @@ def render_journey_replay_script() -> None:
             } else {
                 initReplay(0);
             }
+        })();
+        </script>
+        """,
+        height=0,
+    )
+
+    # Hidden native button the trophy-click JS above finds and .click()s
+    # (window.parent lookup by exact button text) — same working pattern
+    # already used for the Main page's hero-gauge click-throughs.
+    # Directly setting window.parent.location.href from inside the
+    # iframe was tried first and silently did nothing: the car
+    # animation and timing all fired correctly, but the actual
+    # navigation never happened, which points at the iframe's sandbox
+    # simply not permitting top-level navigation even though it does
+    # permit DOM read/write on the parent document (which is how the
+    # rest of this replay system already works) — clicking a real
+    # button that already lives in the parent page sidesteps that
+    # restriction entirely, since Streamlit's own unsandboxed JS is
+    # what performs the actual rerun/navigation in response.
+    if st.button("Journey Go To Events", key="journey_nav_events"):
+        st.query_params["view"] = "addevent"
+        st.rerun()
+    components.html(
+        """
+        <script>
+        (function () {
+            try {
+                var doc = window.parent.document;
+                var btns = doc.querySelectorAll('div[data-testid="stButton"] button');
+                for (var i = 0; i < btns.length; i++) {
+                    if (btns[i].textContent.trim() === 'Journey Go To Events') {
+                        var wrap = btns[i].closest('div[data-testid="stButton"]');
+                        if (wrap) { wrap.style.display = 'none'; }
+                        break;
+                    }
+                }
+            } catch (e) {}
         })();
         </script>
         """,
