@@ -509,7 +509,6 @@ def render_journey_replay_script() -> None:
                 }
 
                 function hideOverlays() {
-                    summary.classList.remove("is-visible");
                     if (finishLine) {
                         finishLine.classList.remove("is-visible");
                     }
