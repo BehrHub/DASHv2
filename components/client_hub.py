@@ -9,6 +9,7 @@ import streamlit.components.v1 as components
 from services.metrics import ExecutiveMetrics
 from services.money_view import gross_up
 from services.logo_source import discover_logos, resolve_client_logo, logo_data_uri
+from services.groups import compute_client_group_ranking, compute_location_group_ranking
 
 DASH = "\u2014"
 LOGOS_DIR = Path(__file__).resolve().parent.parent / "assets" / "logos"
@@ -366,4 +367,94 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     # some contexts, but the static number is what's actually load-
     # bearing now.
     height = 550 + max(len(directory), 1) * 110 + (160 if livery_clients else 0)
+    components.html(html, height=height, scrolling=False)
+
+
+def _money(value: float) -> str:
+    return f"\uFF04{value:,.2f}"
+
+
+def _build_group_section(title: str, rows: list[dict], stat_kind: str, show_n: int = 15) -> str:
+    """stat_kind is 'client' (events/revenue/avg) or 'location' (trips
+    only). Shows the top `show_n` entries of an already-sorted, already-
+    ranked list — this is a bonus/supplementary section below the full
+    client directory above it, not a replacement for it, so a capped
+    length keeps it from ballooning the page (client groups happen to
+    total a manageable 18 either way; location groups could otherwise
+    run to 50+ standalone cities).
+    """
+    cards = []
+    for i, r in enumerate(rows[:show_n], 1):
+        name = escape(r["name"])
+        tag = f'<span class="group-tag">\u00d7{r["member_count"]}</span>' if r["is_group"] else ""
+        if stat_kind == "client":
+            stats_html = (
+                f'<div class="group-stat"><div class="group-stat-val">{r["events"]}</div><div class="group-stat-lbl">EVENTS</div></div>'
+                f'<div class="group-stat"><div class="group-stat-val">{escape(_money(r["revenue"]))}</div><div class="group-stat-lbl">REVENUE</div></div>'
+                f'<div class="group-stat"><div class="group-stat-val">{escape(_money(r["avg"]))}</div><div class="group-stat-lbl">AVG/EVENT</div></div>'
+            )
+        else:
+            note = ""
+            if r.get("not_yet_visited"):
+                note = f'<div class="group-note">+{len(r["not_yet_visited"])} pending first visit</div>'
+            stats_html = (
+                f'<div class="group-stat group-stat-solo"><div class="group-stat-val">{r["trips"]}</div>'
+                f'<div class="group-stat-lbl">TRIPS</div></div>{note}'
+            )
+        members_html = (
+            f'<div class="group-members">{escape(", ".join(r["members"]))}</div>' if r["is_group"] else ""
+        )
+        cards.append(
+            f'<div class="group-card"><div class="group-card-top">'
+            f'<div class="group-rank">{i}</div>'
+            f'<div class="group-name-wrap"><span class="group-name">{name}</span>{tag}</div>'
+            f'</div><div class="group-stats-row">{stats_html}</div>{members_html}</div>'
+        )
+    truncated = len(rows) > show_n
+    footer = (
+        f'<div class="group-truncated-note">Showing top {show_n} of {len(rows)}</div>' if truncated else ""
+    )
+    return (
+        f'<div class="group-section"><div class="group-section-title">{escape(title)}</div>'
+        f'{"".join(cards)}{footer}</div>'
+    )
+
+
+def render_group_rankings(timeline: pd.DataFrame, gross_view: bool = False) -> None:
+    """Bonus ranking lists sitting below the full Client Standings
+    directory — combines every defined Client/Location Group with every
+    client/city NOT in any group, one ranked list each, exactly matching
+    how these were spec'd out and verified conversationally before this
+    shipped (see services/groups.py for the actual group definitions and
+    the verification notes behind each one).
+    """
+    client_rows = compute_client_group_ranking(timeline, gross_view)
+    location_rows = compute_location_group_ranking(timeline)
+
+    html = f"""<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+    *{{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}}html,body{{width:100%;overflow:hidden;background:transparent}}body{{color:#fff}}
+    .group-section{{background:radial-gradient(circle at 50% -20%,rgba(244,114,182,.08),transparent 44%),rgba(23,27,40,.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:18px 16px;margin-bottom:16px}}
+    .group-section-title{{font-size:15px;font-weight:900;letter-spacing:.6px;color:#fff;margin-bottom:12px}}
+    .group-card{{background:rgba(15,20,32,.4);border:1px solid rgba(255,255,255,.05);border-radius:14px;padding:11px 13px;margin-bottom:8px}}
+    .group-card-top{{display:flex;align-items:center;gap:9px}}
+    .group-rank{{width:22px;height:22px;border-radius:50%;background:rgba(244,114,182,.14);color:#f472b6;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0}}
+    .group-name-wrap{{flex:1;min-width:0;display:flex;align-items:center;gap:7px}}
+    .group-name{{font-size:14px;font-weight:800;color:#e5edf9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+    .group-tag{{flex-shrink:0;font-size:10px;font-weight:800;color:#94a3b8;background:rgba(255,255,255,.08);border-radius:6px;padding:2px 6px}}
+    .group-stats-row{{display:flex;gap:8px;margin-top:9px;padding-top:9px;border-top:1px solid rgba(255,255,255,.06)}}
+    .group-stat{{flex:1;text-align:center}}
+    .group-stat-solo{{text-align:left;flex:0 0 auto}}
+    .group-stat-val{{font-size:14px;font-weight:800;color:#f9a8d4;line-height:1.2}}
+    .group-stat-lbl{{font-size:8.5px;font-weight:700;letter-spacing:.4px;color:#64748b;text-transform:uppercase;margin-top:1px}}
+    .group-note{{font-size:10px;color:#64748b;margin-left:10px;align-self:center}}
+    .group-members{{margin-top:7px;font-size:10.5px;color:#7c8aa5;line-height:1.4}}
+    .group-truncated-note{{text-align:center;font-size:10.5px;color:#64748b;margin-top:4px}}
+    </style></head><body>
+    {_build_group_section("CLIENT GROUPS", client_rows, "client")}
+    {_build_group_section("LOCATION GROUPS", location_rows, "location")}
+    </body></html>"""
+
+    show_client = min(15, len(client_rows))
+    show_loc = min(15, len(location_rows))
+    height = 130 + show_client * 105 + 130 + show_loc * 90
     components.html(html, height=height, scrolling=False)

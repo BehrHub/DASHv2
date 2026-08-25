@@ -7,7 +7,7 @@ import streamlit as st
 from components.ui import render_dashboard
 from components.journey import render_barrister_journey
 from components.add_event import render_add_event
-from components.client_hub import render_client_standings
+from components.client_hub import render_client_standings, render_group_rankings
 from components.ledger import render_ledger_summary, render_ledger_breakdowns
 from services.data_source import load_snapshot
 from services.metrics import build_executive_metrics
@@ -588,6 +588,7 @@ def main() -> None:
         )
     elif view == "clienthub":
         render_client_standings(metrics, snapshot.sheets["Timeline"], gross_view)
+        render_group_rankings(snapshot.sheets["Timeline"], gross_view)
         st.markdown(
             '<div style="text-align:center;margin-top:18px;font-size:10.5px;">'
             '<a href="?entered=1&view=logostudio" target="_self" style="color:#e8c94a;text-decoration:none;'
