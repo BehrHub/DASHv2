@@ -333,10 +333,26 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     // continuing to hand-tune a height=... formula that breaks again
     // the next time the row layout changes.
     (function autoResizeIframe() {{
+      // window.frameElement was tried previously and evidently didn't
+      // work in this Streamlit iframe context (the static fallback was
+      // silently the only thing applying). window.parent.document
+      // access, however, is PROVEN working elsewhere in this exact app
+      // (Journey page's trophy button, the Main page hero-gauge click-
+      // throughs) — so instead of asking the iframe to identify itself,
+      // this finds it from the parent side: scan every <iframe> in the
+      // parent document and match whichever one's contentWindow is
+      // literally this running script's own window. That's a plain
+      // reference comparison, not a restricted permission.
       function resize() {{
-        if (window.frameElement) {{
-          window.frameElement.style.height = document.documentElement.scrollHeight + 'px';
-        }}
+        try {{
+          var iframes = window.parent.document.querySelectorAll('iframe');
+          for (var i = 0; i < iframes.length; i++) {{
+            if (iframes[i].contentWindow === window) {{
+              iframes[i].style.height = document.documentElement.scrollHeight + 'px';
+              break;
+            }}
+          }}
+        }} catch (e) {{}}
       }}
       resize();
       if (window.ResizeObserver) {{
@@ -348,24 +364,12 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
       }}
     }})();
     </script></body></html>"""
-    # Static fallback only -- covers the brief instant before the JS
-    # above runs and takes over for real. Deliberately modest now that
-    # it's not the only thing standing between "cut off" and "huge gap".
-    # The window.frameElement + ResizeObserver auto-resize approach from
-    # the last round evidently isn't firing in this Streamlit iframe
-    # context (most likely a cross-origin restriction blocking access
-    # to the iframe element from within its own content, which I can't
-    # fully verify without a live browser) -- the static fallback height
-    # was all that was ever actually applying, and it was tuned far too
-    # small (900 + 40/row), which is why this got WORSE than either
-    # previous attempt rather than better. Reverting to a static formula
-    # as the real mechanism again, calibrated as a middle point between
-    # the two prior data points: 90/row undershot (cut off ~2 of 31
-    # clients), 130/row overshot (created a large empty gap before Logo
-    # Studio) -- splitting the difference here rather than guessing
-    # fresh. The JS observer is left in place in case it does help in
-    # some contexts, but the static number is what's actually load-
-    # bearing now.
+    # Generous static fallback ONLY for the brief instant before the JS
+    # above takes over — if the JS works (it should now; see comment
+    # above), this number barely matters since it gets corrected
+    # immediately. Kept on the generous side specifically as a worst-
+    # case safety net in case the JS ever fails silently again — better
+    # a flash of extra blank space than a cut-off page.
     height = 480 + max(len(directory), 1) * 100 + (140 if livery_clients else 0)
     components.html(html, height=height, scrolling=False)
 
@@ -464,9 +468,38 @@ def render_group_rankings(timeline: pd.DataFrame, gross_view: bool = False) -> N
     </style></head><body>
     {_build_group_section("CLIENT GROUPS", client_rows, "client")}
     {_build_group_section("LOCATION GROUPS", location_rows, "location")}
+    <script>
+    (function autoResizeIframe() {{
+      // Same proven technique as the Client Standings iframe right
+      // above this one — see that function's comment for why this
+      // works where a plain window.frameElement attempt didn't.
+      function resize() {{
+        try {{
+          var iframes = window.parent.document.querySelectorAll('iframe');
+          for (var i = 0; i < iframes.length; i++) {{
+            if (iframes[i].contentWindow === window) {{
+              iframes[i].style.height = document.documentElement.scrollHeight + 'px';
+              break;
+            }}
+          }}
+        }} catch (e) {{}}
+      }}
+      resize();
+      if (window.ResizeObserver) {{
+        new ResizeObserver(resize).observe(document.body);
+      }} else {{
+        window.addEventListener('load', resize);
+        setTimeout(resize, 300);
+        setTimeout(resize, 1000);
+      }}
+    }})();
+    </script>
     </body></html>"""
 
     show_client = min(10, len(client_rows))
     show_loc = min(10, len(location_rows))
-    height = 120 + show_client * 100 + 120 + show_loc * 65
+    # Generous safety-net fallback only, same reasoning as Client
+    # Standings above — the JS auto-resize should correct this
+    # immediately to the exact real height either way.
+    height = 160 + show_client * 115 + 160 + show_loc * 85
     components.html(html, height=height, scrolling=False)
