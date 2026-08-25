@@ -366,7 +366,7 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     # fresh. The JS observer is left in place in case it does help in
     # some contexts, but the static number is what's actually load-
     # bearing now.
-    height = 550 + max(len(directory), 1) * 110 + (160 if livery_clients else 0)
+    height = 480 + max(len(directory), 1) * 100 + (140 if livery_clients else 0)
     components.html(html, height=height, scrolling=False)
 
 
@@ -374,14 +374,13 @@ def _money(value: float) -> str:
     return f"\uFF04{value:,.2f}"
 
 
-def _build_group_section(title: str, rows: list[dict], stat_kind: str, show_n: int = 15) -> str:
-    """stat_kind is 'client' (events/revenue/avg) or 'location' (trips
-    only). Shows the top `show_n` entries of an already-sorted, already-
-    ranked list — this is a bonus/supplementary section below the full
-    client directory above it, not a replacement for it, so a capped
-    length keeps it from ballooning the page (client groups happen to
-    total a manageable 18 either way; location groups could otherwise
-    run to 50+ standalone cities).
+def _build_group_section(title: str, rows: list[dict], stat_kind: str, show_n: int = 10) -> str:
+    """stat_kind is 'client' (events/revenue/avg, full row below the
+    name) or 'location' (a compact 2-row pill — trips shown inline in
+    the same row as the name/rank instead of its own stats row, member
+    list directly below). Shows the top `show_n` entries of an already-
+    sorted, already-ranked list — this is a bonus/supplementary section
+    below the full client directory above it, not a replacement for it.
     """
     cards = []
     for i, r in enumerate(rows[:show_n], 1):
@@ -393,23 +392,31 @@ def _build_group_section(title: str, rows: list[dict], stat_kind: str, show_n: i
                 f'<div class="group-stat"><div class="group-stat-val">{escape(_money(r["revenue"]))}</div><div class="group-stat-lbl">REVENUE</div></div>'
                 f'<div class="group-stat"><div class="group-stat-val">{escape(_money(r["avg"]))}</div><div class="group-stat-lbl">AVG/EVENT</div></div>'
             )
+            members_html = (
+                f'<div class="group-members">{escape(", ".join(r["members"]))}</div>' if r["is_group"] else ""
+            )
+            cards.append(
+                f'<div class="group-card"><div class="group-card-top">'
+                f'<div class="group-rank">{i}</div>'
+                f'<div class="group-name-wrap"><span class="group-name">{name}</span>{tag}</div>'
+                f'</div><div class="group-stats-row">{stats_html}</div>{members_html}</div>'
+            )
         else:
             note = ""
             if r.get("not_yet_visited"):
-                note = f'<div class="group-note">+{len(r["not_yet_visited"])} pending first visit</div>'
-            stats_html = (
-                f'<div class="group-stat group-stat-solo"><div class="group-stat-val">{r["trips"]}</div>'
-                f'<div class="group-stat-lbl">TRIPS</div></div>{note}'
+                note = f'<span class="group-note">+{len(r["not_yet_visited"])} pending</span>'
+            members_html = (
+                f'<div class="group-members group-members-compact">{escape(", ".join(r["members"]))}</div>'
+                if r["is_group"] else ""
             )
-        members_html = (
-            f'<div class="group-members">{escape(", ".join(r["members"]))}</div>' if r["is_group"] else ""
-        )
-        cards.append(
-            f'<div class="group-card"><div class="group-card-top">'
-            f'<div class="group-rank">{i}</div>'
-            f'<div class="group-name-wrap"><span class="group-name">{name}</span>{tag}</div>'
-            f'</div><div class="group-stats-row">{stats_html}</div>{members_html}</div>'
-        )
+            cards.append(
+                f'<div class="group-card group-card-compact"><div class="group-card-top">'
+                f'<div class="group-rank">{i}</div>'
+                f'<div class="group-name-wrap"><span class="group-name">{name}</span>{tag}</div>'
+                f'<div class="group-trips-inline"><span class="group-trips-val">{r["trips"]}</span>'
+                f'<span class="group-trips-lbl">TRIPS</span></div>{note}'
+                f'</div>{members_html}</div>'
+            )
     truncated = len(rows) > show_n
     footer = (
         f'<div class="group-truncated-note">Showing top {show_n} of {len(rows)}</div>' if truncated else ""
@@ -449,12 +456,17 @@ def render_group_rankings(timeline: pd.DataFrame, gross_view: bool = False) -> N
     .group-note{{font-size:10px;color:#64748b;margin-left:10px;align-self:center}}
     .group-members{{margin-top:7px;font-size:10.5px;color:#7c8aa5;line-height:1.4}}
     .group-truncated-note{{text-align:center;font-size:10.5px;color:#64748b;margin-top:4px}}
+    .group-card-compact{{padding:9px 13px}}
+    .group-trips-inline{{flex-shrink:0;display:flex;align-items:baseline;gap:4px}}
+    .group-trips-val{{font-size:15px;font-weight:800;color:#f9a8d4;line-height:1}}
+    .group-trips-lbl{{font-size:8px;font-weight:700;letter-spacing:.3px;color:#64748b;text-transform:uppercase}}
+    .group-members-compact{{margin-top:5px}}
     </style></head><body>
     {_build_group_section("CLIENT GROUPS", client_rows, "client")}
     {_build_group_section("LOCATION GROUPS", location_rows, "location")}
     </body></html>"""
 
-    show_client = min(15, len(client_rows))
-    show_loc = min(15, len(location_rows))
-    height = 130 + show_client * 105 + 130 + show_loc * 90
+    show_client = min(10, len(client_rows))
+    show_loc = min(10, len(location_rows))
+    height = 120 + show_client * 100 + 120 + show_loc * 65
     components.html(html, height=height, scrolling=False)
