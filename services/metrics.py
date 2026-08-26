@@ -129,8 +129,12 @@ def _business_day_streak(
 
 
 def _longest_business_day_streak(values: pd.Series) -> int | None:
-    """True historical-max consecutive-business-day streak anywhere in
-    the career, not just the run ending at the most recent event.
+    """True historical-max consecutive-day streak anywhere in the
+    career. A weekday with no event breaks a run; a weekend day
+    (Sat/Sun) with no event does NOT break a run (just gets stepped
+    over); a weekend day that WAS worked counts as a real +1 like any
+    other day. Kept consistent with _current_business_day_streak below
+    so "record" and "current" measure the exact same thing.
     """
     valid = (
         pd.to_datetime(values, errors="coerce")
@@ -145,22 +149,48 @@ def _longest_business_day_streak(values: pd.Series) -> int | None:
     dates = set(valid.tolist())
     longest = 0
     for d in dates:
-        if (d - pd.offsets.BDay(1)) in dates:
-            continue  # not the start of a run; will be counted from its actual start
+        # Only start counting from the true beginning of a run: walk
+        # backward past any unworked weekend to see if an earlier
+        # connected work day exists. Landing on an unworked WEEKDAY
+        # means d really is where this run starts; landing on ANY
+        # worked day (weekday or weekend) means it isn't.
+        probe = d - pd.Timedelta(days=1)
+        while probe.weekday() >= 5 and probe not in dates:
+            probe -= pd.Timedelta(days=1)
+        if probe in dates:
+            continue
+
         length = 0
         cursor = d
-        while cursor in dates:
-            length += 1
-            cursor += pd.offsets.BDay(1)
+        while True:
+            if cursor in dates:
+                length += 1
+                cursor += pd.Timedelta(days=1)
+                continue
+            if cursor.weekday() >= 5:
+                cursor += pd.Timedelta(days=1)
+                continue
+            break
         longest = max(longest, length)
     return longest
 
 
 def _current_business_day_streak(values: pd.Series) -> int:
-    """Consecutive business days worked ending at the most recent
-    business day on or before today. If today is a weekend, anchors on
-    Friday instead — a Saturday/Sunday isn't a missed business day, so
-    it shouldn't zero out a streak that's still current.
+    """Consecutive-day streak as of the most recent day actually
+    worked (today, if today already has an event; otherwise walks back
+    to whatever the last worked day was, so simply not having logged
+    today's event YET doesn't read as "streak already broken").
+
+    Previously used pandas' BDay (business-day) offset to walk
+    backward, which structurally SKIPS weekends outright when stepping
+    from one date to the next -- meaning a real Saturday/Sunday event
+    could never be counted at all, not even when it demonstrably
+    happened (confirmed bug: a Sunday+Monday stretch extending a real
+    Friday streak was showing as 0). Now walks one real calendar day at
+    a time instead: a weekday with no event breaks the streak; an
+    unworked weekend day doesn't break anything, it's just stepped
+    over; a WORKED weekend day counts as a genuine +1, same as any
+    other day.
     """
     valid = (
         pd.to_datetime(values, errors="coerce")
@@ -169,12 +199,30 @@ def _current_business_day_streak(values: pd.Series) -> int:
         .drop_duplicates()
     )
     dates = set(valid.tolist())
+    if not dates:
+        return 0
+
     today = eastern_today_naive()
-    cursor = today if today.weekday() < 5 else today - pd.offsets.BDay(1)
+    cursor = today
+    if cursor not in dates:
+        for _ in range(7):
+            cursor -= pd.Timedelta(days=1)
+            if cursor in dates:
+                break
+        else:
+            return 0
+
     streak = 0
-    while cursor in dates:
-        streak += 1
-        cursor -= pd.offsets.BDay(1)
+    while True:
+        if cursor in dates:
+            streak += 1
+            cursor -= pd.Timedelta(days=1)
+            continue
+        if cursor.weekday() >= 5:
+            cursor -= pd.Timedelta(days=1)
+            continue
+        break
+
     return streak
 
 

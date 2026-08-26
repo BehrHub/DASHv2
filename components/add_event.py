@@ -11,18 +11,16 @@ from components.journey import compact_state_code
 from services.tz import eastern_today, eastern_today_naive
 
 
-REAL_CLIENTS = [
-    "7-Eleven", "Atrium Village", "Autumn Lake Healthcare", "Baskin-Robbins",
-    "Bloomingdale's", "Carvana", "Davis Polk & Wardwell", "Dunkin'",
-    "East Coast Warehouse of Maryland", "Food Lion", "Giant Food Stores",
-    "Hampton Inn & Suites", "Hebrew Home GW",
-    "Hilton Garden Inn", "HomeGoods", "HomeSense", "Joint Base Andrews",
-    "Macy's", "Marshalls", "Maryland Baptist Age Home",
-    "Montpelier Liquors", "Senator A. Alsobrooks",
-    "Senator C. Van Hollen", "PepsiCo",
-    "Residential", "TJ Maxx", "USDA",
-    "Under Armour", "Verizon", "WeWork", "Weis Markets",
-]
+def _known_clients(timeline: pd.DataFrame) -> list[str]:
+    """Real client names pulled live from the Timeline — replaces what
+    used to be a hardcoded REAL_CLIENTS list, which silently fell out of
+    sync every time a new client got added (confirmed: McDonald's was
+    missing from that static list despite being a real, active client
+    with events already recorded against it — same drift risk exists
+    for any future new client, not just this one instance)."""
+    if "Client" not in timeline.columns:
+        return []
+    return sorted(timeline["Client"].dropna().astype(str).str.strip().unique())
 
 STATE_CODE_TO_NAME = {
     "MD": "Maryland",
@@ -241,8 +239,9 @@ def _render_form(known_locations: list[str], timeline: pd.DataFrame, pipeline: p
 
     with st.form("add_event_form", clear_on_submit=False):
         status = st.radio("Status", ["Scheduled", "Completed"], horizontal=True, index=0)
+        known_clients = _known_clients(timeline)
         client = st.selectbox(
-            "Client", REAL_CLIENTS, index=None,
+            "Client", known_clients, index=None,
             placeholder="Start typing or enter a new client", accept_new_options=True,
         )
         location = st.selectbox(
@@ -420,9 +419,10 @@ def _render_modify(timeline: pd.DataFrame, pipeline: pd.DataFrame, known_locatio
                 "Status", ["Scheduled", "Completed"], horizontal=True,
                 index=0 if original["status"] == "Scheduled" else 1,
             )
+            known_clients = _known_clients(timeline)
             m_client = st.selectbox(
-                "Client", REAL_CLIENTS, index=REAL_CLIENTS.index(original["client"])
-                if original["client"] in REAL_CLIENTS else None,
+                "Client", known_clients, index=known_clients.index(original["client"])
+                if original["client"] in known_clients else None,
                 accept_new_options=True,
             )
             location_options = sorted(set(known_locations) | {str(original["location"])})

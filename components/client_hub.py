@@ -295,7 +295,31 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     .livery-tile{{width:76px;height:76px;margin:0 9px;background:#fff;border-radius:14px;border:1px solid rgba(0,0,0,.15);box-shadow:0 4px 10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:8px}}
     .livery-tile img{{width:100%;height:100%;object-fit:contain}}
     @keyframes livery-scroll{{0%{{transform:translateX(0)}}100%{{transform:translateX(-50%)}}}}
-    </style></head><body>{livery_html}<div class="client-card-container"><div class="client-header-title">CLIENT STANDINGS</div><div class="client-list">{''.join(rows)}</div>{legend_html}<input id="client-search" type="search" class="search-box" placeholder="Search current client directory..."></div><script>
+    .group-section{{background:radial-gradient(circle at 50% -20%,rgba(244,114,182,.08),transparent 44%),rgba(23,27,40,.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:18px 16px;margin-top:16px}}
+    .group-section-title{{font-size:15px;font-weight:900;letter-spacing:.6px;color:#fff;margin-bottom:12px}}
+    .group-card{{background:rgba(15,20,32,.4);border:1px solid rgba(255,255,255,.05);border-radius:14px;padding:11px 13px;margin-bottom:8px}}
+    .group-card-top{{display:flex;align-items:center;gap:9px}}
+    .group-rank{{width:22px;height:22px;border-radius:50%;background:rgba(244,114,182,.14);color:#f472b6;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0}}
+    .group-name-wrap{{flex:1;min-width:0;display:flex;align-items:center;gap:7px}}
+    .group-name{{font-size:14px;font-weight:800;color:#e5edf9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+    .group-tag{{flex-shrink:0;font-size:10px;font-weight:800;color:#94a3b8;background:rgba(255,255,255,.08);border-radius:6px;padding:2px 6px}}
+    .group-stats-row{{display:flex;gap:8px;margin-top:9px;padding-top:9px;border-top:1px solid rgba(255,255,255,.06)}}
+    .group-stat{{flex:1;text-align:center}}
+    .group-stat-solo{{text-align:left;flex:0 0 auto}}
+    .group-stat-val{{font-size:14px;font-weight:800;color:#f9a8d4;line-height:1.2}}
+    .group-stat-lbl{{font-size:8.5px;font-weight:700;letter-spacing:.4px;color:#64748b;text-transform:uppercase;margin-top:1px}}
+    .group-note{{font-size:10px;color:#64748b;margin-left:10px;align-self:center}}
+    .group-members{{margin-top:7px;font-size:10.5px;color:#7c8aa5;line-height:1.4}}
+    .group-truncated-note{{text-align:center;font-size:10.5px;color:#64748b;margin-top:4px}}
+    .group-card-compact{{padding:9px 13px}}
+    .group-trips-inline{{flex-shrink:0;display:flex;align-items:baseline;gap:4px}}
+    .group-trips-val{{font-size:15px;font-weight:800;color:#f9a8d4;line-height:1}}
+    .group-trips-lbl{{font-size:8px;font-weight:700;letter-spacing:.3px;color:#64748b;text-transform:uppercase}}
+    .group-members-compact{{margin-top:5px}}
+    </style></head><body>{livery_html}<div class="client-card-container"><div class="client-header-title">CLIENT STANDINGS</div><div class="client-list">{''.join(rows)}</div>{legend_html}<input id="client-search" type="search" class="search-box" placeholder="Search current client directory..."></div>
+    {_build_group_section("CLIENT GROUPS", compute_client_group_ranking(timeline, gross_view), "client")}
+    {_build_group_section("LOCATION GROUPS", compute_location_group_ranking(timeline), "location")}
+    <script>
     (function liveryClickToPause() {{
       const panel = document.querySelector('.livery-panel');
       if (panel) panel.addEventListener('click', () => panel.classList.toggle('is-paused'));
@@ -365,12 +389,20 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     }})();
     </script></body></html>"""
     # Generous static fallback ONLY for the brief instant before the JS
-    # above takes over — if the JS works (it should now; see comment
-    # above), this number barely matters since it gets corrected
-    # immediately. Kept on the generous side specifically as a worst-
-    # case safety net in case the JS ever fails silently again — better
-    # a flash of extra blank space than a cut-off page.
-    height = 480 + max(len(directory), 1) * 100 + (140 if livery_clients else 0)
+    # above takes over. Now covers the combined content (standings +
+    # both group sections merged into this same document) — merging
+    # eliminates the actual root cause of the persistent gap, which
+    # wasn't a sizing problem in either piece at all: it was normal
+    # Streamlit spacing BETWEEN two separate components.html() elements,
+    # which no amount of internal auto-resize could ever touch, since
+    # that only controls each iframe's own height, not the margin
+    # Streamlit places around it. One iframe means one boundary, fully
+    # inside normal CSS flow this code already controls directly.
+    height = (
+        480 + max(len(directory), 1) * 100 + (140 if livery_clients else 0)
+        + 160 + min(10, len(compute_client_group_ranking(timeline, gross_view))) * 115
+        + 160 + min(10, len(compute_location_group_ranking(timeline))) * 85
+    )
     components.html(html, height=height, scrolling=False)
 
 
@@ -431,75 +463,3 @@ def _build_group_section(title: str, rows: list[dict], stat_kind: str, show_n: i
     )
 
 
-def render_group_rankings(timeline: pd.DataFrame, gross_view: bool = False) -> None:
-    """Bonus ranking lists sitting below the full Client Standings
-    directory — combines every defined Client/Location Group with every
-    client/city NOT in any group, one ranked list each, exactly matching
-    how these were spec'd out and verified conversationally before this
-    shipped (see services/groups.py for the actual group definitions and
-    the verification notes behind each one).
-    """
-    client_rows = compute_client_group_ranking(timeline, gross_view)
-    location_rows = compute_location_group_ranking(timeline)
-
-    html = f"""<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>
-    *{{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}}html,body{{width:100%;overflow:hidden;background:transparent}}body{{color:#fff}}
-    .group-section{{background:radial-gradient(circle at 50% -20%,rgba(244,114,182,.08),transparent 44%),rgba(23,27,40,.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:18px 16px;margin-bottom:16px}}
-    .group-section-title{{font-size:15px;font-weight:900;letter-spacing:.6px;color:#fff;margin-bottom:12px}}
-    .group-card{{background:rgba(15,20,32,.4);border:1px solid rgba(255,255,255,.05);border-radius:14px;padding:11px 13px;margin-bottom:8px}}
-    .group-card-top{{display:flex;align-items:center;gap:9px}}
-    .group-rank{{width:22px;height:22px;border-radius:50%;background:rgba(244,114,182,.14);color:#f472b6;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0}}
-    .group-name-wrap{{flex:1;min-width:0;display:flex;align-items:center;gap:7px}}
-    .group-name{{font-size:14px;font-weight:800;color:#e5edf9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
-    .group-tag{{flex-shrink:0;font-size:10px;font-weight:800;color:#94a3b8;background:rgba(255,255,255,.08);border-radius:6px;padding:2px 6px}}
-    .group-stats-row{{display:flex;gap:8px;margin-top:9px;padding-top:9px;border-top:1px solid rgba(255,255,255,.06)}}
-    .group-stat{{flex:1;text-align:center}}
-    .group-stat-solo{{text-align:left;flex:0 0 auto}}
-    .group-stat-val{{font-size:14px;font-weight:800;color:#f9a8d4;line-height:1.2}}
-    .group-stat-lbl{{font-size:8.5px;font-weight:700;letter-spacing:.4px;color:#64748b;text-transform:uppercase;margin-top:1px}}
-    .group-note{{font-size:10px;color:#64748b;margin-left:10px;align-self:center}}
-    .group-members{{margin-top:7px;font-size:10.5px;color:#7c8aa5;line-height:1.4}}
-    .group-truncated-note{{text-align:center;font-size:10.5px;color:#64748b;margin-top:4px}}
-    .group-card-compact{{padding:9px 13px}}
-    .group-trips-inline{{flex-shrink:0;display:flex;align-items:baseline;gap:4px}}
-    .group-trips-val{{font-size:15px;font-weight:800;color:#f9a8d4;line-height:1}}
-    .group-trips-lbl{{font-size:8px;font-weight:700;letter-spacing:.3px;color:#64748b;text-transform:uppercase}}
-    .group-members-compact{{margin-top:5px}}
-    </style></head><body>
-    {_build_group_section("CLIENT GROUPS", client_rows, "client")}
-    {_build_group_section("LOCATION GROUPS", location_rows, "location")}
-    <script>
-    (function autoResizeIframe() {{
-      // Same proven technique as the Client Standings iframe right
-      // above this one — see that function's comment for why this
-      // works where a plain window.frameElement attempt didn't.
-      function resize() {{
-        try {{
-          var iframes = window.parent.document.querySelectorAll('iframe');
-          for (var i = 0; i < iframes.length; i++) {{
-            if (iframes[i].contentWindow === window) {{
-              iframes[i].style.height = document.documentElement.scrollHeight + 'px';
-              break;
-            }}
-          }}
-        }} catch (e) {{}}
-      }}
-      resize();
-      if (window.ResizeObserver) {{
-        new ResizeObserver(resize).observe(document.body);
-      }} else {{
-        window.addEventListener('load', resize);
-        setTimeout(resize, 300);
-        setTimeout(resize, 1000);
-      }}
-    }})();
-    </script>
-    </body></html>"""
-
-    show_client = min(10, len(client_rows))
-    show_loc = min(10, len(location_rows))
-    # Generous safety-net fallback only, same reasoning as Client
-    # Standings above — the JS auto-resize should correct this
-    # immediately to the exact real height either way.
-    height = 160 + show_client * 115 + 160 + show_loc * 85
-    components.html(html, height=height, scrolling=False)
