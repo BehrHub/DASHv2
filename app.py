@@ -381,6 +381,7 @@ def render_logo_studio_page(timeline: pd.DataFrame) -> None:
         )
         st.caption("Exactly how it'll look in a real Client Hub row")
 
+
     from services import sheets_store
 
     save_col, dl_col = st.columns(2)
@@ -617,4 +618,4 @@ def main() -> None:
 
        """
     if __name__ == "__main__":
-       main()
+        main()
