@@ -14,3 +14,4 @@ __pycache__/
 # services/data_source.py::_local_fallback_snapshot(). Still not
 # source-controlled data even in that fallback role.
 session_data.json
+venv/
