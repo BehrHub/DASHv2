@@ -1248,6 +1248,7 @@ body,
 div[data-testid="stButton"] button {
   border-radius: 20px !important;
   font-weight: 800 !important;
+  font-size: 13px !important;
   letter-spacing: 0.3px !important;
   padding: 6px 4px !important;
   min-height: unset !important;

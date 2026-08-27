@@ -176,21 +176,25 @@ def _longest_business_day_streak(values: pd.Series) -> int | None:
 
 
 def _current_business_day_streak(values: pd.Series) -> int:
-    """Consecutive-day streak as of the most recent day actually
-    worked (today, if today already has an event; otherwise walks back
-    to whatever the last worked day was, so simply not having logged
-    today's event YET doesn't read as "streak already broken").
+    """Consecutive-day streak as of today.
 
-    Previously used pandas' BDay (business-day) offset to walk
-    backward, which structurally SKIPS weekends outright when stepping
-    from one date to the next -- meaning a real Saturday/Sunday event
-    could never be counted at all, not even when it demonstrably
-    happened (confirmed bug: a Sunday+Monday stretch extending a real
-    Friday streak was showing as 0). Now walks one real calendar day at
-    a time instead: a weekday with no event breaks the streak; an
-    unworked weekend day doesn't break anything, it's just stepped
-    over; a WORKED weekend day counts as a genuine +1, same as any
-    other day.
+    A weekday with no event breaks the streak. An unworked weekend day
+    (Sat/Sun) never breaks anything -- just stepped over. A WORKED
+    weekend day counts as a genuine +1, same as any other day. The one
+    exception is today itself: if today simply hasn't had its event
+    logged yet, that alone doesn't count as a break -- evaluation just
+    continues from yesterday. That grace applies ONLY to today, not to
+    any earlier day.
+
+    A previous version searched up to 7 days back for "the most recent
+    worked day" whenever today had no event, with no check on whether
+    it was walking past a genuinely missed WEEKDAY along the way.
+    Concretely: today Wednesday with no event, Tuesday also genuinely
+    missed, Monday worked -- that search walked straight past Tuesday
+    without noticing it was a real weekday gap, anchored on Monday, and
+    reported a streak as if Tuesday never happened. Confirmed bug,
+    fixed by giving the "not logged yet" grace only to today and
+    nowhere else -- any earlier unworked weekday is a real break.
     """
     valid = (
         pd.to_datetime(values, errors="coerce")
@@ -204,21 +208,19 @@ def _current_business_day_streak(values: pd.Series) -> int:
 
     today = eastern_today_naive()
     cursor = today
-    if cursor not in dates:
-        for _ in range(7):
-            cursor -= pd.Timedelta(days=1)
-            if cursor in dates:
-                break
-        else:
-            return 0
-
     streak = 0
+    today_grace_used = False
+
     while True:
         if cursor in dates:
             streak += 1
             cursor -= pd.Timedelta(days=1)
             continue
         if cursor.weekday() >= 5:
+            cursor -= pd.Timedelta(days=1)
+            continue
+        if cursor == today and not today_grace_used:
+            today_grace_used = True
             cursor -= pd.Timedelta(days=1)
             continue
         break

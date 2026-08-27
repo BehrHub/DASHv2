@@ -9,7 +9,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from services.metrics import ExecutiveMetrics, _compact_money
-from services.money_view import annualize_gross, gross_up, DAYS_PER_YEAR
+from services.money_view import gross_up
 from components.trends import build_trends_fragment, TRENDS_CSS_RULES
 from components.journey import JURISDICTION_COLORS, TERRITORY_CENTER_COLOR, jurisdiction_group
 
@@ -148,7 +148,6 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     business_days = int(ticker_dated["__date"].dt.normalize().nunique()) or 1
     total_events_count = len(ticker_work)
     avg_events_per_day = total_events_count / business_days
-    avg_dollar_per_day = float(ticker_confirmed["__amount"].sum()) / business_days
 
     if not ticker_confirmed.empty:
         calendar_month = ticker_confirmed["__date"].dt.to_period("M")
@@ -159,22 +158,55 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     else:
         highest_month = highest_week = highest_day = 0.0
 
-    if gross_view:
-        avg_day_display = annualize_gross(avg_dollar_per_day, DAYS_PER_YEAR)
-        avg_day_item = f'\U0001F4B5 avg <strong>\uFF04{escape(f"{avg_day_display:,.0f}")}</strong>/yr'
+    # Most-visited / most-revenue / most-$-per-event clients, top city,
+    # and top client group (by event count, not revenue) -- verified
+    # against the real live workbook before shipping: Marshalls (14),
+    # Dunkin' ($2,489.44), McDonald's ($362.50/event), Washington DC
+    # (12 visits, 58 total cities), TJX Group (29 events).
+    from services.groups import compute_client_group_ranking
+
+    if not timeline.empty:
+        visit_counts = timeline["Client"].value_counts()
+        top_visited_client, top_visited_count = visit_counts.idxmax(), int(visit_counts.max())
     else:
-        avg_day_item = f'\U0001F4B5 avg <strong>\uFF04{escape(f"{avg_dollar_per_day:,.0f}")}</strong>/day worked'
+        top_visited_client, top_visited_count = "\u2014", 0
+
+    if not ticker_confirmed.empty:
+        rev_by_client = ticker_confirmed.groupby("Client")["__amount"].sum()
+        top_revenue_client, top_revenue_amount = rev_by_client.idxmax(), float(rev_by_client.max())
+        avg_by_client = ticker_confirmed.groupby("Client")["__amount"].mean()
+        top_avg_client, top_avg_amount = avg_by_client.idxmax(), float(avg_by_client.max())
+    else:
+        top_revenue_client, top_revenue_amount = "\u2014", 0.0
+        top_avg_client, top_avg_amount = "\u2014", 0.0
+
+    if "Location Detail" in timeline.columns and not timeline.empty:
+        city_counts = timeline["Location Detail"].value_counts()
+        total_cities = int(timeline["Location Detail"].nunique())
+        top_city_name = city_counts.idxmax() if not city_counts.empty else "\u2014"
+        top_city_visits = int(city_counts.max()) if not city_counts.empty else 0
+    else:
+        total_cities, top_city_name, top_city_visits = 0, "\u2014", 0
+
+    client_groups = compute_client_group_ranking(timeline, gross_view)
+    if client_groups:
+        top_group = max(client_groups, key=lambda r: r["events"])
+        top_group_name, top_group_events = top_group["name"], top_group["events"]
+    else:
+        top_group_name, top_group_events = "\u2014", 0
 
     ticker_items = [
-        f'\U0001F3C6 <strong>{total_events_count}</strong> events in <strong>{business_days}</strong> days',
-        f'\U0001F3AF avg <strong>{avg_events_per_day:.2f}</strong> events/day',
         f'\U0001F91D <strong>{clients_value}</strong> clients &middot; {repeat_rate}% repeat',
         f'\U0001F525 Current Streak: <strong>{current_streak_value} day{"s" if current_streak_value != "1" else ""}</strong> (Record: <strong>{longest_streak_value}</strong>)',
+        f'\U0001F3C6 <strong>{total_events_count}</strong> events in <strong>{business_days}</strong> days',
+        f'\U0001F3AF avg <strong>{avg_events_per_day:.2f}</strong> events/day',
+        f'\U0001F4CD Most Visited: <strong>{escape(str(top_visited_client))}</strong> ({top_visited_count} visits)',
+        f'\U0001F4B0 Most Revenue: <strong>{escape(str(top_revenue_client))}</strong> (\uFF04{escape(f"{top_revenue_amount:,.0f}")})',
+        f'\U0001F4B5 Most $/Event: <strong>{escape(str(top_avg_client))}</strong> (\uFF04{escape(f"{top_avg_amount:,.0f}")}/event)',
+        f'\U0001F5FA\uFE0F <strong>{total_cities}</strong> Cities &middot; Top: <strong>{escape(str(top_city_name))}</strong> ({top_city_visits} visits)',
+        f'\U0001F451 <strong>{escape(str(top_group_name))}</strong> leads: <strong>{top_group_events}</strong> events',
+        f'\U0001F4C8 Top Pace &mdash; Day: <strong>\uFF04{escape(f"{highest_day * 365:,.0f}")}</strong>/yr &middot; Week: <strong>\uFF04{escape(f"{highest_week * 52:,.0f}")}</strong>/yr &middot; Month: <strong>\uFF04{escape(f"{highest_month * 12:,.0f}")}</strong>/yr',
         f'\U0001F3C5 best month <strong>{best_month_value}</strong>',
-        avg_day_item,
-        f'\U0001F4C8 top month pace <strong>\uFF04{escape(f"{highest_month * 12:,.0f}")}</strong>/yr',
-        f'\U0001F4C8 top week pace <strong>\uFF04{escape(f"{highest_week * 52:,.0f}")}</strong>/yr',
-        f'\U0001F4C8 top day pace <strong>\uFF04{escape(f"{highest_day * 365:,.0f}")}</strong>/yr',
     ]
     ticker_markup = "".join(f'<span class="main-ticker-item">{item}</span>' for item in ticker_items * 2)
 

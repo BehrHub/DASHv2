@@ -11,6 +11,7 @@ from components.client_hub import render_client_standings
 from components.ledger import render_ledger_summary, render_ledger_breakdowns
 from services.data_source import load_snapshot
 from services.metrics import build_executive_metrics
+import streamlit.components.v1 as components
 
 
 ROOT = Path(__file__).resolve().parent
@@ -32,88 +33,6 @@ def _icon_data_uri(filename: str) -> str:
 
 
 @st.cache_data(show_spinner=False)
-def _splash_image_data_uri() -> str:
-    import base64
-
-    data = (ROOT / "assets" / "splash" / "barrister_splash.jpg").read_bytes()
-    return f"data:image/jpeg;base64,{base64.b64encode(data).decode('ascii')}"
-
-
-def render_splash_screen() -> None:
-    """Full-bleed entry gate shown before the dashboard on a fresh visit
-    — ported from the original Barrister2.0 desktop app's splash gateway
-    (same curtain-close transition technique), adapted for DASHv2:
-      - Image is base64-embedded (same pattern as every other asset in
-        this app) rather than served from a static file path, since
-        that's what's actually reliable on Streamlit Cloud.
-      - The "have they entered" gate is the ?entered=1 query param
-        (checked in main() before anything else renders), mirroring how
-        the original used its own ?page=... param as a hard URL gate
-        rather than session state — this survives a refresh/share link
-        the same way session state wouldn't.
-      - Clicking ENTER plays a ~600ms curtain-close animation (two
-        panels sliding in from the edges) before the actual navigation
-        fires, via a plain inline onclick handler — this is a real
-        attribute-based JS handler, not a <script> tag, so it renders
-        and executes fine through st.markdown(unsafe_allow_html=True)
-        without needing components.html().
-    """
-    image_uri = _splash_image_data_uri()
-    st.markdown(
-        f"""
-        <style>
-        html, body, [data-testid="stAppViewContainer"], .main, .stApp {{
-            overflow: hidden !important;
-            height: 100vh !important;
-            max-height: 100vh !important;
-            overscroll-behavior: none !important;
-        }}
-        .block-container {{
-            max-width: none !important;
-            width: 100vw !important;
-            height: 100vh !important;
-            padding: 0 !important;
-            margin: 0 !important;
-        }}
-        .splash-gateway {{
-            position: fixed; inset: 0; width: 100vw; height: 100vh;
-            overflow: hidden; background: #05070b;
-        }}
-        .splash-enter-link {{
-            position: absolute; inset: 0; z-index: 1;
-            display: flex; align-items: center; justify-content: center;
-            box-sizing: border-box; width: 100vw; height: 100vh;
-            padding-bottom: clamp(1.2rem, 4.5vh, 4rem);
-            cursor: pointer; text-decoration: none !important;
-            -webkit-tap-highlight-color: transparent;
-        }}
-        .splash-gateway::before, .splash-gateway::after {{
-            content: ""; position: fixed; top: 0; bottom: 0; width: 51vw;
-            z-index: 9999; pointer-events: none;
-            background: linear-gradient(135deg, rgba(8,17,31,.98), rgba(3,7,18,.995));
-            box-shadow: inset 0 0 42px rgba(56,189,248,.14);
-            transition: transform .58s cubic-bezier(.78,.02,.22,1);
-        }}
-        .splash-gateway::before {{ left: 0; transform: translateX(-101%); border-right: 1px solid rgba(148,163,184,.18); }}
-        .splash-gateway::after {{ right: 0; transform: translateX(101%); border-left: 1px solid rgba(148,163,184,.18); }}
-        .splash-gateway.curtain-close::before, .splash-gateway.curtain-close::after {{ transform: translateX(0); }}
-        .splash-poster {{ filter: saturate(1.03) contrast(1.02); display: block;
-            width: min(97vw, 620px); height: auto; max-height: calc(97vh - clamp(1.2rem, 4.5vh, 4rem));
-            object-fit: contain; }}
-        </style>
-        <div class="splash-gateway" aria-label="Barrister Dashboard splash screen">
-            <a class="splash-enter-link" href="?entered=1" target="_self" aria-label="Enter dashboard"
-               onclick="event.preventDefault(); const gate=this.closest('.splash-gateway');
-                        if(gate){{gate.classList.add('curtain-close');}}
-                        setTimeout(()=>{{window.location.href=this.href;}},620);">
-                <img class="splash-poster" src="{image_uri}" alt="Barrister" width="814" height="1086" loading="eager" decoding="async" fetchpriority="high">
-            </a>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 def _toggle_button_css(
     key: str,
     play_anim: bool,
@@ -537,16 +456,6 @@ def main() -> None:
         initial_sidebar_state="collapsed",
     )
 
-    # Splash gate — checked before anything else (including the CSS load
-    # and data snapshot) so a fresh visit isn't paying the cost of
-    # loading the dashboard just to hide it behind the splash. ?entered=1
-    # is a hard URL gate (survives refresh/sharing), not session state —
-    # matches how the original Barrister2.0 app did it with its own
-    # ?page=... param.
-    if st.query_params.get("entered") != "1":
-        render_splash_screen()
-        return
-
     st.markdown(f"<style>{load_css()}</style>", unsafe_allow_html=True)
 
     snapshot = load_snapshot()
@@ -590,7 +499,7 @@ def main() -> None:
         render_client_standings(metrics, snapshot.sheets["Timeline"], gross_view)
         st.markdown(
             '<div style="text-align:center;margin-top:18px;font-size:10.5px;">'
-            '<a href="?entered=1&view=logostudio" target="_self" style="color:#e8c94a;text-decoration:none;'
+            '<a href="?view=logostudio" target="_self" style="color:#e8c94a;text-decoration:none;'
             'text-shadow:0 0 6px rgba(250,204,21,.85),0 0 14px rgba(250,204,21,.5);">'
             "Logo Studio</a></div>",
             unsafe_allow_html=True,
@@ -649,7 +558,7 @@ def main() -> None:
             # downward nudge applied to the header instance.
             + _toggle_button_css(
                 ledger_toggle_key, ledger_toggle_anim,
-                position_css="margin-right: 29px; margin-top: 1px;",
+                position_css="margin-right: 29px; margin-top: 2px;",
                 box_w="103px",
                 box_h="58px",
             )
@@ -704,6 +613,3 @@ def main() -> None:
             st.query_params["ledger_tab"] = "cities"
             st.rerun()
 
-
-if __name__ == "__main__":
-    main()

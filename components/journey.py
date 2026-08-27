@@ -171,11 +171,11 @@ JOURNEY_CSS = """
 .journey-track.replay-active .journey-replay-car { opacity: 1; pointer-events: auto; }
 .journey-stop.new-client-celebration { animation: journeyClientGlow 1.45s ease-out both; }
 @keyframes journeyClientGlow { 0% { box-shadow: 0 0 0 rgba(244,114,182,0); } 30% { box-shadow: 0 0 26px rgba(244,114,182,.55); } 100% { box-shadow: 0 0 0 rgba(244,114,182,0); } }
-.journey-achievement-badge { position: absolute; left: 2.6rem; top: 50%; z-index: 6; padding: .18rem .38rem; border: 1px solid rgba(244,114,182,.4); border-radius: 999px; background: rgba(5,7,11,.92); color: #f9a8d4; font-size: .55rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; box-shadow: 0 0 14px rgba(244,114,182,.25); opacity: 0; pointer-events: none; transform: translateY(-50%) translateX(-3px); transition: opacity .18s ease, transform .18s ease; white-space: nowrap; }
-.journey-achievement-badge.is-visible { opacity: 1; transform: translateY(-50%) translateX(0); }
+.journey-achievement-badge { position: absolute; left: 2.6rem; top: 50%; z-index: 6; padding: .18rem .38rem; border: 1px solid rgba(244,114,182,.4); border-radius: 999px; background: rgba(5,7,11,.92); color: #f9a8d4; font-size: .55rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; box-shadow: 0 0 14px rgba(244,114,182,.25); opacity: 0; pointer-events: none; transform: translateY(calc(-50% - 2px)) translateX(-3px); transition: opacity .18s ease, transform .18s ease; white-space: nowrap; }
+.journey-achievement-badge.is-visible { opacity: 1; transform: translateY(calc(-50% - 2px)) translateX(0); }
 .journey-puff { position: absolute; left: 6px; top: 50%; opacity: 0; pointer-events: none; }
 .journey-replay-car.is-smoke .journey-puff { width: 8px; height: 8px; border-radius: 50%; background: rgba(203,213,225,.6); animation: journeySmokePuff .9s ease-out infinite; }
-.journey-replay-car.is-turbo .journey-puff { width: 10px; height: 14px; border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%; background: radial-gradient(circle at 50% 68%, #fff6cc 0%, #ffcf5c 28%, #ff8a1f 55%, #ff3b1f 78%, #b81900 100%); filter: blur(.2px); animation: journeyFireFlicker .38s ease-in-out infinite; }
+.journey-replay-car.is-turbo .journey-puff { width: 10px; height: 14px; margin-top: 2px; border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%; background: radial-gradient(circle at 50% 68%, #fff6cc 0%, #ffcf5c 28%, #ff8a1f 55%, #ff3b1f 78%, #b81900 100%); filter: blur(.2px); animation: journeyFireFlicker .38s ease-in-out infinite; }
 .journey-replay-car .journey-puff:nth-child(2) { animation-delay: .1s !important; }
 .journey-replay-car .journey-puff:nth-child(3) { animation-delay: .2s !important; }
 .journey-replay-car.is-smoke .journey-puff:nth-child(2) { animation-delay: .3s !important; }

@@ -50,14 +50,14 @@
     "y": 3
   },
   "homegoods": {
-    "scale": 0.78,
-    "x": 0,
-    "y": -1
+    "scale": 0.94,
+    "x": 4,
+    "y": -3
   },
   "homesense": {
-    "scale": 1.38,
+    "scale": 0.79,
     "x": 0,
-    "y": 10
+    "y": 0
   },
   "underarmour": {
     "scale": 0.62,
@@ -65,7 +65,9 @@
     "y": 4
   },
   "dunkin": {
-    "scale": 0.76
+    "scale": 0.87,
+    "x": 1,
+    "y": 0
   },
   "baskinrobbins": {
     "scale": 0.6,
@@ -73,7 +75,7 @@
     "y": 3
   },
   "711": {
-    "scale": 0.61,
+    "scale": 0.71,
     "x": 0,
     "y": 0
   },
@@ -110,15 +112,19 @@
     "scale": 0.72
   },
   "vanhollen": {
-    "scale": 0.88
+    "scale": 0.87,
+    "x": 4,
+    "y": 0
   },
   "jointbaseandrews": {
-    "scale": 0.88,
-    "x": 0,
-    "y": -12
+    "scale": 0.87,
+    "x": 1,
+    "y": 0
   },
   "alsobrooks": {
-    "scale": 0.88
+    "scale": 0.87,
+    "x": 5,
+    "y": 1
   },
   "montpelierliquors": {
     "scale": 0.76,
@@ -126,13 +132,13 @@
     "y": 12
   },
   "carvana": {
-    "scale": 1.14,
+    "scale": 1.15,
     "x": 0,
-    "y": 3
+    "y": 4
   },
   "autumn_lake_healthcare": {
-    "scale": 0.78,
-    "x": 0,
+    "scale": 0.9,
+    "x": 1,
     "y": 0
   },
   "eastcoastwarehouse": {
@@ -141,13 +147,18 @@
     "y": 1
   },
   "wework": {
-    "scale": 0.76,
-    "x": 0,
+    "scale": 0.82,
+    "x": 1,
     "y": 1
   },
   "east_coast_warehouse_of_maryland": {
     "scale": 0.84,
     "x": 0,
+    "y": 0
+  },
+  "mcdonalds": {
+    "scale": 2.0,
+    "x": 5,
     "y": 0
   }
 }
