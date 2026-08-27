@@ -455,7 +455,9 @@ def main() -> None:
         layout="wide",
         initial_sidebar_state="collapsed",
     )
-
+    st.write("HELLO — if you see this, the app shell works")
+    st.write(st.__version__)
+    """
     st.markdown(f"<style>{load_css()}</style>", unsafe_allow_html=True)
 
     snapshot = load_snapshot()
@@ -613,3 +615,6 @@ def main() -> None:
             st.query_params["ledger_tab"] = "cities"
             st.rerun()
 
+       """
+    if __name__ == "__main__":
+       main()
