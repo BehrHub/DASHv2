@@ -159,6 +159,22 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     else:
         highest_month = highest_week = highest_day = 0.0
 
+    # Most-visited / most-revenue clients only, for now -- Most $/Event,
+    # Cities, and TJX Group were deliberately left out of this pass at
+    # explicit request (one addition at a time). Verified against the
+    # real live workbook: Marshalls (14 visits), Dunkin' ($2,489.44).
+    if not timeline.empty:
+        visit_counts = timeline["Client"].value_counts()
+        top_visited_client, top_visited_count = visit_counts.idxmax(), int(visit_counts.max())
+    else:
+        top_visited_client, top_visited_count = "\u2014", 0
+
+    if not ticker_confirmed.empty:
+        rev_by_client = ticker_confirmed.groupby("Client")["__amount"].sum()
+        top_revenue_client, top_revenue_amount = rev_by_client.idxmax(), float(rev_by_client.max())
+    else:
+        top_revenue_client, top_revenue_amount = "\u2014", 0.0
+
     if gross_view:
         avg_day_display = annualize_gross(avg_dollar_per_day, DAYS_PER_YEAR)
         avg_day_item = f'\U0001F4B5 avg <strong>\uFF04{escape(f"{avg_day_display:,.0f}")}</strong>/yr'
@@ -166,10 +182,12 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
         avg_day_item = f'\U0001F4B5 avg <strong>\uFF04{escape(f"{avg_dollar_per_day:,.0f}")}</strong>/day worked'
 
     ticker_items = [
-        f'\U0001F3C6 <strong>{total_events_count}</strong> events in <strong>{business_days}</strong> days',
-        f'\U0001F3AF avg <strong>{avg_events_per_day:.2f}</strong> events/day',
         f'\U0001F91D <strong>{clients_value}</strong> clients &middot; {repeat_rate}% repeat',
         f'\U0001F525 Current Streak: <strong>{current_streak_value} day{"s" if current_streak_value != "1" else ""}</strong> (Record: <strong>{longest_streak_value}</strong>)',
+        f'\U0001F3C6 <strong>{total_events_count}</strong> events in <strong>{business_days}</strong> days',
+        f'\U0001F3AF avg <strong>{avg_events_per_day:.2f}</strong> events/day',
+        f'\U0001F4CD Most Visited: <strong>{escape(str(top_visited_client))}</strong> ({top_visited_count} visits)',
+        f'\U0001F4B0 Most Revenue: <strong>{escape(str(top_revenue_client))}</strong> (\uFF04{escape(f"{top_revenue_amount:,.0f}")})',
         f'\U0001F3C5 best month <strong>{best_month_value}</strong>',
         avg_day_item,
         f'\U0001F4C8 top month pace <strong>\uFF04{escape(f"{highest_month * 12:,.0f}")}</strong>/yr',
