@@ -594,7 +594,7 @@ body,
   grid-template-columns:
     minmax(300px, 1.05fr)
     minmax(300px, 0.95fr);
-  gap: var(--space-4);
+  gap: var(--space-3);
   align-items: center;
   margin-top: var(--space-3);
 }
@@ -1382,12 +1382,12 @@ div.st-key-nav_ledger button[data-testid="stBaseButton-primary"]::after {
 /* Streamlit wraps every st.markdown() call in a block with default
    vertical margin, even ones that only inject a <style> tag with no
    visible content. That leaves stray empty gaps wherever CSS is
-   injected via its own markdown call. Collapse those specifically. */
+   injected via its own markdown call. Collapse those specifically.
+   IMPORTANT: never force height:0 — that was collapsing the entire
+   page content in Streamlit 1.62+. */
 div[data-testid="stElementContainer"]:has(style) {
   margin: 0 !important;
   padding: 0 !important;
-  height: 0 !important;
-  min-height: 0 !important;
 }
 
 /* Streamlit's own top-right menu button (Rerun/Settings/About, etc.) —
@@ -1435,7 +1435,3 @@ div.st-key-gross_toggle_btn {
   15%  { filter: brightness(2.8); }
   100% { filter: brightness(1); }
 }
-
-
-
-
