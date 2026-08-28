@@ -190,9 +190,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
         f'\U0001F4B0 Most Revenue: <strong>{escape(str(top_revenue_client))}</strong> (\uFF04{escape(f"{top_revenue_amount:,.0f}")})',
         f'\U0001F3C5 best month <strong>{best_month_value}</strong>',
         avg_day_item,
-        f'\U0001F4C8 top month pace <strong>\uFF04{escape(f"{highest_month * 12:,.0f}")}</strong>/yr',
-        f'\U0001F4C8 top week pace <strong>\uFF04{escape(f"{highest_week * 52:,.0f}")}</strong>/yr',
-        f'\U0001F4C8 top day pace <strong>\uFF04{escape(f"{highest_day * 365:,.0f}")}</strong>/yr',
+        f'\U0001F4C8 TOP PACE (Day | Week | Month): <strong>\uFF04{escape(f"{highest_day * 365:,.0f}")}</strong> | <strong>\uFF04{escape(f"{highest_week * 52:,.0f}")}</strong> | <strong>\uFF04{escape(f"{highest_month * 12:,.0f}")}</strong>',
     ]
     ticker_markup = "".join(f'<span class="main-ticker-item">{item}</span>' for item in ticker_items * 2)
 
