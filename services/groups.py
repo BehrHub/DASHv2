@@ -31,9 +31,21 @@ LOCATION_GROUPS: dict[str, list[str]] = {
     "Rockville-proper": ["Rockville, MD", "North Bethesda, MD"],
     "Owings Mills-proper": ["Owings Mills, MD", "Reisterstown, MD"],
     "Bel Air-proper": ["Aberdeen, MD", "Bel Air, MD", "Edgewood, MD"],
-    "Towson-proper": ["Cockeysville, MD", "Lutherville, MD", "Towson, MD"],
+    # Timonium added — 1.3-3.0mi from every existing member, tighter
+    # than the original three are to each other.
+    "Towson-proper": ["Cockeysville, MD", "Lutherville, MD", "Towson, MD", "Timonium, MD"],
     "Tysons-proper": ["Tysons, VA", "McLean, VA"],
-    "Bowie-proper": ["Largo, MD", "Bowie, MD", "Clinton, MD"],
+    # Upper Marlboro (6.5mi to Largo) and Lanham (5.8-6.6mi to
+    # Largo/Bowie) added — same anchor pattern as the original group:
+    # Lanham is 14.8mi from Clinton specifically, not mutually close to
+    # every member, exactly like Bowie and Clinton aren't close to each
+    # other either. Largo/Bowie is what ties this together.
+    "Bowie-proper": ["Largo, MD", "Bowie, MD", "Clinton, MD", "Upper Marlboro, MD", "Lanham, MD"],
+    # New groups below, all verified by real distance before adding.
+    "Laurel-proper": ["Scaggsville, MD", "Laurel, MD"],  # 5.7mi
+    "Ellicott City-proper": ["West Friendship, MD", "Ellicott City, MD"],  # 9.8mi, same tolerance as Aberdeen/Bel Air
+    "Silver Spring-proper": ["Wheaton, MD", "Silver Spring, MD"],  # 3.7mi
+    "College Park-proper": ["Hyattsville, MD", "College Park, MD"],  # 1.8mi, tightest pairing so far
 }
 
 

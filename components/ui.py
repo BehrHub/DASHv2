@@ -181,6 +181,32 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     else:
         avg_day_item = f'\U0001F4B5 avg <strong>\uFF04{escape(f"{avg_dollar_per_day:,.0f}")}</strong>/day worked'
 
+    # Top Client Group and Top Location -- reusing the exact same
+    # compute_*_ranking functions already powering Client Hub's Groups
+    # sections, not new computation. Top Client Group matches the same
+    # events-based ranking already used for the earlier "TJX Group
+    # leads: 29 events" precedent (these functions sort by revenue by
+    # default, so the max-by-events lookup here is deliberate, not a
+    # bug). Top Location reuses compute_location_group_ranking's own
+    # sort (already trips-descending), so it's just rows[0] -- picks
+    # whichever ranks highest, group or standalone city alike, exactly
+    # matching how the Client Hub page's own combined list works.
+    from services.groups import compute_client_group_ranking, compute_location_group_ranking
+
+    client_groups = compute_client_group_ranking(timeline, gross_view)
+    if client_groups:
+        top_group = max(client_groups, key=lambda r: r["events"])
+        top_group_name, top_group_events = top_group["name"], top_group["events"]
+    else:
+        top_group_name, top_group_events = "\u2014", 0
+
+    location_rows = compute_location_group_ranking(timeline)
+    if location_rows:
+        top_location = location_rows[0]
+        top_location_name, top_location_trips = top_location["name"], top_location["trips"]
+    else:
+        top_location_name, top_location_trips = "\u2014", 0
+
     ticker_items = [
         f'\U0001F91D <strong>{clients_value}</strong> clients &middot; {repeat_rate}% repeat',
         f'\U0001F525 Current Streak: <strong>{current_streak_value} day{"s" if current_streak_value != "1" else ""}</strong> (Record: <strong>{longest_streak_value}</strong>)',
@@ -188,6 +214,8 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
         f'\U0001F3AF avg <strong>{avg_events_per_day:.2f}</strong> events/day',
         f'\U0001F4CD Most Visited: <strong>{escape(str(top_visited_client))}</strong> ({top_visited_count} visits)',
         f'\U0001F4B0 Most Revenue: <strong>{escape(str(top_revenue_client))}</strong> (\uFF04{escape(f"{top_revenue_amount:,.0f}")})',
+        f'\U0001F451 Top Client Group: <strong>{escape(str(top_group_name))}</strong> ({top_group_events} events)',
+        f'\U0001F5FA\uFE0F Top Location: <strong>{escape(str(top_location_name))}</strong> ({top_location_trips} visits)',
         f'\U0001F3C5 best month <strong>{best_month_value}</strong>',
         avg_day_item,
         f'\U0001F4C8 TOP PACE (Day | Week | Month): <strong>\uFF04{escape(f"{highest_day * 365:,.0f}")}</strong> | <strong>\uFF04{escape(f"{highest_week * 52:,.0f}")}</strong> | <strong>\uFF04{escape(f"{highest_month * 12:,.0f}")}</strong>',
