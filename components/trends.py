@@ -125,6 +125,38 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
     return {"weekly": weekly, "monthly": monthly, "weekday": weekday}
 
 
+def _client_top7(timeline: pd.DataFrame, rank_by: str) -> list[dict]:
+    """Top 7 clients ranked by `rank_by` ('events' or 'revenue') --
+    kept separate from _prepare_buckets() deliberately, since unlike
+    weekly/monthly/weekday (one shared set of periods, metric only
+    changes which value is plotted), the top-7-by-events and
+    top-7-by-revenue lists can genuinely be different clients in a
+    different order, not just the same rows redisplayed. Self-contained
+    (does its own revenue parsing) rather than depending on a
+    pre-processed dataframe, since it's called on the raw timeline.
+    """
+    if timeline.empty or "Client" not in timeline.columns:
+        return []
+    working = timeline.copy()
+    working["__revenue"] = pd.to_numeric(working["Amount"], errors="coerce").fillna(0)
+    grouped = (
+        working.groupby("Client")
+        .agg(events=("Client", "count"), revenue=("__revenue", "sum"))
+        .reset_index()
+        .sort_values(rank_by, ascending=False)
+        .head(7)
+    )
+    rows = [
+        {
+            "label": (str(row["Client"])[:8].upper() + "\u2026") if len(str(row["Client"])) > 8 else str(row["Client"]).upper(),
+            "events": int(row["events"]),
+            "revenue": round(row["revenue"]),
+        }
+        for _, row in grouped.iterrows()
+    ]
+    return _build_series(rows)
+
+
 PLOT_H, BAR_MAX, BAR_MIN = 128, 108, 5
 
 
@@ -262,6 +294,15 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False) -> s
         # extrapolation on top.
         weekday_revenue = _grossed_revenue_series(weekday_revenue)
 
+    # CLIENTS is a ranked list of distinct entities, not a time period —
+    # same "grossed but not annualized" treatment as WEEKDAY above,
+    # since a client's total revenue isn't a rate that should be
+    # extrapolated to a full year.
+    clients_events = _client_top7(timeline, "events")
+    clients_revenue = _client_top7(timeline, "revenue")
+    if gross_view:
+        clients_revenue = _grossed_revenue_series(clients_revenue)
+
     charts = "".join([
         _chart(buckets["weekly"], "events", "weekly-events"),
         _chart(weekly_revenue, "revenue", "weekly-revenue", suppress_total=gross_view),
@@ -269,6 +310,8 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False) -> s
         _chart(monthly_revenue, "revenue", "monthly-revenue", suppress_total=gross_view),
         _chart(buckets["weekday"], "events", "weekday-events"),
         _chart(weekday_revenue, "revenue", "weekday-revenue", suppress_total=gross_view),
+        _chart(clients_events, "events", "clients-events"),
+        _chart(clients_revenue, "revenue", "clients-revenue", suppress_total=gross_view),
     ])
 
     return f"""
@@ -279,6 +322,7 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False) -> s
             <div class="trend-tab is-active" data-period="weekly">WEEKLY</div>
             <div class="trend-tab" data-period="monthly">MONTHLY</div>
             <div class="trend-tab" data-period="weekday">WEEKDAY</div>
+            <div class="trend-tab" data-period="clients">CLIENTS</div>
           </div>
         </div>
         <div class="trend-metric-row" id="metricTabs">

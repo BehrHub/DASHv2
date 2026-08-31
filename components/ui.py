@@ -332,7 +332,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     .main-ticker::before,.main-ticker::after{{content:"";position:absolute;top:0;bottom:0;width:20px;z-index:1;pointer-events:none}}
     .main-ticker::before{{left:0;background:linear-gradient(90deg,rgba(15,20,32,.9),transparent)}}
     .main-ticker::after{{right:0;background:linear-gradient(270deg,rgba(15,20,32,.9),transparent)}}
-    .main-ticker-track{{display:flex;align-items:center;gap:1.5rem;width:max-content;height:100%;padding:0 .8rem;animation:mainTickerScroll 60s linear infinite}}
+    .main-ticker-track{{display:flex;align-items:center;gap:1.5rem;width:max-content;height:100%;padding:0 .8rem;animation:mainTickerScroll 66s linear infinite}}
     .main-ticker.is-paused .main-ticker-track{{animation-play-state:paused}}
     .main-ticker-item{{display:inline-block;flex-shrink:0;white-space:nowrap;font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#b8c4d9}}
     .main-ticker-item strong{{color:#f472b6;font-weight:900}}
