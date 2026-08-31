@@ -390,7 +390,8 @@ body{color:#fff}
 .ledger-kpi-lbl { font-size: 10.5px; font-weight: 800; color: #c5d0e0; letter-spacing: .4px; text-transform: uppercase; margin-top: 3px; line-height: 1.35; }
 .month-card { background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.01)); border: 1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
 .month-card:last-child { margin-bottom: 0; }
-.month-view-tabs { display: grid; grid-template-columns: repeat(4, max-content); gap: 8px 8px; justify-content: start; justify-items: start; }
+.month-view-tabs-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; }
+.month-view-tabs-row + .month-view-tabs-row { margin-top: 8px; }
 .month-view-tab { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 7px 13px; font-size: 11px; font-weight: 800; letter-spacing: .5px; color: #c5d0e0; cursor: pointer; }
 .month-view-tab.is-active { background: rgba(244,114,182,.1); border-color: #f472b6; color: #f9a8d4; box-shadow: 0 0 10px rgba(244,114,182,.25); }
 .month-view { display: none; margin-top: 12px; }
@@ -583,24 +584,28 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, i
     {LEDGER_CSS}
     </head><body>
       <div class="ledger-panel">
-        <div class="month-view-tabs">
-          <div class="{_tab_class('l10d')}" data-view="l10d">L10DAY</div>
-          <div class="{_tab_class('l10wk')}" data-view="l10wk">L10WK</div>
+        <div class="month-view-tabs-row">
+          <div class="{_tab_class('l10d')}" data-view="l10d">L10DAYS</div>
+          <div class="{_tab_class('l10wk')}" data-view="l10wk">L10WEEKS</div>
+        </div>
+        <div class="month-view-tabs-row">
           <div class="{_tab_class('career')}" data-view="career">CAREER</div>
           <div class="{_tab_class('calendar')}" data-view="calendar">CALENDAR</div>
-          <div class="{_tab_class('days')}" data-view="days">DAYS</div>
           <div class="{_tab_class('eras')}" data-view="eras">ERAS</div>
-          <div class="{_tab_class('cities')}" data-view="cities">CITIES</div>
-          <div class="{_tab_class('clients')}" data-view="clients">CLIENTS</div>
+        </div>
+        <div class="month-view-tabs-row">
+          <div class="{_tab_class('days')}" data-view="days">Top.Day</div>
+          <div class="{_tab_class('clients')}" data-view="clients">Top.Clients</div>
+          <div class="{_tab_class('cities')}" data-view="cities">Top.Cities</div>
         </div>
         <div class="{_view_class('l10d')}" data-view="l10d">{l10d_cards}</div>
         <div class="{_view_class('l10wk')}" data-view="l10wk">{l10wk_cards}</div>
         <div class="{_view_class('career')}" data-view="career">{career_cards}</div>
         <div class="{_view_class('calendar')}" data-view="calendar">{calendar_cards}</div>
-        <div class="{_view_class('days')}" data-view="days">{day_cards}</div>
         <div class="{_view_class('eras')}" data-view="eras">{era_cards}</div>
-        <div class="{_view_class('cities')}" data-view="cities">{city_cards}</div>
+        <div class="{_view_class('days')}" data-view="days">{day_cards}</div>
         <div class="{_view_class('clients')}" data-view="clients">{client_cards}</div>
+        <div class="{_view_class('cities')}" data-view="cities">{city_cards}</div>
       </div>
 
       <div class="ledger-panel">

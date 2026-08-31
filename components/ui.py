@@ -9,7 +9,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from services.metrics import ExecutiveMetrics, _compact_money
-from services.money_view import annualize_gross, gross_up, DAYS_PER_YEAR
+from services.money_view import annualize_gross, gross_up, DAYS_PER_YEAR, WEEKS_PER_YEAR, MONTHS_PER_YEAR
 from components.trends import build_trends_fragment, TRENDS_CSS_RULES
 from components.journey import JURISDICTION_COLORS, TERRITORY_CENTER_COLOR, jurisdiction_group
 
@@ -159,6 +159,23 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     else:
         highest_month = highest_week = highest_day = 0.0
 
+    # Real bug, found by comparing against Ledger's proven annualization
+    # pattern (used right next to Avg Revenue/Day there): every
+    # comparable rate-to-annual figure in this app applies gross_up
+    # ONLY when Gross view is active, plain multiplication otherwise.
+    # This line was doing plain multiplication unconditionally, meaning
+    # it silently showed the net figure even while every other number
+    # on the page was grossed up -- exactly matching "should be ~107k,
+    # showing 80s".
+    if gross_view:
+        pace_day = annualize_gross(highest_day, DAYS_PER_YEAR)
+        pace_week = annualize_gross(highest_week, WEEKS_PER_YEAR)
+        pace_month = annualize_gross(highest_month, MONTHS_PER_YEAR)
+    else:
+        pace_day = highest_day * DAYS_PER_YEAR
+        pace_week = highest_week * WEEKS_PER_YEAR
+        pace_month = highest_month * MONTHS_PER_YEAR
+
     # Most-visited / most-revenue clients only, for now -- Most $/Event,
     # Cities, and TJX Group were deliberately left out of this pass at
     # explicit request (one addition at a time). Verified against the
@@ -221,7 +238,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     ticker_items = [
         f'\U0001F91D <strong>{clients_value}</strong> clients &middot; {repeat_rate}% repeat',
         f'\U0001F525 Current Streak: <strong>{current_streak_value} day{"s" if current_streak_value != "1" else ""}</strong> (Record: <strong>{longest_streak_value}</strong>)',
-        f'\U0001F3C6 <strong>{total_events_count}</strong> events in <strong>{business_days}</strong> days | AVG <strong>{avg_events_per_day:.2f}</strong>',
+        f'\U0001F3C6 <strong>{total_events_count}</strong> events in <strong>{business_days}</strong> days | AVG <strong>{avg_events_per_day:.2f}</strong> events/day',
         f'\U0001F4CD Highest Visits: <strong>{escape(str(top_visited_client))}</strong> ({top_visited_count} visits)',
         f'\U0001F4B0 Highest Revenue: <strong>{escape(str(top_revenue_client))}</strong>',
         f'\U0001F451 Top Client Group: <strong>{escape(str(top_group_name))}</strong> ({top_group_events} events)',
@@ -229,7 +246,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
         f'\U0001F5FA\uFE0F Top Locations (MD &amp; VA): <strong>{escape(str(top_md_name))}</strong> &amp; <strong>{escape(str(top_va_name))}</strong>',
         f'\U0001F3C5 best month <strong>{best_month_value}</strong>',
         avg_day_item,
-        f'\U0001F4C8 TOP PACE (Day | Week | Month): <strong>\uFF04{escape(f"{highest_day * 365:,.0f}")}</strong> | <strong>\uFF04{escape(f"{highest_week * 52:,.0f}")}</strong> | <strong>\uFF04{escape(f"{highest_month * 12:,.0f}")}</strong>',
+        f'\U0001F4C8 TOP PACE (Day | Week | Month): <strong>\uFF04{escape(f"{pace_day:,.0f}")}</strong> | <strong>\uFF04{escape(f"{pace_week:,.0f}")}</strong> | <strong>\uFF04{escape(f"{pace_month:,.0f}")}</strong>',
     ]
     ticker_markup = "".join(f'<span class="main-ticker-item">{item}</span>' for item in ticker_items * 2)
 
