@@ -128,6 +128,10 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
 CHART_CLIENT_LABEL_OVERRIDES: dict[str, str] = {
     "Dunkin'": "DNKN'",
     "Marshalls": "MARSHL",
+    "7-Eleven": "7-11",
+    "Giant Food Stores": "GIANT",
+    "Food Lion": "FOOD LION",
+    "Hebrew Home GW": "H.Home",
 }
 
 
@@ -157,6 +161,14 @@ def _client_top7(timeline: pd.DataFrame, rank_by: str) -> list[dict]:
         .reset_index()
         .sort_values(rank_by, ascending=False)
         .head(7)
+        # Selection above must stay descending (to correctly pick the
+        # actual top 7). This second sort only re-orders THAT subset
+        # for DISPLAY -- ascending left-to-right, so the #1 client lands
+        # on the right, matching every other chart here (weekly/monthly
+        # progress oldest-to-newest left-to-right, so "most current" is
+        # also rightmost; this keeps CLIENTS visually consistent with
+        # that same convention instead of being backwards).
+        .sort_values(rank_by, ascending=True)
     )
     rows = [
         {
