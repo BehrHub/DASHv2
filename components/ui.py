@@ -179,7 +179,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
         avg_day_display = annualize_gross(avg_dollar_per_day, DAYS_PER_YEAR)
         avg_day_item = f'\U0001F4B5 avg <strong>\uFF04{escape(f"{avg_day_display:,.0f}")}</strong>/yr'
     else:
-        avg_day_item = f'\U0001F4B5 avg <strong>\uFF04{escape(f"{avg_dollar_per_day:,.0f}")}</strong>/day worked'
+        avg_day_item = f'\U0001F4B5 avg <strong>\uFF04{escape(f"{avg_dollar_per_day:,.0f}")}</strong>/day'
 
     # Top Client Group and Top Location -- reusing the exact same
     # compute_*_ranking functions already powering Client Hub's Groups
@@ -201,21 +201,32 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
         top_group_name, top_group_events = "\u2014", 0
 
     location_rows = compute_location_group_ranking(timeline)
-    if location_rows:
-        top_location = location_rows[0]
-        top_location_name, top_location_trips = top_location["name"], top_location["trips"]
-    else:
-        top_location_name, top_location_trips = "\u2014", 0
+
+    # Most Visited City is the single top STANDALONE city regardless of
+    # group status (matches "Washington D.C." specifically, which isn't
+    # part of any defined group). Top Locations (MD & VA) is the top
+    # GROUP within each state shown together -- every group here is
+    # consistently single-state (checked via its first member's own
+    # ", MD"/", VA" suffix), so this is a straightforward partition of
+    # the already-trips-sorted list, not new ranking logic.
+    standalone_cities = [r for r in location_rows if not r["is_group"]]
+    top_city_name, top_city_trips = (
+        (standalone_cities[0]["name"], standalone_cities[0]["trips"]) if standalone_cities else ("\u2014", 0)
+    )
+    top_md_group = next((r for r in location_rows if r["is_group"] and r["members"][0].endswith(", MD")), None)
+    top_va_group = next((r for r in location_rows if r["is_group"] and r["members"][0].endswith(", VA")), None)
+    top_md_name = top_md_group["name"] if top_md_group else "\u2014"
+    top_va_name = top_va_group["name"] if top_va_group else "\u2014"
 
     ticker_items = [
         f'\U0001F91D <strong>{clients_value}</strong> clients &middot; {repeat_rate}% repeat',
         f'\U0001F525 Current Streak: <strong>{current_streak_value} day{"s" if current_streak_value != "1" else ""}</strong> (Record: <strong>{longest_streak_value}</strong>)',
-        f'\U0001F3C6 <strong>{total_events_count}</strong> events in <strong>{business_days}</strong> days',
-        f'\U0001F3AF avg <strong>{avg_events_per_day:.2f}</strong> events/day',
+        f'\U0001F3C6 <strong>{total_events_count}</strong> events in <strong>{business_days}</strong> days | AVG <strong>{avg_events_per_day:.2f}</strong>',
         f'\U0001F4CD Most Visited: <strong>{escape(str(top_visited_client))}</strong> ({top_visited_count} visits)',
-        f'\U0001F4B0 Most Revenue: <strong>{escape(str(top_revenue_client))}</strong> (\uFF04{escape(f"{top_revenue_amount:,.0f}")})',
+        f'\U0001F4B0 Most Revenue: <strong>{escape(str(top_revenue_client))}</strong>',
         f'\U0001F451 Top Client Group: <strong>{escape(str(top_group_name))}</strong> ({top_group_events} events)',
-        f'\U0001F5FA\uFE0F Top Location: <strong>{escape(str(top_location_name))}</strong> ({top_location_trips} visits)',
+        f'\U0001F5FA\uFE0F Most Visited City: <strong>{escape(str(top_city_name))}</strong>',
+        f'\U0001F5FA\uFE0F Top Locations (MD &amp; VA): <strong>{escape(str(top_md_name))}</strong> &amp; <strong>{escape(str(top_va_name))}</strong>',
         f'\U0001F3C5 best month <strong>{best_month_value}</strong>',
         avg_day_item,
         f'\U0001F4C8 TOP PACE (Day | Week | Month): <strong>\uFF04{escape(f"{highest_day * 365:,.0f}")}</strong> | <strong>\uFF04{escape(f"{highest_week * 52:,.0f}")}</strong> | <strong>\uFF04{escape(f"{highest_month * 12:,.0f}")}</strong>',

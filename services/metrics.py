@@ -227,27 +227,45 @@ def _current_business_day_streak(values: pd.Series) -> int:
 
 
 def _best_month(
-    values: pd.Series,
+    dates: pd.Series,
+    revenue: pd.Series,
+    verified_mask: pd.Series,
 ) -> tuple[str | None, int | None]:
-    valid = pd.to_datetime(
-        values,
-        errors="coerce",
-    ).dropna()
+    """Best month by CONFIRMED REVENUE, not event count.
 
-    if valid.empty:
+    Previously this only ever received a dates series and picked the
+    month with the MOST EVENTS -- a genuinely different metric than
+    "best month" should mean on a revenue-tracking dashboard, and the
+    actual root cause behind ticker pace figures not matching what
+    "best month" implied elsewhere in the app: two different metrics
+    (event count vs. revenue) sharing one label, with no guarantee
+    they'd ever point at the same month. Still returns an event count
+    as the second value (for whichever month wins by revenue), keeping
+    the original return shape so anything downstream expecting an int
+    here doesn't break.
+    """
+    valid_dates = pd.to_datetime(dates, errors="coerce")
+    frame = pd.DataFrame({
+        "__date": valid_dates,
+        "__revenue": revenue,
+        "__verified": verified_mask,
+    })
+    frame = frame.dropna(subset=["__date"])
+    frame = frame[frame["__verified"]]
+
+    if frame.empty:
         return None, None
 
-    counts = valid.dt.to_period("M").value_counts()
-
-    if counts.empty:
+    by_month_revenue = frame.groupby(frame["__date"].dt.to_period("M"))["__revenue"].sum()
+    if by_month_revenue.empty:
         return None, None
 
-    best_period = counts.index[0]
-    count = int(counts.iloc[0])
+    best_period = by_month_revenue.idxmax()
+    event_count = int((frame["__date"].dt.to_period("M") == best_period).sum())
 
     return (
         best_period.to_timestamp().strftime("%b").upper(),
-        count,
+        event_count,
     )
 
 
@@ -368,10 +386,6 @@ def build_executive_metrics(
     else:
         cities_visited = 0
 
-    best_month_label, best_month_events = _best_month(
-        completed_dates
-    )
-
     client_series = (
         completed[timeline_client]
         .fillna("")
@@ -438,7 +452,14 @@ def build_executive_metrics(
             ].sum()
         )
     else:
+        verified_mask = pd.Series(False, index=completed.index)
         verified_revenue = 0.0
+
+    best_month_label, best_month_events = _best_month(
+        completed_dates,
+        completed["__revenue"],
+        verified_mask,
+    )
 
     revenue_completion = (
         verified_revenue / total_revenue * 100.0
