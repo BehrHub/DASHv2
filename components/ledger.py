@@ -590,8 +590,8 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, i
           <div class="{_tab_class('eras')}" data-view="eras">ERAS</div>
         </div>
         <div class="month-view-tabs-row">
-          <div class="{_tab_class('l10wk')}" data-view="l10wk">L10WKS</div>
           <div class="{_tab_class('l10d')}" data-view="l10d">L10DAYS</div>
+          <div class="{_tab_class('l10wk')}" data-view="l10wk">L10WKS</div>
         </div>
         <div class="month-view-tabs-row">
           <div class="{_tab_class('days')}" data-view="days">Top.Days</div>
