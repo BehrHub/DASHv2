@@ -159,22 +159,16 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     else:
         highest_month = highest_week = highest_day = 0.0
 
-    # Real bug, found by comparing against Ledger's proven annualization
-    # pattern (used right next to Avg Revenue/Day there): every
-    # comparable rate-to-annual figure in this app applies gross_up
-    # ONLY when Gross view is active, plain multiplication otherwise.
-    # This line was doing plain multiplication unconditionally, meaning
-    # it silently showed the net figure even while every other number
-    # on the page was grossed up -- exactly matching "should be ~107k,
-    # showing 80s".
-    if gross_view:
-        pace_day = annualize_gross(highest_day, DAYS_PER_YEAR)
-        pace_week = annualize_gross(highest_week, WEEKS_PER_YEAR)
-        pace_month = annualize_gross(highest_month, MONTHS_PER_YEAR)
-    else:
-        pace_day = highest_day * DAYS_PER_YEAR
-        pace_week = highest_week * WEEKS_PER_YEAR
-        pace_month = highest_month * MONTHS_PER_YEAR
+    # TOP PACE always shows the grossed annualized figure, independent
+    # of the Gross/Net toggle -- explicit design correction: a ticker
+    # is a poor place for a number whose meaning silently flips based
+    # on toggle state the person can't see while it's scrolling past.
+    # "Top Pace" is a pace figure, not a point-in-time revenue total,
+    # so it doesn't participate in the Net/Gross distinction the way
+    # other dollar figures on the page do.
+    pace_day = annualize_gross(highest_day, DAYS_PER_YEAR)
+    pace_week = annualize_gross(highest_week, WEEKS_PER_YEAR)
+    pace_month = annualize_gross(highest_month, MONTHS_PER_YEAR)
 
     # Most-visited / most-revenue clients only, for now -- Most $/Event,
     # Cities, and TJX Group were deliberately left out of this pass at
