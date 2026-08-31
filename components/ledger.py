@@ -585,18 +585,18 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, i
     </head><body>
       <div class="ledger-panel">
         <div class="month-view-tabs-row">
-          <div class="{_tab_class('l10d')}" data-view="l10d">L10DAYS</div>
-          <div class="{_tab_class('l10wk')}" data-view="l10wk">L10WKS</div>
-        </div>
-        <div class="month-view-tabs-row">
           <div class="{_tab_class('career')}" data-view="career">CAREER</div>
           <div class="{_tab_class('calendar')}" data-view="calendar">CALENDAR</div>
           <div class="{_tab_class('eras')}" data-view="eras">ERAS</div>
         </div>
         <div class="month-view-tabs-row">
+          <div class="{_tab_class('l10wk')}" data-view="l10wk">L10WKS</div>
+          <div class="{_tab_class('l10d')}" data-view="l10d">L10DAYS</div>
+        </div>
+        <div class="month-view-tabs-row">
           <div class="{_tab_class('days')}" data-view="days">Top.Days</div>
-          <div class="{_tab_class('clients')}" data-view="clients">Top.Clients</div>
           <div class="{_tab_class('cities')}" data-view="cities">Top.Cities</div>
+          <div class="{_tab_class('clients')}" data-view="clients">Top.Clients</div>
         </div>
         <div class="{_view_class('l10d')}" data-view="l10d">{l10d_cards}</div>
         <div class="{_view_class('l10wk')}" data-view="l10wk">{l10wk_cards}</div>
@@ -604,8 +604,8 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, i
         <div class="{_view_class('calendar')}" data-view="calendar">{calendar_cards}</div>
         <div class="{_view_class('eras')}" data-view="eras">{era_cards}</div>
         <div class="{_view_class('days')}" data-view="days">{day_cards}</div>
-        <div class="{_view_class('clients')}" data-view="clients">{client_cards}</div>
         <div class="{_view_class('cities')}" data-view="cities">{city_cards}</div>
+        <div class="{_view_class('clients')}" data-view="clients">{client_cards}</div>
       </div>
 
       <div class="ledger-panel">

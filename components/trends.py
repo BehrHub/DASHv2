@@ -125,6 +125,12 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
     return {"weekly": weekly, "monthly": monthly, "weekday": weekday}
 
 
+CHART_CLIENT_LABEL_OVERRIDES: dict[str, str] = {
+    "Dunkin'": "DNKN'",
+    "Marshalls": "MARSHL",
+}
+
+
 def _client_top7(timeline: pd.DataFrame, rank_by: str) -> list[dict]:
     """Top 7 clients ranked by `rank_by` ('events' or 'revenue') --
     kept separate from _prepare_buckets() deliberately, since unlike
@@ -134,6 +140,12 @@ def _client_top7(timeline: pd.DataFrame, rank_by: str) -> list[dict]:
     different order, not just the same rows redisplayed. Self-contained
     (does its own revenue parsing) rather than depending on a
     pre-processed dataframe, since it's called on the raw timeline.
+
+    CHART_CLIENT_LABEL_OVERRIDES applies ONLY to this chart's axis
+    labels -- the real client name everywhere else in the app (Client
+    Hub, Ledger, the ticker, etc.) is completely untouched. This exists
+    purely to fix display crowding for specific names, not to rename
+    anything about the underlying data.
     """
     if timeline.empty or "Client" not in timeline.columns:
         return []
@@ -148,7 +160,10 @@ def _client_top7(timeline: pd.DataFrame, rank_by: str) -> list[dict]:
     )
     rows = [
         {
-            "label": (str(row["Client"])[:8].upper() + "\u2026") if len(str(row["Client"])) > 8 else str(row["Client"]).upper(),
+            "label": CHART_CLIENT_LABEL_OVERRIDES.get(
+                str(row["Client"]),
+                (str(row["Client"])[:8].upper() + "\u2026") if len(str(row["Client"])) > 8 else str(row["Client"]).upper(),
+            ),
             "events": int(row["events"]),
             "revenue": round(row["revenue"]),
         }
