@@ -193,7 +193,7 @@ def render_header(active: str, show_money_toggle: bool = False, toggle_key: str 
     with title_col:
         st.markdown(
             '<div class="app-header-word-row"><a class="app-header-word" '
-            'href="?entered=1&view=main" target="_self">BARRISTER</a></div>',
+            'href="https://behrhub.github.io/SPLASH/" target="_self">BARRISTER</a></div>',
             unsafe_allow_html=True,
         )
     with toggle_col:
