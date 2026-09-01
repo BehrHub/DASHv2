@@ -44,12 +44,12 @@ def render_splash_screen() -> None:
 
     Previously rendered a full-bleed curtain/poster splash in-app. Now
     redirects immediately to the new cloud-hosted splash page
-    (http://100.70.235.51:8091/barrister-splash.html), the local copy on
+    (https://behrhub.github.io/SPLASH/), the real front door — an
     people land on and links back in here with ?entered=1&view=main.
     Kept as a redirect (not deleted) so the ?entered=1 gate in main()
     still has somewhere sane to send a bare/no-param visit.
     """
-    redirect_url = "http://100.70.235.51:8091/barrister-splash.html"
+    redirect_url = "https://behrhub.github.io/SPLASH/"
     st.markdown(
         f"""
         <meta http-equiv="refresh" content="0; url={redirect_url}">
@@ -193,7 +193,7 @@ def render_header(active: str, show_money_toggle: bool = False, toggle_key: str 
     with title_col:
         st.markdown(
             '<div class="app-header-word-row"><a class="app-header-word" '
-            'href="http://100.70.235.51:8091/barrister-splash.html" target="_self">BARRISTER</a></div>',
+            'href="https://behrhub.github.io/SPLASH/" target="_self">BARRISTER</a></div>',
             unsafe_allow_html=True,
         )
     with toggle_col:
