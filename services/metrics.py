@@ -380,9 +380,11 @@ def build_executive_metrics(
     if "Location Detail" in completed.columns:
         _city_series = completed["Location Detail"].dropna().astype(str).str.strip()
         _city_series = _city_series[_city_series != ""]
-        cities_visited = int(
-            _city_series.map(lambda v: v.rsplit(",", 1)[0].strip()).nunique()
-        )
+        # Count unique "City, State" pairs, not just city names — two
+        # different cities can share a name (e.g. Hanover, MD vs.
+        # Hanover, PA), and stripping the state before counting was
+        # collapsing those into one, undercounting real distinct cities.
+        cities_visited = int(_city_series.nunique())
     else:
         cities_visited = 0
 
