@@ -46,6 +46,20 @@ LOCATION_GROUPS: dict[str, list[str]] = {
     "Ellicott City-proper": ["West Friendship, MD", "Ellicott City, MD"],  # 9.8mi, same tolerance as Aberdeen/Bel Air
     "Silver Spring-proper": ["Wheaton, MD", "Silver Spring, MD"],  # 3.7mi
     "College Park-proper": ["Hyattsville, MD", "College Park, MD"],  # 1.8mi, tightest pairing so far
+    # New group — Glen Burnie is the anchor. Severna Park is 7.66mi
+    # straight-line (8mi driving, confirmed via web search) from Glen
+    # Burnie — wider than most existing pairs but still inside the
+    # tolerance already accepted for Ellicott City (9.8mi). Pasadena
+    # sits roughly halfway between the two (~4mi from Glen Burnie) and
+    # has zero events so far — listed anyway so the group picks it up
+    # automatically the moment a real visit lands, same "not yet
+    # visited" mechanism already used elsewhere.
+    "Glen Burnie-proper": ["Glen Burnie, MD", "Severna Park, MD", "Pasadena, MD"],
+    # New group — Fairfax-proper did not exist before this; created here.
+    # Fairfax to Herndon is 9.5mi straight-line (11-14mi driving,
+    # confirmed via web search, not assumed) — comparable to the
+    # Clinton/Ellicott City borderline cases already accepted above.
+    "Fairfax-proper": ["Fairfax, VA", "Herndon, VA"],
 }
 
 
