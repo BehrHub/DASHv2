@@ -191,7 +191,11 @@ def _compute_top_cities(dated: pd.DataFrame, limit: int = 10) -> list[dict]:
         avg = revenue / confirmed_count if confirmed_count else 0.0
         rows.append({"client": str(city), "revenue": revenue, "events": events, "avg": avg})
 
-    rows.sort(key=lambda r: r["events"], reverse=True)
+    # Tie-break by revenue when event counts match — a straight event-
+    # count sort with no tiebreak left ties in groupby's arbitrary
+    # (typically alphabetical) order, which could put a lower-revenue
+    # city ahead of a higher-revenue one despite equal visit counts.
+    rows.sort(key=lambda r: (r["events"], r["revenue"]), reverse=True)
     for rank, r in enumerate(rows[:limit], start=1):
         r["rank"] = rank
     return rows[:limit]

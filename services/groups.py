@@ -117,19 +117,31 @@ def compute_location_group_ranking(timeline: pd.DataFrame) -> list[dict]:
     all_locations = set(timeline["Location Detail"].dropna().unique())
     standalone = sorted(all_locations - grouped_locations)
 
+    confirmed = timeline[timeline["Verified?"] == "Yes"]
+    revenue_by_loc = confirmed.groupby("Location Detail")["Amount"].sum()
+
+    def _revenue(members: list[str]) -> float:
+        return float(sum(revenue_by_loc.get(m, 0.0) for m in members))
+
     rows: list[dict] = []
     for name, members in LOCATION_GROUPS.items():
         trips = int(sum(counts.get(m, 0) for m in members))
         missing = [m for m in members if m not in all_locations]
         rows.append({
             "name": name, "members": members, "member_count": len(members),
-            "is_group": True, "trips": trips, "not_yet_visited": missing,
+            "is_group": True, "trips": trips, "revenue": _revenue(members),
+            "not_yet_visited": missing,
         })
     for loc in standalone:
         rows.append({
             "name": loc, "members": [loc], "member_count": 1,
-            "is_group": False, "trips": int(counts.get(loc, 0)), "not_yet_visited": [],
+            "is_group": False, "trips": int(counts.get(loc, 0)),
+            "revenue": _revenue([loc]), "not_yet_visited": [],
         })
 
-    rows.sort(key=lambda r: -r["trips"])
+    # Tie-break by revenue when trip counts match — a straight event-count
+    # sort with no tiebreak left ties in whatever order groupby happened
+    # to produce, which could put a lower-revenue location ahead of a
+    # higher-revenue one despite equal visit counts.
+    rows.sort(key=lambda r: (-r["trips"], -r["revenue"]))
     return rows
