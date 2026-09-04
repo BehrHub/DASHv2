@@ -104,7 +104,7 @@ def _compute_l10d(dated: pd.DataFrame, limit: int = 10) -> list[dict]:
     return days
 
 
-def _compute_top_days(dated: pd.DataFrame, limit: int = 10) -> list[dict]:
+def _compute_top_days(dated: pd.DataFrame, limit: int = 15) -> list[dict]:
     """Top N calendar days ranked by confirmed revenue earned that day
     (not per event) — reuses the same DAYS-tab card shape regardless of
     how many distinct clients/events contributed to that day's total.
@@ -137,7 +137,7 @@ def _compute_top_days(dated: pd.DataFrame, limit: int = 10) -> list[dict]:
     return days
 
 
-def _compute_top_clients(dated: pd.DataFrame, limit: int = 10) -> list[dict]:
+def _compute_top_clients(dated: pd.DataFrame, limit: int = 15) -> list[dict]:
     """Top N clients ranked by career-to-date confirmed revenue."""
     if dated.empty:
         return []
@@ -167,7 +167,7 @@ def _city_only(detail: object) -> str:
     return text.rsplit(",", 1)[0].strip() if "," in text else text
 
 
-def _compute_top_cities(dated: pd.DataFrame, limit: int = 10) -> list[dict]:
+def _compute_top_cities(dated: pd.DataFrame, limit: int = 15) -> list[dict]:
     """Top N cities ranked by how many times visited (event count) —
     reuses the exact same card shape as Clients (built with the same
     _build_client_cards renderer), just grouped by city and ranked by

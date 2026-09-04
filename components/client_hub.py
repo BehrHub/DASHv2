@@ -226,8 +226,8 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
             '<div class="row-stats">'
             f'<div class="row-stat"><div class="row-stat-val">{visits}</div><div class="row-stat-lbl">VISITS</div></div>'
             f'<div class="row-stat"><div class="row-stat-val">{escape(avg_visit_label)}</div><div class="row-stat-lbl">/VISIT</div></div>'
-            f'<div class="row-stat"><div class="row-stat-val">{escape(rev_rank_label)}</div><div class="row-stat-lbl">RANK</div></div>'
             f'<div class="row-stat"><div class="row-stat-val">{escape(median_label)}</div><div class="row-stat-lbl">MEDIAN</div></div>'
+            f'<div class="row-stat"><div class="row-stat-val">{escape(rev_rank_label)}</div><div class="row-stat-lbl">RANK</div></div>'
             '</div>'
             '</div>'
         )
@@ -317,7 +317,7 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     .group-trips-lbl{{font-size:8px;font-weight:700;letter-spacing:.3px;color:#64748b;text-transform:uppercase}}
     .group-members-compact{{margin-top:5px}}
     </style></head><body>{livery_html}<div class="client-card-container"><div class="client-header-title">CLIENT STANDINGS</div><div class="client-list">{''.join(rows)}</div>{legend_html}<input id="client-search" type="search" class="search-box" placeholder="Search current client directory..."></div>
-    {_build_group_section("CLIENT GROUPS", compute_client_group_ranking(timeline, gross_view), "client")}
+    {_build_group_section("CLIENT GROUPS", compute_client_group_ranking(timeline, gross_view), "client", show_n=15)}
     {_build_group_section("LOCATION GROUPS", compute_location_group_ranking(timeline), "location")}
     <script>
     (function liveryClickToPause() {{
@@ -400,7 +400,7 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     # inside normal CSS flow this code already controls directly.
     height = (
         480 + max(len(directory), 1) * 100 + (140 if livery_clients else 0)
-        + 160 + min(10, len(compute_client_group_ranking(timeline, gross_view))) * 115
+        + 160 + min(15, len(compute_client_group_ranking(timeline, gross_view))) * 115
         + 160 + min(10, len(compute_location_group_ranking(timeline))) * 85
     )
     components.html(html, height=height, scrolling=False)
