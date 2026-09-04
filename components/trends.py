@@ -131,7 +131,7 @@ CHART_CLIENT_LABEL_OVERRIDES: dict[str, str] = {
     "7-Eleven": "7-11",
     "Giant Food Stores": "GIANT",
     "Food Lion": "FOOD LION",
-    "Hebrew Home GW": "H.Home",
+    "Hebrew Home GW": "HEBREW",
 }
 
 
