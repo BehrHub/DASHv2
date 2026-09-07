@@ -302,8 +302,9 @@ def _compute_career_months(dated: pd.DataFrame) -> list[dict]:
 def _compute_eras(dated: pd.DataFrame) -> list[dict]:
     """Named career eras — same card shape as Month/Calendar views, just
     a different, business-meaningful grouping instead of fixed-length
-    cycles. Currently only "Speed Era" (since Jun 30, marking the
-    production ramp-up from new contracts) has a confirmed definition.
+    cycles. Speed Era ran Jun 30-Aug 2 (production ramp-up from new
+    contracts); Roofman Era starts Aug 3 (Cliff Point router rooftop
+    work) and is currently open-ended, running to today.
     Add more named eras here once their start dates are confirmed.
     """
     eras: list[dict] = []
@@ -313,7 +314,8 @@ def _compute_eras(dated: pd.DataFrame) -> list[dict]:
     ERA_DEFINITIONS = [
         ("Introduction Phase", pd.Timestamp("2026-04-20"), pd.Timestamp("2026-05-25")),
         ("Momentum Era", pd.Timestamp("2026-05-26"), pd.Timestamp("2026-06-29")),
-        ("Speed Era", pd.Timestamp("2026-06-30"), None),
+        ("Speed Era", pd.Timestamp("2026-06-30"), pd.Timestamp("2026-08-02")),
+        ("Roofman Era", pd.Timestamp("2026-08-03"), None),
     ]
 
     for label, start, end in ERA_DEFINITIONS:
