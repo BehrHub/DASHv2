@@ -11,16 +11,23 @@ from components.journey import compact_state_code
 from services.tz import eastern_today, eastern_today_naive
 
 
-def _known_clients(timeline: pd.DataFrame) -> list[str]:
-    """Real client names pulled live from the Timeline — replaces what
-    used to be a hardcoded REAL_CLIENTS list, which silently fell out of
-    sync every time a new client got added (confirmed: McDonald's was
-    missing from that static list despite being a real, active client
-    with events already recorded against it — same drift risk exists
-    for any future new client, not just this one instance)."""
-    if "Client" not in timeline.columns:
-        return []
-    return sorted(timeline["Client"].dropna().astype(str).str.strip().unique())
+def _known_clients(timeline: pd.DataFrame, pipeline: pd.DataFrame | None = None) -> list[str]:
+    """Real client names pulled live from Timeline AND Pipeline —
+    replaces what used to be a hardcoded REAL_CLIENTS list, which
+    silently fell out of sync every time a new client got added
+    (confirmed: McDonald's was missing from that static list despite
+    being a real, active client with events already recorded against
+    it). Pipeline is included too — a client who's only ever been
+    Scheduled (never yet Completed) was missing entirely from this
+    list before, which silently blanked the Client dropdown when
+    editing their ticket (confirmed: Senator Sergeant at Arms)."""
+    names = set()
+    if "Client" in timeline.columns:
+        names.update(timeline["Client"].dropna().astype(str).str.strip())
+    if pipeline is not None and "Client" in pipeline.columns:
+        names.update(pipeline["Client"].dropna().astype(str).str.strip())
+    names.discard("")
+    return sorted(names)
 
 STATE_CODE_TO_NAME = {
     "MD": "Maryland",
@@ -202,7 +209,7 @@ def _render_upcoming(pipeline: pd.DataFrame) -> None:
             if pd.notna(stored_rate) and str(stored_rate).strip() not in ("", "0", "0.0"):
                 default_rate = float(stored_rate)
             else:
-                default_rate = float(st.session_state.get("last_hourly_rate", 40.0))
+                default_rate = float(st.session_state.get("last_hourly_rate", 45.0))
             rate_col, hours_col = st.columns(2)
             with rate_col:
                 rate = st.number_input(
@@ -247,7 +254,7 @@ def _render_form(known_locations: list[str], timeline: pd.DataFrame, pipeline: p
 
     with st.form("add_event_form", clear_on_submit=False):
         status = st.radio("Status", ["Scheduled", "Completed"], horizontal=True, index=0)
-        known_clients = _known_clients(timeline)
+        known_clients = _known_clients(timeline, pipeline)
         client = st.selectbox(
             "Client", known_clients, index=None,
             placeholder="Start typing or enter a new client", accept_new_options=True,
@@ -257,7 +264,7 @@ def _render_form(known_locations: list[str], timeline: pd.DataFrame, pipeline: p
             placeholder="e.g. Columbia, MD", accept_new_options=True,
         )
         billing_type = st.radio("Billing Type", ["Hourly", "Per Trip"], horizontal=True, index=0)
-        rate = st.number_input("Rate (\uFF04)", min_value=0.0, step=1.0, value=40.0)
+        rate = st.number_input("Rate (\uFF04)", min_value=0.0, step=1.0, value=45.0)
         notes = st.text_area("Notes", height=92)
         event_date = st.date_input("Date", value=eastern_today())
         preview_clicked = st.form_submit_button("Preview", type="primary", width="stretch")
@@ -349,7 +356,7 @@ def _event_options(timeline: pd.DataFrame, pipeline: pd.DataFrame) -> dict[str, 
         options[label] = {
             "event_id": row["Event ID"], "kind": "pipeline", "client": row["Client"],
             "location": row["Location"], "state": "", "status": "Scheduled",
-            "rate": float(stored_rate) if pd.notna(stored_rate) and str(stored_rate).strip() not in ("", "0", "0.0") else 40.0,
+            "rate": float(stored_rate) if pd.notna(stored_rate) and str(stored_rate).strip() not in ("", "0", "0.0") else 45.0,
             "billing_type": "Hourly", "notes": "",
             "date": date_val.date() if pd.notna(date_val) else eastern_today(),
         }
@@ -362,7 +369,7 @@ def _event_options(timeline: pd.DataFrame, pipeline: pd.DataFrame) -> dict[str, 
             "event_id": row["Event ID"], "kind": "timeline", "client": row["Client"],
             "location": row.get("Location Detail") or row["State/Region"],
             "state": row["State/Region"], "status": "Completed",
-            "rate": float(row["Amount"]) if pd.notna(row["Amount"]) else 40.0,
+            "rate": float(row["Amount"]) if pd.notna(row["Amount"]) else 45.0,
             "billing_type": row.get("Billing Type") or "Hourly",
             "notes": "", "date": date_val.date() if pd.notna(date_val) else eastern_today(),
         }
@@ -429,7 +436,7 @@ def _render_modify(timeline: pd.DataFrame, pipeline: pd.DataFrame, known_locatio
                 "Status", ["Scheduled", "Completed"], horizontal=True,
                 index=0 if original["status"] == "Scheduled" else 1,
             )
-            known_clients = _known_clients(timeline)
+            known_clients = _known_clients(timeline, pipeline)
             m_client = st.selectbox(
                 "Client", known_clients, index=known_clients.index(original["client"])
                 if original["client"] in known_clients else None,
