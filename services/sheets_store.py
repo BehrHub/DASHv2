@@ -66,12 +66,34 @@ def _spreadsheet():
         raise SheetsUnavailable(f"Could not open the Google Sheet: {exc}") from exc
 
 
+def _ensure_headers(ws, headers: list[str]) -> None:
+    """Self-healing schema check: if the live sheet's header row is
+    missing a column the code now expects (e.g. a new field was added
+    to the app after the sheet was already in use), add it to the end
+    automatically. Runs on every worksheet open — cheap (one read),
+    and only writes when something's actually missing, so it's a
+    no-op on every normal run once the sheet's caught up.
+    """
+    try:
+        current = ws.row_values(1)
+    except Exception:
+        return  # don't block normal reads/writes over a header check failing
+    missing = [h for h in headers if h not in current]
+    if not missing:
+        return
+    new_header_row = current + missing
+    end_col = chr(ord("A") + len(new_header_row) - 1)
+    ws.update(range_name=f"A1:{end_col}1", values=[new_header_row])
+
+
 def _worksheet(name: str, headers: list[str]):
     import gspread
 
     ss = _spreadsheet()
     try:
-        return ss.worksheet(name)
+        ws = ss.worksheet(name)
+        _ensure_headers(ws, headers)
+        return ws
     except gspread.exceptions.WorksheetNotFound:
         ws = ss.add_worksheet(title=name, rows=1000, cols=max(len(headers), 8))
         ws.append_row(headers)
