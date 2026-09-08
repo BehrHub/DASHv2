@@ -195,11 +195,19 @@ def _render_upcoming(pipeline: pd.DataFrame) -> None:
 
         if completing_id == event_id:
             st.markdown('<div class="complete-panel">', unsafe_allow_html=True)
+            # Use the rate actually stored on THIS ticket at creation
+            # time. Falls back to last_hourly_rate only for tickets
+            # created before the Rate column existed on Pipeline.
+            stored_rate = row.get("Rate", "")
+            if pd.notna(stored_rate) and str(stored_rate).strip() not in ("", "0", "0.0"):
+                default_rate = float(stored_rate)
+            else:
+                default_rate = float(st.session_state.get("last_hourly_rate", 40.0))
             rate_col, hours_col = st.columns(2)
             with rate_col:
                 rate = st.number_input(
                     "Rate (\uFF04/hr)", min_value=0.0, step=1.0,
-                    value=float(st.session_state.get("last_hourly_rate", 40.0)),
+                    value=default_rate,
                     key=f"rate_{event_id}",
                 )
             with hours_col:
@@ -309,7 +317,7 @@ def _render_form(known_locations: list[str], timeline: pd.DataFrame, pipeline: p
                     sheets_store.PIPELINE_SHEET, sheets_store.PIPELINE_HEADERS,
                     {
                         "Event ID": event_id, "Client": pending["client"], "Location": location_detail,
-                        "Status": "Scheduled", "Date / Timing": date_str,
+                        "Status": "Scheduled", "Date / Timing": date_str, "Rate": pending["rate"],
                     },
                 )
             st.session_state["last_saved_event"] = {
@@ -337,10 +345,12 @@ def _event_options(timeline: pd.DataFrame, pipeline: pd.DataFrame) -> dict[str, 
         date_val = row["__date"]
         date_label = date_val.strftime("%b %d, %Y") if pd.notna(date_val) else str(row["Date / Timing"])
         label = f'{row["Client"]} \u2014 {date_label} (Scheduled)'
+        stored_rate = row.get("Rate", "")
         options[label] = {
             "event_id": row["Event ID"], "kind": "pipeline", "client": row["Client"],
             "location": row["Location"], "state": "", "status": "Scheduled",
-            "rate": 40.0, "billing_type": "Hourly", "notes": "",
+            "rate": float(stored_rate) if pd.notna(stored_rate) and str(stored_rate).strip() not in ("", "0", "0.0") else 40.0,
+            "billing_type": "Hourly", "notes": "",
             "date": date_val.date() if pd.notna(date_val) else eastern_today(),
         }
 
@@ -462,7 +472,7 @@ def _render_modify(timeline: pd.DataFrame, pipeline: pd.DataFrame, known_locatio
                 else:
                     pipeline_row = {
                         "Event ID": event_id, "Client": m_client, "Location": location_detail,
-                        "Status": "Scheduled", "Date / Timing": date_str,
+                        "Status": "Scheduled", "Date / Timing": date_str, "Rate": m_rate,
                     }
                     _apply_save(original["kind"], event_id, "Scheduled", None, pipeline_row)
                 st.success(f"Updated {m_client}.")

@@ -26,7 +26,7 @@ TIMELINE_HEADERS = [
     "Event ID", "Client", "State/Region", "Status", "Amount",
     "Verified?", "Service Date", "Location Detail", "Billing Type",
 ]
-PIPELINE_HEADERS = ["Event ID", "Client", "Location", "Status", "Date / Timing"]
+PIPELINE_HEADERS = ["Event ID", "Client", "Location", "Status", "Date / Timing", "Rate"]
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
