@@ -545,11 +545,12 @@ def _build_month_cards(
         if pct is None:
             return ""
         sign = "+" if pct >= 0 else ""
+        arrow = "\u25b2" if pct >= 0 else "\u25bc"  # ascii-safe triangle glyphs, not emoji
         if is_projection:
             cls = "mom-badge mom-projection"  # always purple, sign doesn't change this one
         else:
             cls = "mom-badge mom-positive" if pct >= 0 else "mom-badge mom-negative"
-        return f'<span class="{cls}">{sign}{pct:.1f}%</span>'
+        return f'<span class="{cls}">{sign}{pct:.1f}% {arrow}</span>'
 
     cards = []
     for m in months:

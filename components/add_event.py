@@ -371,6 +371,7 @@ def _event_options(timeline: pd.DataFrame, pipeline: pd.DataFrame) -> dict[str, 
             "state": row["State/Region"], "status": "Completed",
             "rate": float(row["Amount"]) if pd.notna(row["Amount"]) else 45.0,
             "billing_type": row.get("Billing Type") or "Hourly",
+            "verified": row.get("Verified?") or "No",
             "notes": "", "date": date_val.date() if pd.notna(date_val) else eastern_today(),
         }
 
@@ -471,7 +472,8 @@ def _render_modify(timeline: pd.DataFrame, pipeline: pd.DataFrame, known_locatio
                 if m_status == "Completed":
                     timeline_row = {
                         "Event ID": event_id, "Client": m_client, "State/Region": state_name,
-                        "Status": "Completed", "Amount": m_rate, "Verified?": "No",
+                        "Status": "Completed", "Amount": m_rate,
+                        "Verified?": original.get("verified", "No"),
                         "Service Date": date_str, "Location Detail": location_detail,
                         "Billing Type": m_billing,
                     }
