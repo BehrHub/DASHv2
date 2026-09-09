@@ -548,6 +548,7 @@ def main() -> None:
         # every later rerun while already on this page, which would
         # otherwise keep yanking the user back to that tab even after
         # they'd manually clicked a different one.
+        force_ledger_tab = "ledger_tab" in st.query_params
         initial_ledger_tab = st.query_params.get("ledger_tab", "l10wk")
         if "ledger_tab" in st.query_params:
             del st.query_params["ledger_tab"]
@@ -616,7 +617,7 @@ def main() -> None:
                 if turning_on:
                     st.session_state["gross_toggle_anim_ledger"] = True
                 st.rerun()
-        render_ledger_breakdowns(snapshot.sheets["Timeline"], gross_view, initial_tab=initial_ledger_tab)
+        render_ledger_breakdowns(snapshot.sheets["Timeline"], gross_view, initial_tab=initial_ledger_tab, force_tab=force_ledger_tab)
     elif view == "logostudio":
         render_logo_studio_page(snapshot.sheets["Timeline"])
     else:

@@ -34,7 +34,9 @@ LOCATION_GROUPS: dict[str, list[str]] = {
     # Timonium added — 1.3-3.0mi from every existing member, tighter
     # than the original three are to each other.
     "Towson-proper": ["Cockeysville, MD", "Lutherville, MD", "Towson, MD", "Timonium, MD"],
-    "Tysons-proper": ["Tysons, VA", "McLean, VA"],
+    # Falls Church added — 6mi from Tysons (confirmed via web search),
+    # comfortably inside the tolerance already accepted elsewhere.
+    "Tysons-proper": ["Tysons, VA", "McLean, VA", "Falls Church, VA"],
     # Upper Marlboro (6.5mi to Largo) and Lanham (5.8-6.6mi to
     # Largo/Bowie) added — same anchor pattern as the original group:
     # Lanham is 14.8mi from Clinton specifically, not mutually close to
@@ -60,6 +62,14 @@ LOCATION_GROUPS: dict[str, list[str]] = {
     # confirmed via web search, not assumed) — comparable to the
     # Clinton/Ellicott City borderline cases already accepted above.
     "Fairfax-proper": ["Fairfax, VA", "Herndon, VA"],
+    # New group — a genuinely different kind of pairing than everything
+    # above. Salisbury to Berlin is ~21-24mi (confirmed via web search)
+    # — well outside the tight-proximity tolerance used everywhere else
+    # in this file (widest so far was 9.8mi). This one's grouped by
+    # REGION (both Eastern Shore, MD) rather than driving proximity —
+    # flagging that distinction honestly rather than pretending it fits
+    # the same "close cluster" pattern as the rest.
+    "Eastern Shore-proper": ["Salisbury, MD", "Berlin, MD"],
 }
 
 
