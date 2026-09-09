@@ -530,7 +530,10 @@ def render_ledger_summary(timeline: pd.DataFrame, gross_view: bool = False) -> N
     components.html(html, height=225, scrolling=False)
 
 
-def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, initial_tab: str = "l10wk") -> None:
+def render_ledger_breakdowns(
+    timeline: pd.DataFrame, gross_view: bool = False, initial_tab: str = "l10wk",
+    force_tab: bool = False,
+) -> None:
     """The tab-grid breakdowns panel + Action Items — everything that
     used to sit below "MONTHLY BREAKDOWN". No title of its own now; the
     native "BREAKDOWNS" row rendered just above this (in app.py) takes
@@ -542,6 +545,17 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, i
     query param that drives this before calling here, so it only
     affects the render immediately after navigating in, not every
     subsequent rerun while already on this page.
+
+    `force_tab` distinguishes that one-shot deep-link case from every
+    OTHER rerun (e.g. clicking the Gross/Net toggle) — which used to
+    silently reset the visible tab back to initial_tab's hardcoded
+    "l10wk" default, discarding whatever tab you were actually looking
+    at, because this component's tab switching is pure client-side JS
+    with zero connection back to Streamlit. When force_tab is False,
+    the embedded script below prefers localStorage's last-clicked tab
+    over the server-rendered initial_tab; when True (a genuine
+    deep-link navigation just happened), it respects initial_tab as
+    intended and does not let localStorage override it.
     """
     summary, career_months, calendar_months, eras, l10wk, top_days, top_clients, top_cities, l10d = (
         _compute_summary_and_months(timeline, gross_view)
@@ -621,14 +635,36 @@ def render_ledger_breakdowns(timeline: pd.DataFrame, gross_view: bool = False, i
       </div>
       <script>
         (function() {{
+          var STORAGE_KEY = 'barrister_ledger_tab';
+          var forceTab = {str(force_tab).lower()};
+
+          function activate(view) {{
+            document.querySelectorAll('.month-view-tab').forEach(function(t) {{
+              t.classList.toggle('is-active', t.getAttribute('data-view') === view);
+            }});
+            document.querySelectorAll('.month-view').forEach(function(v) {{
+              v.classList.toggle('is-active', v.getAttribute('data-view') === view);
+            }});
+          }}
+
+          // On load: a real deep-link (e.g. clicking the CITIES gauge)
+          // always wins. Otherwise - including every Gross/Net toggle
+          // rerun - restore whatever tab was last actually clicked,
+          // instead of falling back to the server's hardcoded default.
+          if (!forceTab) {{
+            try {{
+              var remembered = localStorage.getItem(STORAGE_KEY);
+              if (remembered) {{ activate(remembered); }}
+            }} catch (e) {{ /* localStorage unavailable - fall back to server default silently */ }}
+          }} else {{
+            try {{ localStorage.setItem(STORAGE_KEY, '{initial_tab}'); }} catch (e) {{}}
+          }}
+
           document.querySelectorAll('.month-view-tab').forEach(function(tab) {{
             tab.addEventListener('click', function() {{
               var view = tab.getAttribute('data-view');
-              document.querySelectorAll('.month-view-tab').forEach(function(t) {{ t.classList.remove('is-active'); }});
-              tab.classList.add('is-active');
-              document.querySelectorAll('.month-view').forEach(function(v) {{
-                v.classList.toggle('is-active', v.getAttribute('data-view') === view);
-              }});
+              activate(view);
+              try {{ localStorage.setItem(STORAGE_KEY, view); }} catch (e) {{}}
             }});
           }});
         }})();
