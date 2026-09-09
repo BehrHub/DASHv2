@@ -244,6 +244,13 @@ def _compute_summary_and_months(
     calendar_months = _compute_calendar_months(dated)[::-1]
     eras = _compute_eras(dated)
 
+    # Month-over-month % markers - only Career and Calendar (real,
+    # regular month-length periods); Eras deliberately excluded since
+    # its periods are irregular lengths, where a straight % vs the
+    # prior era wouldn't mean the same thing.
+    _apply_month_over_month(career_months)
+    _apply_month_over_month(calendar_months)
+
     l10wk = _compute_l10wk(dated)[::-1]
     l10d = _compute_l10d(dated)[::-1]
     top_days = _compute_top_days(dated)
@@ -293,6 +300,7 @@ def _compute_career_months(dated: pd.DataFrame) -> list[dict]:
             "label": label,
             "start": start_label,
             "end": end_label,
+            "start_date": start, "end_date": end, "is_current": is_current,
             "events": events, "confirmed": confirmed, "days_worked": days_worked,
             "revenue": revenue, "avg": avg,
         })
@@ -362,10 +370,47 @@ def _compute_calendar_months(dated: pd.DataFrame) -> list[dict]:
             "label": label,
             "start": start.strftime("%b %d"),
             "end": end.strftime("%b %d"),
+            "start_date": start, "end_date": end, "is_current": is_current,
             "events": events, "confirmed": confirmed, "days_worked": days_worked,
             "revenue": revenue, "avg": avg,
         })
     return months
+
+
+def _apply_month_over_month(months: list[dict]) -> None:
+    """Mutates each month dict in place, adding 'mom_pct' (float or
+    None) and 'mom_is_projection' (bool). `months` must already be in
+    the caller's existing reverse-chronological order (newest first) -
+    so the "prior" month for entry i is entry i+1, not i-1.
+
+    A completed month gets a plain vs-prior-month % change. The
+    CURRENT (in-progress) month instead gets a run-rate PROJECTION —
+    comparing its partial revenue-so-far directly against a prior
+    FULL month would always look artificially low, so it's scaled up
+    first: revenue_so_far / (business_days_elapsed / total_business_
+    days_in_month) - the standard way to extrapolate a partial period
+    to a full one (elapsed fraction, not remaining - confirmed).
+    """
+    today = eastern_today_naive()
+    for i, m in enumerate(months):
+        m["mom_pct"] = None
+        m["mom_is_projection"] = False
+        if i + 1 >= len(months):
+            continue  # oldest month on record - nothing prior to compare to
+        prior_revenue = months[i + 1]["revenue"]
+        if prior_revenue <= 0:
+            continue  # a $0 prior month makes a % change meaningless/undefined
+
+        if m.get("is_current"):
+            total_bdays = len(pd.bdate_range(m["start_date"], m["end_date"]))
+            elapsed_bdays = len(pd.bdate_range(m["start_date"], min(today, m["end_date"])))
+            if elapsed_bdays <= 0 or total_bdays <= 0:
+                continue
+            projected_revenue = m["revenue"] / (elapsed_bdays / total_bdays)
+            m["mom_pct"] = ((projected_revenue - prior_revenue) / prior_revenue) * 100
+            m["mom_is_projection"] = True
+        else:
+            m["mom_pct"] = ((m["revenue"] - prior_revenue) / prior_revenue) * 100
 
 
 # Action items carry Work Order numbers and specific review-flag reasons
@@ -413,6 +458,8 @@ body{color:#fff}
 .month-revenue-item { background: rgba(244,114,182,.08); border: 1px solid rgba(244,114,182,.2); border-radius: 10px; padding: 8px 10px; text-align: center; }
 .month-revenue-val { font-size: 17px; font-weight: 900; color: #f9a8d4; text-shadow: 0 0 8px rgba(244,114,182,.4); }
 .month-revenue-lbl { font-size: 9px; font-weight: 800; color: #c5d0e0; letter-spacing: .4px; margin-top: 2px; }
+.mom-badge { display: inline-block; font-size: 10.5px; font-weight: 800; color: #7dd3fc; margin-left: 5px; text-shadow: 0 0 6px rgba(125,211,252,.5); }
+.mom-badge.mom-projection { color: #c4b5fd; text-shadow: 0 0 6px rgba(196,181,253,.5); }
 .action-list { display: flex; flex-direction: column; gap: 8px; }
 .action-item { background: rgba(15,20,32,.6); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; padding: 11px 13px; }
 .action-item.flag-missing { border-color: rgba(251,113,133,.4); background: rgba(60,15,25,.4); }
@@ -436,7 +483,10 @@ body{color:#fff}
 """
 
 
-def _build_month_cards(months: list[dict], gross_view: bool = False, periods_per_year: float = MONTHS_PER_YEAR) -> str:
+def _build_month_cards(
+    months: list[dict], gross_view: bool = False, periods_per_year: float = MONTHS_PER_YEAR,
+    show_mom_change: bool = False,
+) -> str:
     """periods_per_year controls how REVENUE gets annualized when gross
     is on — must match what period each card actually represents.
     Was previously hardcoded to MONTHS_PER_YEAR everywhere, which is
@@ -449,28 +499,42 @@ def _build_month_cards(months: list[dict], gross_view: bool = False, periods_per
     AVG REV/DAY now uses gross_up() only (matching AVG/EVENT's existing
     treatment) instead of annualize_gross() — it shows the grossed-up
     per-day figure, not an annualized rate, for every tab.
+
+    show_mom_change controls the small vs-prior-month % badge next to
+    REVENUE (Career/Calendar only — see _apply_month_over_month). Blue
+    for a completed month's real change; purple for the current
+    in-progress month's run-rate PROJECTION, so the two are never
+    visually confused with each other.
     """
     revenue_lbl = "REVENUE"
     avg_lbl = "AVG / EVENT"
     avg_day_lbl = "AVG REV/DAY"
-    return "".join(
-        '<div class="month-card">'
-        '<div class="month-card-head">'
-        f'<div class="month-card-name">{escape(m["label"].upper())}</div>'
-        f'<div class="month-card-range">{escape(m["start"])} \u2013 {escape(m["end"])}</div>'
-        '</div>'
-        '<div class="month-stat-grid">'
-        f'<div class="month-stat"><div class="month-stat-val">{m["events"]}</div><div class="month-stat-lbl">EVENTS</div></div>'
-        f'<div class="month-stat"><div class="month-stat-val">{m["confirmed"]}</div><div class="month-stat-lbl">CONFIRMED</div></div>'
-        f'<div class="month-stat"><div class="month-stat-val">{m["days_worked"]}</div><div class="month-stat-lbl">DAYS WORKED</div></div>'
-        '</div>'
-        '<div class="month-revenue-row">'
-        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(annualize_gross(m["revenue"], periods_per_year) if gross_view else m["revenue"]))}</div><div class="month-revenue-lbl">{revenue_lbl}</div></div>'
-        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(gross_up(m["avg"]) if gross_view else m["avg"]))}</div><div class="month-revenue-lbl">{avg_lbl}</div></div>'
-        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(gross_up((m["revenue"] / m["days_worked"]) if m["days_worked"] else 0.0) if gross_view else ((m["revenue"] / m["days_worked"]) if m["days_worked"] else 0.0)))}</div><div class="month-revenue-lbl">{avg_day_lbl}</div></div>'
-        '</div></div>'
-        for m in months
-    )
+    cards = []
+    for m in months:
+        mom_html = ""
+        if show_mom_change and m.get("mom_pct") is not None:
+            pct = m["mom_pct"]
+            sign = "+" if pct >= 0 else ""
+            cls = "mom-badge mom-projection" if m.get("mom_is_projection") else "mom-badge"
+            mom_html = f'<span class="{cls}">{sign}{pct:.1f}%</span>'
+        cards.append(
+            '<div class="month-card">'
+            '<div class="month-card-head">'
+            f'<div class="month-card-name">{escape(m["label"].upper())}</div>'
+            f'<div class="month-card-range">{escape(m["start"])} \u2013 {escape(m["end"])}</div>'
+            '</div>'
+            '<div class="month-stat-grid">'
+            f'<div class="month-stat"><div class="month-stat-val">{m["events"]}</div><div class="month-stat-lbl">EVENTS</div></div>'
+            f'<div class="month-stat"><div class="month-stat-val">{m["confirmed"]}</div><div class="month-stat-lbl">CONFIRMED</div></div>'
+            f'<div class="month-stat"><div class="month-stat-val">{m["days_worked"]}</div><div class="month-stat-lbl">DAYS WORKED</div></div>'
+            '</div>'
+            '<div class="month-revenue-row">'
+            f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(annualize_gross(m["revenue"], periods_per_year) if gross_view else m["revenue"]))}{mom_html}</div><div class="month-revenue-lbl">{revenue_lbl}</div></div>'
+            f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(gross_up(m["avg"]) if gross_view else m["avg"]))}</div><div class="month-revenue-lbl">{avg_lbl}</div></div>'
+            f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(gross_up((m["revenue"] / m["days_worked"]) if m["days_worked"] else 0.0) if gross_view else ((m["revenue"] / m["days_worked"]) if m["days_worked"] else 0.0)))}</div><div class="month-revenue-lbl">{avg_day_lbl}</div></div>'
+            '</div></div>'
+        )
+    return "".join(cards)
 
 
 def _build_day_cards(days: list[dict]) -> str:
@@ -561,8 +625,8 @@ def render_ledger_breakdowns(
         _compute_summary_and_months(timeline, gross_view)
     )
 
-    career_cards = _build_month_cards(career_months, gross_view)
-    calendar_cards = _build_month_cards(calendar_months, gross_view)
+    career_cards = _build_month_cards(career_months, gross_view, show_mom_change=True)
+    calendar_cards = _build_month_cards(calendar_months, gross_view, show_mom_change=True)
     era_cards = _build_month_cards(eras, gross_view)
     l10wk_cards = _build_month_cards(l10wk, gross_view, periods_per_year=WEEKS_PER_YEAR)
     l10d_cards = _build_month_cards(l10d, gross_view, periods_per_year=DAYS_PER_YEAR)
