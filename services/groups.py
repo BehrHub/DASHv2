@@ -28,7 +28,10 @@ CLIENT_GROUPS: dict[str, list[str]] = {
 # are 15.8mi apart and are NOT close to each other; Largo is what ties
 # the group together, not mutual proximity between every pair.
 LOCATION_GROUPS: dict[str, list[str]] = {
-    "Rockville-proper": ["Rockville, MD", "North Bethesda, MD"],
+    # Bethesda added ahead of tomorrow's ticket — 8-11mi to Rockville
+    # (confirmed via web search), with North Bethesda already sitting
+    # naturally between the two.
+    "Rockville-proper": ["Rockville, MD", "North Bethesda, MD", "Bethesda, MD"],
     "Owings Mills-proper": ["Owings Mills, MD", "Reisterstown, MD"],
     "Bel Air-proper": ["Aberdeen, MD", "Bel Air, MD", "Edgewood, MD"],
     # Timonium added — 1.3-3.0mi from every existing member, tighter
@@ -70,6 +73,11 @@ LOCATION_GROUPS: dict[str, list[str]] = {
     # flagging that distinction honestly rather than pretending it fits
     # the same "close cluster" pattern as the rest.
     "Eastern Shore-proper": ["Salisbury, MD", "Berlin, MD"],
+    # New group — Elkridge is the anchor (closest to both: 1.75mi to
+    # Hanover, ~10mi to Columbia, confirmed via web search). Columbia
+    # to Hanover itself is ~11mi, same anchor-not-mutual-proximity
+    # pattern already used in Bowie-proper and Bel Air-proper above.
+    "Elkridge-proper": ["Elkridge, MD", "Columbia, MD", "Hanover, MD"],
 }
 
 

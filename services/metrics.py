@@ -103,6 +103,30 @@ def _dates(
     )
 
 
+def _us_federal_holidays(start: pd.Timestamp, end: pd.Timestamp) -> set:
+    """Real US federal holidays (New Year's, MLK Day, Presidents Day,
+    Memorial Day, Juneteenth, Independence Day, Labor Day, Columbus Day,
+    Veterans Day, Thanksgiving, Christmas — with the standard
+    observed-on-adjacent-weekday shift already applied when the actual
+    date falls on a weekend). Treated the same way weekends already
+    are: a holiday with no event doesn't break a streak, but a holiday
+    that WAS worked still counts as a real +1.
+
+    Confirmed bug this fixes: Labor Day (a Monday, so weekday() < 5)
+    was being treated as an ordinary required work day, incorrectly
+    breaking a streak that should have carried straight through it.
+    """
+    from pandas.tseries.holiday import USFederalHolidayCalendar
+    cal = USFederalHolidayCalendar()
+    return set(cal.holidays(start=start, end=end).normalize().tolist())
+
+
+def _is_off_day(d: pd.Timestamp, holidays: set) -> bool:
+    """A day that doesn't count against a streak just because nothing
+    was logged on it - weekends and recognized federal holidays."""
+    return d.weekday() >= 5 or d in holidays
+
+
 def _business_day_streak(
     values: pd.Series,
 ) -> int | None:
@@ -131,10 +155,11 @@ def _business_day_streak(
 def _longest_business_day_streak(values: pd.Series) -> int | None:
     """True historical-max consecutive-day streak anywhere in the
     career. A weekday with no event breaks a run; a weekend day
-    (Sat/Sun) with no event does NOT break a run (just gets stepped
-    over); a weekend day that WAS worked counts as a real +1 like any
-    other day. Kept consistent with _current_business_day_streak below
-    so "record" and "current" measure the exact same thing.
+    (Sat/Sun) or recognized federal holiday with no event does NOT
+    break a run (just gets stepped over); a day that WAS worked counts
+    as a real +1 like any other day, holiday or not. Kept consistent
+    with _current_business_day_streak below so "record" and "current"
+    measure the exact same thing.
     """
     valid = (
         pd.to_datetime(values, errors="coerce")
@@ -147,15 +172,16 @@ def _longest_business_day_streak(values: pd.Series) -> int | None:
         return None
 
     dates = set(valid.tolist())
+    holidays = _us_federal_holidays(valid.iloc[0] - pd.Timedelta(days=7), valid.iloc[-1] + pd.Timedelta(days=7))
     longest = 0
     for d in dates:
         # Only start counting from the true beginning of a run: walk
-        # backward past any unworked weekend to see if an earlier
-        # connected work day exists. Landing on an unworked WEEKDAY
-        # means d really is where this run starts; landing on ANY
-        # worked day (weekday or weekend) means it isn't.
+        # backward past any unworked off-day to see if an earlier
+        # connected work day exists. Landing on an unworked REQUIRED
+        # day means d really is where this run starts; landing on ANY
+        # worked day means it isn't.
         probe = d - pd.Timedelta(days=1)
-        while probe.weekday() >= 5 and probe not in dates:
+        while _is_off_day(probe, holidays) and probe not in dates:
             probe -= pd.Timedelta(days=1)
         if probe in dates:
             continue
@@ -167,7 +193,7 @@ def _longest_business_day_streak(values: pd.Series) -> int | None:
                 length += 1
                 cursor += pd.Timedelta(days=1)
                 continue
-            if cursor.weekday() >= 5:
+            if _is_off_day(cursor, holidays):
                 cursor += pd.Timedelta(days=1)
                 continue
             break
@@ -191,6 +217,11 @@ def _current_business_day_streak(values: pd.Series) -> int:
     unworked weekend day doesn't break anything, it's just stepped
     over; a WORKED weekend day counts as a genuine +1, same as any
     other day.
+
+    Also now treats recognized US federal holidays the same way
+    weekends already were (confirmed bug: Labor Day, a Monday, was
+    incorrectly breaking a real streak for having no event logged on
+    it, same class of bug as the original weekend one above).
     """
     valid = (
         pd.to_datetime(values, errors="coerce")
@@ -203,6 +234,7 @@ def _current_business_day_streak(values: pd.Series) -> int:
         return 0
 
     today = eastern_today_naive()
+    holidays = _us_federal_holidays(today - pd.Timedelta(days=400), today + pd.Timedelta(days=7))
     cursor = today
     if cursor not in dates:
         for _ in range(7):
@@ -218,7 +250,7 @@ def _current_business_day_streak(values: pd.Series) -> int:
             streak += 1
             cursor -= pd.Timedelta(days=1)
             continue
-        if cursor.weekday() >= 5:
+        if _is_off_day(cursor, holidays):
             cursor -= pd.Timedelta(days=1)
             continue
         break

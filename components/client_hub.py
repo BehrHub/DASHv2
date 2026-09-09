@@ -226,8 +226,8 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
             '<div class="row-stats">'
             f'<div class="row-stat"><div class="row-stat-val">{visits}</div><div class="row-stat-lbl">VISITS</div></div>'
             f'<div class="row-stat"><div class="row-stat-val">{escape(avg_visit_label)}</div><div class="row-stat-lbl">/VISIT</div></div>'
-            f'<div class="row-stat"><div class="row-stat-val">{escape(median_label)}</div><div class="row-stat-lbl">MEDIAN</div></div>'
             f'<div class="row-stat"><div class="row-stat-val">{escape(rev_rank_label)}</div><div class="row-stat-lbl">RANK</div></div>'
+            f'<div class="row-stat"><div class="row-stat-val">{escape(median_label)}</div><div class="row-stat-lbl">MEDIAN</div></div>'
             '</div>'
             '</div>'
         )
@@ -315,7 +315,7 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     .group-trips-inline{{flex-shrink:0;display:flex;align-items:baseline;gap:4px}}
     .group-trips-val{{font-size:15px;font-weight:800;color:#f9a8d4;line-height:1}}
     .group-trips-lbl{{font-size:8px;font-weight:700;letter-spacing:.3px;color:#64748b;text-transform:uppercase}}
-    .group-members-compact{{margin-top:5px}}
+    .group-members-compact{{margin-top:5px;color:#ffffff;font-size:11.5px;letter-spacing:.3px}}
     </style></head><body>{livery_html}<div class="client-card-container"><div class="client-header-title">CLIENT STANDINGS</div><div class="client-list">{''.join(rows)}</div>{legend_html}<input id="client-search" type="search" class="search-box" placeholder="Search current client directory..."></div>
     {_build_group_section("CLIENT GROUPS", compute_client_group_ranking(timeline, gross_view), "client")}
     {_build_group_section("LOCATION GROUPS", compute_location_group_ranking(timeline), "location", show_n=15)}
@@ -410,6 +410,17 @@ def _money(value: float) -> str:
     return f"\uFF04{value:,.2f}"
 
 
+def _format_city_members(members: list[str]) -> str:
+    """'Tysons, VA' -> 'TYSONS' - state stripped (the group name already
+    makes the state obvious) and uppercased for the location-group
+    member list display."""
+    names = []
+    for m in members:
+        city = m.rsplit(",", 1)[0].strip() if "," in m else m.strip()
+        names.append(city.upper())
+    return " | ".join(names)
+
+
 def _build_group_section(title: str, rows: list[dict], stat_kind: str, show_n: int = 10) -> str:
     """stat_kind is 'client' (events/revenue/avg, full row below the
     name) or 'location' (a compact 2-row pill — trips shown inline in
@@ -442,7 +453,7 @@ def _build_group_section(title: str, rows: list[dict], stat_kind: str, show_n: i
             if r.get("not_yet_visited"):
                 note = f'<span class="group-note">+{len(r["not_yet_visited"])} pending</span>'
             members_html = (
-                f'<div class="group-members group-members-compact">{escape(", ".join(r["members"]))}</div>'
+                f'<div class="group-members group-members-compact">{escape(_format_city_members(r["members"]))}</div>'
                 if r["is_group"] else ""
             )
             cards.append(
