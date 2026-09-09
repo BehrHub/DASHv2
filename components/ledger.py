@@ -484,7 +484,9 @@ body{color:#fff}
 .month-revenue-item { background: rgba(244,114,182,.08); border: 1px solid rgba(244,114,182,.2); border-radius: 10px; padding: 8px 10px; text-align: center; }
 .month-revenue-val { font-size: 17px; font-weight: 900; color: #f9a8d4; text-shadow: 0 0 8px rgba(244,114,182,.4); }
 .month-revenue-lbl { font-size: 9px; font-weight: 800; color: #c5d0e0; letter-spacing: .4px; margin-top: 2px; }
-.mom-badge { display: inline-block; font-size: 10.5px; font-weight: 800; color: #7dd3fc; margin-top: 3px; text-shadow: 0 0 6px rgba(125,211,252,.5); }
+.mom-badge { display: inline-block; font-size: 10.5px; font-weight: 800; margin-top: 3px; }
+.mom-badge.mom-positive { color: #4ade80; text-shadow: 0 0 6px rgba(74,222,128,.5); }
+.mom-badge.mom-negative { color: #f87171; text-shadow: 0 0 6px rgba(248,113,113,.5); }
 .mom-badge.mom-projection { color: #c4b5fd; text-shadow: 0 0 6px rgba(196,181,253,.5); }
 .action-list { display: flex; flex-direction: column; gap: 8px; }
 .action-item { background: rgba(15,20,32,.6); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; padding: 11px 13px; }
@@ -543,7 +545,10 @@ def _build_month_cards(
         if pct is None:
             return ""
         sign = "+" if pct >= 0 else ""
-        cls = "mom-badge mom-projection" if is_projection else "mom-badge"
+        if is_projection:
+            cls = "mom-badge mom-projection"  # always purple, sign doesn't change this one
+        else:
+            cls = "mom-badge mom-positive" if pct >= 0 else "mom-badge mom-negative"
         return f'<span class="{cls}">{sign}{pct:.1f}%</span>'
 
     cards = []
