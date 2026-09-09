@@ -33,10 +33,10 @@ LOCATION_GROUPS: dict[str, list[str]] = {
     # naturally between the two.
     "Rockville-proper": ["Rockville, MD", "North Bethesda, MD", "Bethesda, MD"],
     "Owings Mills-proper": ["Owings Mills, MD", "Reisterstown, MD"],
-    "Bel Air-proper": ["Aberdeen, MD", "Bel Air, MD", "Edgewood, MD"],
+    "Bel Air-proper": ["Bel Air, MD", "Aberdeen, MD", "Edgewood, MD"],
     # Timonium added — 1.3-3.0mi from every existing member, tighter
     # than the original three are to each other.
-    "Towson-proper": ["Cockeysville, MD", "Lutherville, MD", "Towson, MD", "Timonium, MD"],
+    "Towson-proper": ["Towson, MD", "Cockeysville, MD", "Lutherville, MD", "Timonium, MD"],
     # Falls Church added — 6mi from Tysons (confirmed via web search),
     # comfortably inside the tolerance already accepted elsewhere.
     "Tysons-proper": ["Tysons, VA", "McLean, VA", "Falls Church, VA"],
@@ -45,12 +45,12 @@ LOCATION_GROUPS: dict[str, list[str]] = {
     # Lanham is 14.8mi from Clinton specifically, not mutually close to
     # every member, exactly like Bowie and Clinton aren't close to each
     # other either. Largo/Bowie is what ties this together.
-    "Bowie-proper": ["Largo, MD", "Bowie, MD", "Clinton, MD", "Upper Marlboro, MD", "Lanham, MD"],
+    "Bowie-proper": ["Bowie, MD", "Largo, MD", "Clinton, MD", "Upper Marlboro, MD", "Lanham, MD"],
     # New groups below, all verified by real distance before adding.
-    "Laurel-proper": ["Scaggsville, MD", "Laurel, MD"],  # 5.7mi
-    "Ellicott City-proper": ["West Friendship, MD", "Ellicott City, MD"],  # 9.8mi, same tolerance as Aberdeen/Bel Air
-    "Silver Spring-proper": ["Wheaton, MD", "Silver Spring, MD"],  # 3.7mi
-    "College Park-proper": ["Hyattsville, MD", "College Park, MD"],  # 1.8mi, tightest pairing so far
+    "Laurel-proper": ["Laurel, MD", "Scaggsville, MD"],  # 5.7mi
+    "Ellicott City-proper": ["Ellicott City, MD", "West Friendship, MD"],  # 9.8mi, same tolerance as Aberdeen/Bel Air
+    "Silver Spring-proper": ["Silver Spring, MD", "Wheaton, MD"],  # 3.7mi
+    "College Park-proper": ["College Park, MD", "Hyattsville, MD"],  # 1.8mi, tightest pairing so far
     # New group — Glen Burnie is the anchor. Severna Park is 7.66mi
     # straight-line (8mi driving, confirmed via web search) from Glen
     # Burnie — wider than most existing pairs but still inside the
@@ -78,6 +78,10 @@ LOCATION_GROUPS: dict[str, list[str]] = {
     # to Hanover itself is ~11mi, same anchor-not-mutual-proximity
     # pattern already used in Bowie-proper and Bel Air-proper above.
     "Elkridge-proper": ["Elkridge, MD", "Columbia, MD", "Hanover, MD"],
+    # New group — Annapolis Neck is a peninsula/neighborhood directly
+    # within Annapolis itself, not a separate town (no distance check
+    # needed, same as Elkridge/Columbia/Hanover being genuinely close).
+    "Annapolis-proper": ["Annapolis, MD", "Annapolis Neck, MD"],
 }
 
 

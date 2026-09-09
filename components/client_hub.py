@@ -308,7 +308,7 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     .group-stat-solo{{text-align:left;flex:0 0 auto}}
     .group-stat-val{{font-size:14px;font-weight:800;color:#f9a8d4;line-height:1.2}}
     .group-stat-lbl{{font-size:8.5px;font-weight:700;letter-spacing:.4px;color:#64748b;text-transform:uppercase;margin-top:1px}}
-    .group-note{{font-size:10px;color:#64748b;margin-left:10px;align-self:center}}
+    .group-note{{font-size:10px;color:#64748b;align-self:center}}
     .group-members{{margin-top:7px;font-size:10.5px;color:#7c8aa5;line-height:1.4}}
     .group-truncated-note{{text-align:center;font-size:10.5px;color:#64748b;margin-top:4px}}
     .group-card-compact{{padding:9px 13px}}
@@ -451,7 +451,7 @@ def _build_group_section(title: str, rows: list[dict], stat_kind: str, show_n: i
         else:
             note = ""
             if r.get("not_yet_visited"):
-                note = f'<span class="group-note">+{len(r["not_yet_visited"])} pending</span>'
+                note = f'<span class="group-note">+{len(r["not_yet_visited"])} Pend</span>'
             members_html = (
                 f'<div class="group-members group-members-compact">{escape(_format_city_members(r["members"]))}</div>'
                 if r["is_group"] else ""
@@ -460,8 +460,8 @@ def _build_group_section(title: str, rows: list[dict], stat_kind: str, show_n: i
                 f'<div class="group-card group-card-compact"><div class="group-card-top">'
                 f'<div class="group-rank">{i}</div>'
                 f'<div class="group-name-wrap"><span class="group-name">{name}</span>{tag}</div>'
-                f'<div class="group-trips-inline"><span class="group-trips-val">{r["trips"]}</span>'
-                f'<span class="group-trips-lbl">TRIPS</span></div>{note}'
+                f'{note}<div class="group-trips-inline"><span class="group-trips-val">{r["trips"]}</span>'
+                f'<span class="group-trips-lbl">TRIPS</span></div>'
                 f'</div>{members_html}</div>'
             )
     truncated = len(rows) > show_n
