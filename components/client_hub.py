@@ -265,15 +265,34 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
         key=lambda name: details.get(str(name), {}).get("total_revenue", 0.0),
         reverse=True,
     )
-    livery_tiles = "".join(
-        f'<div class="livery-tile"><img src="{logo_data_uri(resolve_client_logo(str(name), logo_files))}" alt=""></div>'
-        for name in livery_clients
-    )
-    # Duplicated back-to-back so a translateX(-50%) loop is seamless —
-    # standard marquee technique, avoids any visible snap/reset.
+
+    # Stop-motion ticker, not a continuous scroll — a continuous scroll
+    # meant the highest-revenue client (first, by the sort above) was
+    # only ever visible for a split second before sliding straight off
+    # screen. Instead: fixed pages of 4 logos, each held still for 3s,
+    # then a single quick "whoosh" transition slides to the next page.
+    PAGE_SIZE = 4
+    pages = [
+        livery_clients[i:i + PAGE_SIZE]
+        for i in range(0, len(livery_clients), PAGE_SIZE)
+    ]
+
+    def _page_html(names: list) -> str:
+        tiles = "".join(
+            f'<div class="livery-tile"><img src="{logo_data_uri(resolve_client_logo(str(name), logo_files))}" alt=""></div>'
+            for name in names
+        )
+        return f'<div class="livery-page">{tiles}</div>'
+
+    # Real pages, then the SAME pages repeated once more — advancing
+    # one step past the real last page lands on a visual duplicate of
+    # page 1, at which point the JS below snaps back to the true page 1
+    # with the transition disabled for that one frame, so the loop
+    # reads as continuous with no visible jump.
+    livery_pages_html = "".join(_page_html(p) for p in pages) + "".join(_page_html(p) for p in pages)
     livery_html = (
         f'<div class="livery-panel"><div class="livery-title">CURRENT CLIENTS</div>'
-        f'<div class="livery-track">{livery_tiles}{livery_tiles}</div></div>'
+        f'<div class="livery-track">{livery_pages_html}</div></div>'
         if livery_clients else ""
     )
 
@@ -299,11 +318,10 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     @media(max-width:520px){{.client-card-container{{padding:16px 14px}}.client-row{{grid-template-columns:44px 1fr;padding:9px 10px}}.row-avatar{{width:44px;height:44px}}.row-stat-val{{font-size:13px}}.detail-stat-grid{{grid-template-columns:repeat(2,1fr)}}}}
     .livery-panel{{background:linear-gradient(160deg,#12161f,#0a0d13);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:18px 0;margin-bottom:16px;box-shadow:0 15px 35px rgba(0,0,0,.5);overflow:hidden;position:relative;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}}
     .livery-title{{font-size:12px;font-weight:900;letter-spacing:1.5px;color:#64748b;text-transform:uppercase;text-align:center;margin-bottom:14px}}
-    .livery-track{{display:flex;width:max-content;animation:livery-scroll 80s linear infinite}}
-    .livery-panel.is-paused .livery-track{{animation-play-state:paused}}
+    .livery-track{{display:flex;width:max-content;transition:transform .55s cubic-bezier(.4,0,.2,1)}}
+    .livery-page{{display:flex;flex-shrink:0;justify-content:center;width:100vw}}
     .livery-tile{{width:76px;height:76px;margin:0 9px;background:#fff;border-radius:14px;border:1px solid rgba(0,0,0,.15);box-shadow:0 4px 10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:8px}}
     .livery-tile img{{width:100%;height:100%;object-fit:contain}}
-    @keyframes livery-scroll{{0%{{transform:translateX(0)}}100%{{transform:translateX(-50%)}}}}
     .group-section{{background:radial-gradient(circle at 50% -20%,rgba(244,114,182,.08),transparent 44%),rgba(23,27,40,.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:18px 16px;margin-top:16px}}
     .group-section-title{{font-size:15px;font-weight:900;letter-spacing:.6px;color:#fff;margin-bottom:12px}}
     .group-card{{background:rgba(15,20,32,.4);border:1px solid rgba(255,255,255,.05);border-radius:14px;padding:11px 13px;margin-bottom:8px}}
@@ -329,9 +347,39 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     {_build_group_section("CLIENT GROUPS", compute_client_group_ranking(timeline, gross_view), "client")}
     {_build_group_section("LOCATION GROUPS", compute_location_group_ranking(timeline), "location", show_n=15)}
     <script>
-    (function liveryClickToPause() {{
+    (function liveryTicker() {{
+      const track = document.querySelector('.livery-track');
       const panel = document.querySelector('.livery-panel');
-      if (panel) panel.addEventListener('click', () => panel.classList.toggle('is-paused'));
+      if (!track || !panel) return;
+      const pages = track.querySelectorAll('.livery-page');
+      const realPageCount = pages.length / 2;  // second half is the duplicate set for seamless looping
+      if (realPageCount <= 1) return;  // nothing to advance through
+
+      let index = 0;
+      let paused = false;
+
+      function advance() {{
+        if (paused) return;
+        index += 1;
+        track.style.transition = 'transform .55s cubic-bezier(.4,0,.2,1)';
+        track.style.transform = `translateX(-${{index * 100}}vw)`;
+
+        if (index === realPageCount) {{
+          // landed on the visual duplicate of page 0 - after this
+          // transition finishes, snap back to the TRUE page 0 with no
+          // transition, invisibly, since the duplicate looks identical
+          setTimeout(() => {{
+            track.style.transition = 'none';
+            index = 0;
+            track.style.transform = 'translateX(0vw)';
+            // force layout so the next transition re-enables cleanly
+            void track.offsetHeight;
+          }}, 560);
+        }}
+      }}
+
+      const timer = setInterval(advance, 3000);
+      panel.addEventListener('click', () => {{ paused = !paused; }});
     }})();
     const q=document.getElementById('client-search');
     const clickable=[...document.querySelectorAll('.client-row')];
