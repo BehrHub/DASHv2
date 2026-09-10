@@ -451,7 +451,7 @@ def render_journey_replay_script() -> None:
                 let animationFrame = null;
                 let activeScroller = null;
                 let previousScrollerOverflow = "";
-                const speedLevels = [1.00, 1.65, 2.75, 0.00];
+                const speedLevels = [1.25, 1.75, 3.00, 0.00];
                 const basePixelsPerSecond = 145;
 
                 function stops() {
@@ -615,8 +615,8 @@ def render_journey_replay_script() -> None:
                         return;
                     }
                     speedIndex = (speedIndex + 1) % speedLevels.length;
-                    car.classList.toggle("is-smoke", speedLevels[speedIndex] === 1.65);
-                    car.classList.toggle("is-turbo", speedLevels[speedIndex] === 2.75);
+                    car.classList.toggle("is-smoke", speedLevels[speedIndex] === 1.75);
+                    car.classList.toggle("is-turbo", speedLevels[speedIndex] === 3.00);
                 }
 
                 function togglePause() {

@@ -256,15 +256,41 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
         item["client"] for item in directory
         if resolve_client_logo(str(item["client"]), logo_files) is not None
     ]
-    # Carousel specifically sorted by total revenue, highest first —
-    # deliberately independent of `directory`'s own order above (which
-    # is event-count-based, for the numbered tier list) so changing
-    # this doesn't touch that separate ranking.
-    livery_clients = sorted(
-        livery_clients,
-        key=lambda name: details.get(str(name), {}).get("total_revenue", 0.0),
-        reverse=True,
-    )
+    # Carousel ordering: sort ONCE by explicit client-group tier
+    # (below), not a pure revenue sort — a pure revenue sort kept
+    # surfacing the same handful of mid-tier clients over and over
+    # since ties/near-ties in revenue don't reliably separate. Within
+    # each tier, members are still ranked by their own total revenue
+    # (highest first) - just the TIER itself is fixed, not recomputed.
+    # This is a display-only grouping for the carousel specifically —
+    # it doesn't necessarily match CLIENT_GROUPS in services/groups.py
+    # (e.g. Dunkin' is split out from Baskin-Robbins here, per explicit
+    # instruction), so it's kept local rather than imported from there.
+    CAROUSEL_TIERS = [
+        ["TJ Maxx", "Marshalls", "HomeGoods", "HomeSense"],
+        ["USDA", "Senator A. Alsobrooks", "Senator C. Van Hollen", "Joint Base Andrews"],
+        ["Dunkin'", "McDonald's", "7-Eleven"],
+        ["Bloomingdale's", "Macy's"],
+        ["Verizon", "Carvana", "Hampton Inn & Suites", "Hilton Garden Inn"],
+        ["Giant Food Stores", "Food Lion", "Weis Markets"],
+    ]
+    NURSING_HOME_LAST = ["Hebrew Home GW", "Atrium Village", "Autumn Lake Healthcare", "Maryland Baptist Age Home"]
+
+    _tier_index: dict[str, int] = {}
+    for tier_i, tier_members in enumerate(CAROUSEL_TIERS):
+        for name in tier_members:
+            _tier_index[name] = tier_i
+    WHATEVER_ELSE_TIER = len(CAROUSEL_TIERS)
+    NURSING_HOME_TIER = len(CAROUSEL_TIERS) + 1
+    for name in NURSING_HOME_LAST:
+        _tier_index[name] = NURSING_HOME_TIER
+
+    def _carousel_sort_key(name: str):
+        tier = _tier_index.get(str(name), WHATEVER_ELSE_TIER)
+        revenue = details.get(str(name), {}).get("total_revenue", 0.0)
+        return (tier, -revenue)
+
+    livery_clients = sorted(livery_clients, key=_carousel_sort_key)
 
     # Stop-motion ticker, not a continuous scroll — a continuous scroll
     # meant the highest-revenue client (first, by the sort above) was
@@ -378,7 +404,7 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
         }}
       }}
 
-      const timer = setInterval(advance, 3000);
+      const timer = setInterval(advance, 4000);
       panel.addEventListener('click', () => {{ paused = !paused; }});
     }})();
     const q=document.getElementById('client-search');
