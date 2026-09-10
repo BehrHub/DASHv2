@@ -256,6 +256,15 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
         item["client"] for item in directory
         if resolve_client_logo(str(item["client"]), logo_files) is not None
     ]
+    # Carousel specifically sorted by total revenue, highest first —
+    # deliberately independent of `directory`'s own order above (which
+    # is event-count-based, for the numbered tier list) so changing
+    # this doesn't touch that separate ranking.
+    livery_clients = sorted(
+        livery_clients,
+        key=lambda name: details.get(str(name), {}).get("total_revenue", 0.0),
+        reverse=True,
+    )
     livery_tiles = "".join(
         f'<div class="livery-tile"><img src="{logo_data_uri(resolve_client_logo(str(name), logo_files))}" alt=""></div>'
         for name in livery_clients
