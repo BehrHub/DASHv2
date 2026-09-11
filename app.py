@@ -533,7 +533,7 @@ def main() -> None:
             snapshot.sheets.get("State Coverage"),
         )
     elif view == "clienthub":
-        render_client_standings(metrics, snapshot.sheets["Timeline"], gross_view)
+        render_client_standings(metrics, snapshot.sheets["Timeline"], gross_view, snapshot.sheets["Pipeline"])
         st.markdown(
             '<div style="text-align:center;margin-top:18px;font-size:10.5px;">'
             '<a href="?entered=1&view=logostudio" target="_self" style="color:#e8c94a;text-decoration:none;'

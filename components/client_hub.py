@@ -133,7 +133,7 @@ def _detail_panel_html(name: str, detail: dict, gross_view: bool = False) -> str
     )
 
 
-def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, gross_view: bool = False) -> None:
+def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, gross_view: bool = False, pipeline: pd.DataFrame | None = None) -> None:
     directory = list(metrics.data_views.get("client_directory", []))
     details = _client_details(timeline)
 
@@ -371,7 +371,7 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     .group-members-compact{{margin-top:5px;color:#ffffff;font-size:11.5px;letter-spacing:.3px}}
     </style></head><body>{livery_html}<div class="client-card-container"><div class="client-header-title">CLIENT STANDINGS</div><div class="client-list">{''.join(rows)}</div>{legend_html}<input id="client-search" type="search" class="search-box" placeholder="Search current client directory..."></div>
     {_build_group_section("CLIENT GROUPS", compute_client_group_ranking(timeline, gross_view), "client")}
-    {_build_group_section("LOCATION GROUPS", compute_location_group_ranking(timeline), "location", show_n=15)}
+    {_build_group_section("LOCATION GROUPS", compute_location_group_ranking(timeline, pipeline), "location", show_n=15)}
     <script>
     (function liveryTicker() {{
       const track = document.querySelector('.livery-track');
@@ -533,8 +533,8 @@ def _build_group_section(title: str, rows: list[dict], stat_kind: str, show_n: i
             )
         else:
             note = ""
-            if r.get("not_yet_visited"):
-                note = f'<span class="group-note">+{len(r["not_yet_visited"])} Pend</span>'
+            if r.get("pending"):
+                note = f'<span class="group-note">+{r["pending"]} Pend</span>'
             members_html = (
                 f'<div class="group-members group-members-compact">{escape(_format_city_members(r["members"]))}</div>'
                 if r["is_group"] else ""

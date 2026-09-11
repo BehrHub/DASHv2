@@ -128,9 +128,20 @@ def compute_client_group_ranking(timeline: pd.DataFrame, gross_view: bool = Fals
     return rows
 
 
-def compute_location_group_ranking(timeline: pd.DataFrame) -> list[dict]:
+def compute_location_group_ranking(timeline: pd.DataFrame, pipeline: pd.DataFrame | None = None) -> list[dict]:
     """Same shape as compute_client_group_ranking, but for location
-    (city) trip counts instead of client revenue."""
+    (city) trip counts instead of client revenue.
+
+    "pending" is a genuine count of currently-SCHEDULED (Pipeline)
+    tickets whose location matches a member of this group — nothing
+    to do with whether a member city has ever had a completed visit.
+    A city belonging to a group with zero completed visits and zero
+    scheduled tickets is simply 0 trips, no "pending" label at all —
+    confirmed bug this replaces: it was previously flagging ANY city
+    that had never been visited as "pending" even with nothing
+    actually scheduled for it (e.g. Elkridge, MD showed "+1 Pend" with
+    no real upcoming ticket anywhere for it).
+    """
     grouped_locations: set[str] = set()
     for members in LOCATION_GROUPS.values():
         grouped_locations.update(members)
@@ -142,23 +153,31 @@ def compute_location_group_ranking(timeline: pd.DataFrame) -> list[dict]:
     confirmed = timeline[timeline["Verified?"] == "Yes"]
     revenue_by_loc = confirmed.groupby("Location Detail")["Amount"].sum()
 
+    pending_by_loc: dict = {}
+    if pipeline is not None and "Location" in pipeline.columns:
+        pending_by_loc = (
+            pipeline["Location"].dropna().astype(str).str.strip().value_counts().to_dict()
+        )
+
     def _revenue(members: list[str]) -> float:
         return float(sum(revenue_by_loc.get(m, 0.0) for m in members))
+
+    def _pending(members: list[str]) -> int:
+        return int(sum(pending_by_loc.get(m, 0) for m in members))
 
     rows: list[dict] = []
     for name, members in LOCATION_GROUPS.items():
         trips = int(sum(counts.get(m, 0) for m in members))
-        missing = [m for m in members if m not in all_locations]
         rows.append({
             "name": name, "members": members, "member_count": len(members),
             "is_group": True, "trips": trips, "revenue": _revenue(members),
-            "not_yet_visited": missing,
+            "pending": _pending(members),
         })
     for loc in standalone:
         rows.append({
             "name": loc, "members": [loc], "member_count": 1,
             "is_group": False, "trips": int(counts.get(loc, 0)),
-            "revenue": _revenue([loc]), "not_yet_visited": [],
+            "revenue": _revenue([loc]), "pending": _pending([loc]),
         })
 
     # Tie-break by revenue when trip counts match — a straight event-count
