@@ -404,7 +404,7 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
         }}
       }}
 
-      const timer = setInterval(advance, 4000);
+      const timer = setInterval(advance, 6000);
       panel.addEventListener('click', () => {{ paused = !paused; }});
     }})();
     const q=document.getElementById('client-search');
@@ -534,7 +534,7 @@ def _build_group_section(title: str, rows: list[dict], stat_kind: str, show_n: i
         else:
             note = ""
             if r.get("pending"):
-                note = f'<span class="group-note">+{r["pending"]} Pend</span>'
+                note = f'<span class="group-note">+{r["pending"]} Pending</span>'
             members_html = (
                 f'<div class="group-members group-members-compact">{escape(_format_city_members(r["members"]))}</div>'
                 if r["is_group"] else ""
