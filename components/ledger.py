@@ -137,6 +137,56 @@ def _compute_top_days(dated: pd.DataFrame, limit: int = 15) -> list[dict]:
     return days
 
 
+def _compute_top_weeks(dated: pd.DataFrame, limit: int = 15) -> list[dict]:
+    """Top N ISO weeks ranked by confirmed revenue earned that week —
+    same W-numbering convention as L10WK and the Performance Trends
+    chart (W1 = first ISO week with any data), so a week number here
+    means the exact same thing everywhere else in the app.
+    """
+    if dated.empty:
+        return []
+
+    confirmed = dated[dated["Verified?"] == "Yes"].copy()
+    if confirmed.empty:
+        return []
+
+    career_start = dated["__date"].min()
+    start_iso = career_start.isocalendar()
+    start_index = start_iso.year * 52 + start_iso.week
+
+    iso = confirmed["__date"].dt.isocalendar()
+    confirmed["__week_index"] = iso["year"] * 52 + iso["week"]
+
+    grouped = confirmed.groupby("__week_index").agg(
+        revenue=("__amount", "sum"),
+        events=("__amount", "size"),
+        any_date=("__date", "min"),
+    ).reset_index()
+    grouped = grouped[grouped["revenue"] > 0]
+    grouped = grouped.sort_values("revenue", ascending=False).head(limit)
+
+    weeks = []
+    for rank, row in enumerate(grouped.to_dict("records"), start=1):
+        week_index = int(row["__week_index"])
+        wk_number = week_index - start_index + 1
+        # Derive that week's Monday from an actual date known to fall
+        # within it, rather than reverse-computing from the combined
+        # index — ISO years can have 52 or 53 weeks, so decoding the
+        # index back into (year, week) isn't a safe inversion in all
+        # cases, but "walk back to Monday from a real date" always is.
+        any_date = row["any_date"]
+        week_start = any_date - pd.Timedelta(days=any_date.weekday())
+        week_end = week_start + pd.Timedelta(days=6)
+        weeks.append({
+            "rank": rank,
+            "label": f"W{wk_number}",
+            "range": f"{week_start.strftime('%b %d')} \u2013 {week_end.strftime('%b %d')}",
+            "events": int(row["events"]),
+            "revenue": float(row["revenue"]),
+        })
+    return weeks
+
+
 def _compute_top_clients(dated: pd.DataFrame, limit: int = 15) -> list[dict]:
     """Top N clients ranked by career-to-date confirmed revenue."""
     if dated.empty:
@@ -255,10 +305,11 @@ def _compute_summary_and_months(
     l10wk = _compute_l10wk(dated)[::-1]
     l10d = _compute_l10d(dated)[::-1]
     top_days = _compute_top_days(dated)
+    top_weeks = _compute_top_weeks(dated)
     top_clients = _compute_top_clients(dated)
     top_cities = _compute_top_cities(dated)
 
-    return summary, career_months, calendar_months, eras, l10wk, top_days, top_clients, top_cities, l10d
+    return summary, career_months, calendar_months, eras, l10wk, top_days, top_weeks, top_clients, top_cities, l10d
 
 
 def _compute_career_months(dated: pd.DataFrame) -> list[dict]:
@@ -595,6 +646,22 @@ def _build_day_cards(days: list[dict]) -> str:
     )
 
 
+def _build_week_cards(weeks: list[dict]) -> str:
+    return "".join(
+        '<div class="month-card">'
+        '<div class="month-card-head">'
+        f'<div class="month-card-name">#{w["rank"]} \u00b7 {escape(w["label"])}</div>'
+        f'<div class="month-card-range">{escape(w["range"])} \u00b7 {w["events"]} EVENTS</div>'
+        '</div>'
+        '<div class="month-revenue-row">'
+        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(w["revenue"]))}</div><div class="month-revenue-lbl">TOTAL REVENUE</div></div>'
+        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(gross_up(w["revenue"])))}</div><div class="month-revenue-lbl">GROSS REV</div></div>'
+        f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(annualize_gross(w["revenue"], WEEKS_PER_YEAR)))}</div><div class="month-revenue-lbl">ANNUALIZED</div></div>'
+        '</div></div>'
+        for w in weeks
+    )
+
+
 def _build_client_cards(clients: list[dict], gross_view: bool = False) -> str:
     return "".join(
         '<div class="month-card">'
@@ -616,7 +683,7 @@ def render_ledger_summary(timeline: pd.DataFrame, gross_view: bool = False) -> N
     breakdowns panel, in the exact spot the old embedded title used to
     occupy, instead of in front of the whole combined component.
     """
-    summary, _, _, _, _, _, _, _, _ = _compute_summary_and_months(timeline, gross_view)
+    summary, _, _, _, _, _, _, _, _, _ = _compute_summary_and_months(timeline, gross_view)
     kpi_html = "".join(
         f'<div class="ledger-kpi"><div class="ledger-kpi-val">{escape(val)}</div>'
         f'<div class="ledger-kpi-lbl">{escape(label)}</div></div>'
@@ -663,7 +730,7 @@ def render_ledger_breakdowns(
     deep-link navigation just happened), it respects initial_tab as
     intended and does not let localStorage override it.
     """
-    summary, career_months, calendar_months, eras, l10wk, top_days, top_clients, top_cities, l10d = (
+    summary, career_months, calendar_months, eras, l10wk, top_days, top_weeks, top_clients, top_cities, l10d = (
         _compute_summary_and_months(timeline, gross_view)
     )
 
@@ -673,6 +740,7 @@ def render_ledger_breakdowns(
     l10wk_cards = _build_month_cards(l10wk, gross_view, periods_per_year=WEEKS_PER_YEAR)
     l10d_cards = _build_month_cards(l10d, gross_view, periods_per_year=DAYS_PER_YEAR)
     day_cards = _build_day_cards(top_days)
+    week_cards = _build_week_cards(top_weeks)
     client_cards = _build_client_cards(top_clients, gross_view)
     city_cards = _build_client_cards(top_cities, gross_view)
 
@@ -721,6 +789,7 @@ def render_ledger_breakdowns(
         </div>
         <div class="month-view-tabs-row">
           <div class="{_tab_class('days')}" data-view="days">Top.Days</div>
+          <div class="{_tab_class('weeks')}" data-view="weeks">Top.Weeks</div>
           <div class="{_tab_class('cities')}" data-view="cities">Top.Cities</div>
           <div class="{_tab_class('clients')}" data-view="clients">Top.Clients</div>
         </div>
@@ -730,6 +799,7 @@ def render_ledger_breakdowns(
         <div class="{_view_class('calendar')}" data-view="calendar">{calendar_cards}</div>
         <div class="{_view_class('eras')}" data-view="eras">{era_cards}</div>
         <div class="{_view_class('days')}" data-view="days">{day_cards}</div>
+        <div class="{_view_class('weeks')}" data-view="weeks">{week_cards}</div>
         <div class="{_view_class('cities')}" data-view="cities">{city_cards}</div>
         <div class="{_view_class('clients')}" data-view="clients">{client_cards}</div>
       </div>
@@ -780,7 +850,7 @@ def render_ledger_breakdowns(
 
     height = (
         220
-        + max(len(career_months), len(calendar_months), len(eras), len(l10wk), len(l10d), len(top_days), len(top_clients), len(top_cities)) * 190
+        + max(len(career_months), len(calendar_months), len(eras), len(l10wk), len(l10d), len(top_days), len(top_weeks), len(top_clients), len(top_cities)) * 190
         + len(ACTION_ITEMS) * 175
     )
     components.html(html, height=height, scrolling=False)

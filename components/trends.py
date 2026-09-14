@@ -36,6 +36,17 @@ def _build_series(rows: list[dict]) -> list[dict]:
     return rows
 
 
+def _month_index(date: pd.Timestamp, career_start: pd.Timestamp) -> int:
+    """Same career-month math as ledger.py's _compute_career_months —
+    kept in sync so 'Month 3' here means the exact same date range as
+    'Month 3' there, not a coincidentally-similar but separately
+    computed value."""
+    months_diff = (date.year - career_start.year) * 12 + (date.month - career_start.month)
+    if date.day < career_start.day:
+        months_diff -= 1
+    return months_diff
+
+
 def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
     working = timeline.copy()
     working["__date"] = pd.to_datetime(working["Service Date"], errors="coerce")
@@ -45,6 +56,7 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
     weekly: list[dict] = []
     monthly: list[dict] = []
     weekday: list[dict] = []
+    career: list[dict] = []
 
     if not dated.empty:
         wk = dated.copy()
@@ -122,7 +134,31 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
             for _, row in grouped_wd.iterrows()
         ])
 
-    return {"weekly": weekly, "monthly": monthly, "weekday": weekday}
+        cr = dated.copy()
+        career_start = cr["__date"].min().normalize()
+        cr["career_month_idx"] = cr["__date"].apply(lambda d: _month_index(d, career_start))
+        grouped_cr = (
+            cr.groupby("career_month_idx")
+            .agg(
+                events=("Client", "count"),
+                revenue=("__revenue", "sum"),
+                days_worked=("__date", lambda s: s.dt.normalize().nunique()),
+            )
+            .reset_index()
+            .sort_values("career_month_idx")
+            .tail(6)
+        )
+        career = _build_series([
+            {
+                "label": f"M{int(row['career_month_idx']) + 1}",
+                "events": int(row["events"]),
+                "revenue": round(row["revenue"]),
+                "days_worked": int(row["days_worked"]),
+            }
+            for _, row in grouped_cr.iterrows()
+        ])
+
+    return {"weekly": weekly, "monthly": monthly, "weekday": weekday, "career": career}
 
 
 CHART_CLIENT_LABEL_OVERRIDES: dict[str, str] = {
@@ -311,9 +347,14 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False) -> s
     weekly_revenue = buckets["weekly"]
     monthly_revenue = buckets["monthly"]
     weekday_revenue = buckets["weekday"]
+    career_revenue = buckets["career"]
     if gross_view:
         weekly_revenue = _annualized_revenue_series(weekly_revenue, WEEKS_PER_YEAR)
         monthly_revenue = _annualized_revenue_series(monthly_revenue, MONTHS_PER_YEAR)
+        # Career months are real month-length periods too (same as
+        # MONTHLY, just anchored to career start instead of the
+        # calendar) — same annualization treatment.
+        career_revenue = _annualized_revenue_series(career_revenue, MONTHS_PER_YEAR)
         # Weekday view has no single clean annualization multiplier (it
         # aggregates revenue across every real occurrence of that weekday,
         # not one period) — but it still gets the gross-up applied like
@@ -335,6 +376,8 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False) -> s
         _chart(weekly_revenue, "revenue", "weekly-revenue", suppress_total=gross_view),
         _chart(buckets["monthly"], "events", "monthly-events"),
         _chart(monthly_revenue, "revenue", "monthly-revenue", suppress_total=gross_view),
+        _chart(buckets["career"], "events", "career-events"),
+        _chart(career_revenue, "revenue", "career-revenue", suppress_total=gross_view),
         _chart(buckets["weekday"], "events", "weekday-events"),
         _chart(weekday_revenue, "revenue", "weekday-revenue", suppress_total=gross_view),
         _chart(clients_events, "events", "clients-events"),
@@ -348,8 +391,9 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False) -> s
           <div class="trend-tabs" id="periodTabs">
             <div class="trend-tab is-active" data-period="weekly">WEEKLY</div>
             <div class="trend-tab" data-period="monthly">MONTHLY</div>
-            <div class="trend-tab" data-period="weekday">WEEKDAY</div>
-            <div class="trend-tab" data-period="clients">CLIENTS</div>
+            <div class="trend-tab" data-period="career">CAREER</div>
+            <div class="trend-tab" data-period="weekday">DAYO'WK</div>
+            <div class="trend-tab" data-period="clients">CLNTS</div>
           </div>
         </div>
         <div class="trend-metric-row" id="metricTabs">
