@@ -790,8 +790,8 @@ def render_ledger_breakdowns(
         <div class="month-view-tabs-row">
           <div class="{_tab_class('days')}" data-view="days">Top.Days</div>
           <div class="{_tab_class('weeks')}" data-view="weeks">Top.Weeks</div>
-          <div class="{_tab_class('cities')}" data-view="cities">Top.Cities</div>
-          <div class="{_tab_class('clients')}" data-view="clients">Top.Clients</div>
+          <div class="{_tab_class('cities')}" data-view="cities">Cities</div>
+          <div class="{_tab_class('clients')}" data-view="clients">Clients</div>
         </div>
         <div class="{_view_class('l10d')}" data-view="l10d">{l10d_cards}</div>
         <div class="{_view_class('l10wk')}" data-view="l10wk">{l10wk_cards}</div>

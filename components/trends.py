@@ -220,6 +220,56 @@ def _client_top7(timeline: pd.DataFrame, rank_by: str) -> list[dict]:
     return _build_series(rows)
 
 
+def _city_only(detail: object) -> str:
+    """Same convention used in ledger.py and the Journey page — city
+    name, state dropped, from a 'City, ST' Location Detail string."""
+    text = "" if pd.isna(detail) else str(detail).strip()
+    return text.rsplit(",", 1)[0].strip() if "," in text else text
+
+
+CHART_CITY_LABEL_OVERRIDES: dict[str, str] = {
+    "North Bethesda": "N.BETH",
+    "Owings Mills": "OWINGS",
+    "Silver Spring": "SLVR SP",
+    "Upper Marlboro": "U.MARL",
+}
+
+
+def _city_top7(timeline: pd.DataFrame, rank_by: str) -> list[dict]:
+    """Top 7 cities ranked by `rank_by` ('events' or 'revenue') — same
+    self-contained pattern and same "top-7 selected descending, then
+    redisplayed ascending left-to-right" convention as _client_top7
+    above, for the exact same reason (so the #1 city lands rightmost,
+    matching every other chart here).
+    """
+    if timeline.empty or "Location Detail" not in timeline.columns:
+        return []
+    working = timeline.copy()
+    working["__revenue"] = pd.to_numeric(working["Amount"], errors="coerce").fillna(0)
+    working["__city"] = working["Location Detail"].map(_city_only)
+    working = working[working["__city"] != ""]
+    grouped = (
+        working.groupby("__city")
+        .agg(events=("__city", "count"), revenue=("__revenue", "sum"))
+        .reset_index()
+        .sort_values(rank_by, ascending=False)
+        .head(7)
+        .sort_values(rank_by, ascending=True)
+    )
+    rows = [
+        {
+            "label": CHART_CITY_LABEL_OVERRIDES.get(
+                str(row["__city"]),
+                (str(row["__city"])[:8].upper() + "\u2026") if len(str(row["__city"])) > 8 else str(row["__city"]).upper(),
+            ),
+            "events": int(row["events"]),
+            "revenue": round(row["revenue"]),
+        }
+        for _, row in grouped.iterrows()
+    ]
+    return _build_series(rows)
+
+
 PLOT_H, BAR_MAX, BAR_MIN = 128, 108, 5
 
 
@@ -288,9 +338,11 @@ TRENDS_CSS_RULES = """
     padding: 20px;
     box-shadow: 0 15px 35px rgba(0,0,0,.5);
 }
-.trend-head-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.trend-head-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
 .trend-title { font-size: 15px; font-weight: 900; letter-spacing: .5px; color: #fff; text-shadow: 0 0 18px rgba(244,114,182,.3); }
-.trend-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.trend-tabs { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.trend-tabs-row { display: flex; gap: 6px; }
+.trend-tabs-row .trend-tab { flex: 1 1 0; text-align: center; }
 .trend-tab { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 6px 14px; font-size: 11.5px; font-weight: 800; letter-spacing: .5px; color: #c5d0e0; cursor: pointer; user-select: none; }
 .trend-tab.is-active { background: rgba(244,114,182,.1); border-color: #f472b6; color: #f9a8d4; box-shadow: 0 0 12px rgba(244,114,182,.3); }
 .trend-metric-row { display: flex; gap: 6px; margin-bottom: 14px; }
@@ -362,14 +414,16 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False) -> s
         # extrapolation on top.
         weekday_revenue = _grossed_revenue_series(weekday_revenue)
 
-    # CLIENTS is a ranked list of distinct entities, not a time period —
-    # same "grossed but not annualized" treatment as WEEKDAY above,
-    # since a client's total revenue isn't a rate that should be
-    # extrapolated to a full year.
+    # CLIENTS/CITIES are ranked lists of distinct entities, not time
+    # periods — same "grossed but not annualized" treatment as WEEKDAY
+    # above, since a total isn't a rate that should be extrapolated.
     clients_events = _client_top7(timeline, "events")
     clients_revenue = _client_top7(timeline, "revenue")
+    cities_events = _city_top7(timeline, "events")
+    cities_revenue = _city_top7(timeline, "revenue")
     if gross_view:
         clients_revenue = _grossed_revenue_series(clients_revenue)
+        cities_revenue = _grossed_revenue_series(cities_revenue)
 
     charts = "".join([
         _chart(buckets["weekly"], "events", "weekly-events"),
@@ -382,18 +436,25 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False) -> s
         _chart(weekday_revenue, "revenue", "weekday-revenue", suppress_total=gross_view),
         _chart(clients_events, "events", "clients-events"),
         _chart(clients_revenue, "revenue", "clients-revenue", suppress_total=gross_view),
+        _chart(cities_events, "events", "cities-events"),
+        _chart(cities_revenue, "revenue", "cities-revenue", suppress_total=gross_view),
     ])
 
     return f"""
       <div class="trend-panel panel" id="trendsPanel">
         <div class="trend-head-row">
           <div class="trend-title">PERFORMANCE TRENDS</div>
-          <div class="trend-tabs" id="periodTabs">
+        </div>
+        <div class="trend-tabs" id="periodTabs">
+          <div class="trend-tabs-row">
             <div class="trend-tab is-active" data-period="weekly">WEEKLY</div>
             <div class="trend-tab" data-period="monthly">MONTHLY</div>
             <div class="trend-tab" data-period="career">CAREER</div>
-            <div class="trend-tab" data-period="weekday">DAYO'WK</div>
-            <div class="trend-tab" data-period="clients">CLNTS</div>
+          </div>
+          <div class="trend-tabs-row">
+            <div class="trend-tab" data-period="weekday">DAYofWK</div>
+            <div class="trend-tab" data-period="clients">CLIENTS</div>
+            <div class="trend-tab" data-period="cities">CITIES</div>
           </div>
         </div>
         <div class="trend-metric-row" id="metricTabs">
