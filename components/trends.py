@@ -222,13 +222,14 @@ def _client_top7(timeline: pd.DataFrame, rank_by: str) -> list[dict]:
 
 CHART_CITY_GROUP_LABEL_OVERRIDES: dict[str, str] = {
     "Rockville-proper": "ROCK",
-    "Owings Mills-proper": "OWM",
-    "Bowie-proper": "BOW",
+    "Owings Mills-proper": "O.MIL",
+    "Bowie-proper": "BOWI",
     "Elkridge-proper": "ELK",
-    "Tysons-proper": "TYS",
-    "Bel Air-proper": "BELA",
+    "Tysons-proper": "TYSN",
+    "Bel Air-proper": "BEL.A",
     "Annapolis-proper": "ANNA",
     "Towson-proper": "TOWS",
+    "Glen Burnie-proper": "GLN.B",
 }
 
 
