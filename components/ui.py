@@ -49,7 +49,7 @@ ICONS = {
 
 
 
-def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_view: bool = False) -> None:
+def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_view: bool = False, pipeline: "pd.DataFrame | None" = None) -> None:
     hero = metrics.hero
     data = metrics.data_views
     leaderboard = list(data.get("leaderboard", []))
@@ -133,7 +133,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     if not jurisdiction_rows:
         jurisdiction_rows.append('<div class="empty-state">No completed jurisdiction activity.</div>')
 
-    trends_fragment = build_trends_fragment(timeline, gross_view)
+    trends_fragment = build_trends_fragment(timeline, gross_view, pipeline)
 
     repeat_clients = int(timeline["Client"].value_counts().gt(1).sum()) if not timeline.empty else 0
     unique_clients_count = int(timeline["Client"].nunique()) if not timeline.empty else 0
@@ -1543,6 +1543,15 @@ def _upcoming_rows(
         </div>
         """
 
+    # Short display names for the Upcoming list only — the real client
+    # name everywhere else in the app (Client Hub, Ledger, etc.) is
+    # completely untouched. This exists purely to fix display crowding
+    # for specific long names, not to rename anything about the
+    # underlying data.
+    UPCOMING_CLIENT_LABEL_OVERRIDES = {
+        "Senator Sergeant at Arms": "Sen. Sgt. Arms",
+    }
+
     rows = []
 
     for item in metrics.upcoming_items:
@@ -1550,6 +1559,7 @@ def _upcoming_rows(
             item["location"]
             or "Location pending"
         )
+        client_label = UPCOMING_CLIENT_LABEL_OVERRIDES.get(item["client"], item["client"])
 
         rows.append(
             f"""
@@ -1559,7 +1569,7 @@ def _upcoming_rows(
                 </div>
 
                 <div class="upcoming-copy">
-                    <strong>{escape(item["client"])}</strong>
+                    <strong>{escape(client_label)}</strong>
                     <span>{location}</span>
                 </div>
 
