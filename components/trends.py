@@ -234,12 +234,18 @@ CHART_CITY_GROUP_LABEL_OVERRIDES: dict[str, str] = {
 
 
 def _city_group_top7(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, rank_by: str) -> list[dict]:
-    """Top 7 CITY GROUPS (Rockville-proper, Bowie-proper, etc — the
-    same groupings used on Client Hub's Location Groups panel), not
-    raw individual cities — explicit instruction: combining related
-    cities into one group produces a more meaningful bar than many
-    small individual-city bars split across nearby towns. Same
-    self-contained top-7-then-redisplay-ascending convention as
+    """Top 7 locations overall — city GROUPS (Rockville-proper, Bowie-
+    proper, etc) combined with any standalone city that isn't part of
+    a formal group, ranked together in one pool. Explicit instruction
+    was to pull from city groups since combining related cities into
+    one group produces a more meaningful bar than many small
+    individual-city bars — but that's about grouping what CAN be
+    grouped, not excluding everything that can't. Confirmed bug this
+    fixes: filtering to is_group-only entries silently dropped every
+    standalone city, including Washington DC — the single highest-
+    volume, highest-revenue location overall — from both the events
+    and revenue charts entirely, regardless of how it actually ranked.
+    Same self-contained top-7-then-redisplay-ascending convention as
     _client_top7 above.
     """
     from services.groups import compute_location_group_ranking
@@ -247,20 +253,28 @@ def _city_group_top7(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, rank
     if timeline.empty:
         return []
     results = compute_location_group_ranking(timeline, pipeline)
-    groups_only = [r for r in results if r["is_group"]]
-    if not groups_only:
+    if not results:
         return []
 
     metric_key = "trips" if rank_by == "events" else "revenue"
-    ranked = sorted(groups_only, key=lambda r: -r[metric_key])[:7]
+    ranked = sorted(results, key=lambda r: -r[metric_key])[:7]
     ranked = sorted(ranked, key=lambda r: r[metric_key])
+
+    def _label(r: dict) -> str:
+        if r["is_group"]:
+            name = str(r["name"])
+            return CHART_CITY_GROUP_LABEL_OVERRIDES.get(
+                name, (name[:8].upper() + "\u2026") if len(name) > 8 else name.upper()
+            )
+        # Standalone city - "City, ST" with the state dropped, same
+        # convention used in ledger.py and the Journey page.
+        raw = str(r["name"])
+        city = raw.rsplit(",", 1)[0].strip() if "," in raw else raw
+        return (city[:8].upper() + "\u2026") if len(city) > 8 else city.upper()
 
     rows = [
         {
-            "label": CHART_CITY_GROUP_LABEL_OVERRIDES.get(
-                str(r["name"]),
-                (str(r["name"])[:8].upper() + "\u2026") if len(str(r["name"])) > 8 else str(r["name"]).upper(),
-            ),
+            "label": _label(r),
             "events": int(r["trips"]),
             "revenue": round(r["revenue"]),
         }
