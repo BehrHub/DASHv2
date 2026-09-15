@@ -19,7 +19,7 @@ from components.journey import JURISDICTION_COLORS, TERRITORY_CENTER_COLOR, juri
 # the underlying data, and everywhere else in the app (Client Hub,
 # Ledger, etc.), is completely untouched.
 SHORT_CLIENT_LABEL_OVERRIDES = {
-    "Senator Sergeant at Arms": "Sen. Sgt. Arms",
+    "Senate Sergeant at Arms": "Sen. Sgt. Arms",
 }
 
 
