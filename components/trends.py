@@ -220,52 +220,50 @@ def _client_top7(timeline: pd.DataFrame, rank_by: str) -> list[dict]:
     return _build_series(rows)
 
 
-def _city_only(detail: object) -> str:
-    """Same convention used in ledger.py and the Journey page — city
-    name, state dropped, from a 'City, ST' Location Detail string."""
-    text = "" if pd.isna(detail) else str(detail).strip()
-    return text.rsplit(",", 1)[0].strip() if "," in text else text
-
-
-CHART_CITY_LABEL_OVERRIDES: dict[str, str] = {
-    "North Bethesda": "N.BETH",
-    "Owings Mills": "OWINGS",
-    "Silver Spring": "SLVR SP",
-    "Upper Marlboro": "U.MARL",
+CHART_CITY_GROUP_LABEL_OVERRIDES: dict[str, str] = {
+    "Rockville-proper": "ROCK",
+    "Owings Mills-proper": "OWM",
+    "Bowie-proper": "BOW",
+    "Elkridge-proper": "ELK",
+    "Tysons-proper": "TYS",
+    "Bel Air-proper": "BELA",
+    "Annapolis-proper": "ANNA",
+    "Towson-proper": "TOWS",
 }
 
 
-def _city_top7(timeline: pd.DataFrame, rank_by: str) -> list[dict]:
-    """Top 7 cities ranked by `rank_by` ('events' or 'revenue') — same
-    self-contained pattern and same "top-7 selected descending, then
-    redisplayed ascending left-to-right" convention as _client_top7
-    above, for the exact same reason (so the #1 city lands rightmost,
-    matching every other chart here).
+def _city_group_top7(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, rank_by: str) -> list[dict]:
+    """Top 7 CITY GROUPS (Rockville-proper, Bowie-proper, etc — the
+    same groupings used on Client Hub's Location Groups panel), not
+    raw individual cities — explicit instruction: combining related
+    cities into one group produces a more meaningful bar than many
+    small individual-city bars split across nearby towns. Same
+    self-contained top-7-then-redisplay-ascending convention as
+    _client_top7 above.
     """
-    if timeline.empty or "Location Detail" not in timeline.columns:
+    from services.groups import compute_location_group_ranking
+
+    if timeline.empty:
         return []
-    working = timeline.copy()
-    working["__revenue"] = pd.to_numeric(working["Amount"], errors="coerce").fillna(0)
-    working["__city"] = working["Location Detail"].map(_city_only)
-    working = working[working["__city"] != ""]
-    grouped = (
-        working.groupby("__city")
-        .agg(events=("__city", "count"), revenue=("__revenue", "sum"))
-        .reset_index()
-        .sort_values(rank_by, ascending=False)
-        .head(7)
-        .sort_values(rank_by, ascending=True)
-    )
+    results = compute_location_group_ranking(timeline, pipeline)
+    groups_only = [r for r in results if r["is_group"]]
+    if not groups_only:
+        return []
+
+    metric_key = "trips" if rank_by == "events" else "revenue"
+    ranked = sorted(groups_only, key=lambda r: -r[metric_key])[:7]
+    ranked = sorted(ranked, key=lambda r: r[metric_key])
+
     rows = [
         {
-            "label": CHART_CITY_LABEL_OVERRIDES.get(
-                str(row["__city"]),
-                (str(row["__city"])[:8].upper() + "\u2026") if len(str(row["__city"])) > 8 else str(row["__city"]).upper(),
+            "label": CHART_CITY_GROUP_LABEL_OVERRIDES.get(
+                str(r["name"]),
+                (str(r["name"])[:8].upper() + "\u2026") if len(str(r["name"])) > 8 else str(r["name"]).upper(),
             ),
-            "events": int(row["events"]),
-            "revenue": round(row["revenue"]),
+            "events": int(r["trips"]),
+            "revenue": round(r["revenue"]),
         }
-        for _, row in grouped.iterrows()
+        for r in ranked
     ]
     return _build_series(rows)
 
@@ -388,7 +386,7 @@ def _grossed_revenue_series(series: list[dict]) -> list[dict]:
     return [{**row, "revenue": gross_up(row["revenue"])} for row in series]
 
 
-def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False) -> str:
+def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipeline: pd.DataFrame | None = None) -> str:
     """Returns the Performance Trends panel as an embeddable HTML fragment
     (CSS + markup + script), for insertion into a larger single-iframe
     document such as render_dashboard()'s combined Hero/Leaderboard/Territory
@@ -419,8 +417,8 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False) -> s
     # above, since a total isn't a rate that should be extrapolated.
     clients_events = _client_top7(timeline, "events")
     clients_revenue = _client_top7(timeline, "revenue")
-    cities_events = _city_top7(timeline, "events")
-    cities_revenue = _city_top7(timeline, "revenue")
+    cities_events = _city_group_top7(timeline, pipeline, "events")
+    cities_revenue = _city_group_top7(timeline, pipeline, "revenue")
     if gross_view:
         clients_revenue = _grossed_revenue_series(clients_revenue)
         cities_revenue = _grossed_revenue_series(cities_revenue)

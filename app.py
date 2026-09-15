@@ -636,7 +636,7 @@ def main() -> None:
             "{ margin-bottom: -8px !important; }</style>",
             unsafe_allow_html=True,
         )
-        render_dashboard(metrics, snapshot.sheets["Timeline"], gross_view)
+        render_dashboard(metrics, snapshot.sheets["Timeline"], gross_view, snapshot.sheets["Pipeline"])
         # Hero card's "UPCOMING" KPI clicks this via JS (window.parent lookup by
         # button text) to trigger a real Streamlit rerun/navigation. Hidden by
         # that same script once it runs; if hiding ever fails for any reason,
