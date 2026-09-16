@@ -221,15 +221,15 @@ def _client_top7(timeline: pd.DataFrame, rank_by: str) -> list[dict]:
 
 
 CHART_CITY_GROUP_LABEL_OVERRIDES: dict[str, str] = {
-    "Rockville-proper": "ROCK",
-    "Owings Mills-proper": "O.MIL",
-    "Bowie-proper": "BOWI",
-    "Elkridge-proper": "ELK",
-    "Tysons-proper": "TYSN",
-    "Bel Air-proper": "BEL.A",
-    "Annapolis-proper": "ANNA",
-    "Towson-proper": "TOWS",
-    "Glen Burnie-proper": "GLN.B",
+    "Rockville-proper": "ROCK GRP",
+    "Owings Mills-proper": "O.MIL GRP",
+    "Bowie-proper": "BOWIE GRP",
+    "Elkridge-proper": "ELK GRP",
+    "Tysons-proper": "TYSON GRP",
+    "Bel Air-proper": "BEL.A GRP",
+    "Annapolis-proper": "ANNA GRP",
+    "Towson-proper": "TOWS GRP",
+    "Glen Burnie-proper": "GLN.B GRP",
 }
 
 
@@ -269,9 +269,15 @@ def _city_group_top7(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, rank
     def _label(r: dict) -> str:
         if r["is_group"]:
             name = str(r["name"])
-            return CHART_CITY_GROUP_LABEL_OVERRIDES.get(
-                name, (name[:8].upper() + "\u2026") if len(name) > 8 else name.upper()
-            )
+            if name in CHART_CITY_GROUP_LABEL_OVERRIDES:
+                return CHART_CITY_GROUP_LABEL_OVERRIDES[name]
+            # A group with no explicit short name yet (one of the 6
+            # location groups not currently in the override dict above)
+            # still gets the same "GRP" second line for consistency -
+            # only the short-name PART falls back to auto-truncation.
+            short = name.replace("-proper", "").strip()
+            short = (short[:8].upper() + "\u2026") if len(short) > 8 else short.upper()
+            return f"{short} GRP"
         # Standalone city - "City, ST" with the state dropped, same
         # convention used in ledger.py and the Journey page.
         raw = str(r["name"])
