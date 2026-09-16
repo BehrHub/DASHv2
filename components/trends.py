@@ -563,8 +563,8 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipe
             <div class="trend-tab" data-metric="revenue">REVENUE</div>
           </div>
           <div class="trend-metric-tabs-row">
-            <div class="trend-tab" data-metric="avgevent">AVG REVENUE</div>
             <div class="trend-tab" data-metric="avgevents">AVG EVENTS</div>
+            <div class="trend-tab" data-metric="avgevent">AVG REVENUE</div>
           </div>
         </div>
         <div id="trendViews">{charts}</div>
