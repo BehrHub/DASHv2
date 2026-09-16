@@ -624,11 +624,12 @@ def _build_month_cards(
             avg_badge = _badge(m.get("mom_pct_avg"), False)
             avg_day_badge = _badge(m.get("mom_pct_avg_day"), False)
             days_worked_badge = _badge(m.get("mom_pct_days_worked"), False)
+        range_prefix = f'({m["business_days"]}) ' if "business_days" in m else ""
         cards.append(
             '<div class="month-card">'
             '<div class="month-card-head">'
             f'<div class="month-card-name">{escape(m["label"].upper())}</div>'
-            f'<div class="month-card-range">({m["business_days"]}) {escape(m["start"])} \u2013 {escape(m["end"])}</div>'
+            f'<div class="month-card-range">{range_prefix}{escape(m["start"])} \u2013 {escape(m["end"])}</div>'
             '</div>'
             '<div class="month-stat-grid">'
             f'<div class="month-stat"><div class="month-stat-val">{m["events"]}</div><div class="month-stat-lbl">EVENTS</div><div class="month-stat-badge-slot"></div></div>'
