@@ -233,6 +233,12 @@ CHART_CITY_GROUP_LABEL_OVERRIDES: dict[str, str] = {
 }
 
 
+CHART_STANDALONE_CITY_OVERRIDES: dict[str, str] = {
+    "Frederick, MD": "FRED",
+    "Washington, DC": "D.C.",
+}
+
+
 def _city_group_top7(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, rank_by: str) -> list[dict]:
     """Top 7 locations overall — city GROUPS (Rockville-proper, Bowie-
     proper, etc) combined with any standalone city that isn't part of
@@ -269,6 +275,8 @@ def _city_group_top7(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, rank
         # Standalone city - "City, ST" with the state dropped, same
         # convention used in ledger.py and the Journey page.
         raw = str(r["name"])
+        if raw in CHART_STANDALONE_CITY_OVERRIDES:
+            return CHART_STANDALONE_CITY_OVERRIDES[raw]
         city = raw.rsplit(",", 1)[0].strip() if "," in raw else raw
         return (city[:8].upper() + "\u2026") if len(city) > 8 else city.upper()
 
