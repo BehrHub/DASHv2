@@ -353,6 +353,7 @@ def _compute_career_months(dated: pd.DataFrame) -> list[dict]:
             "start": start_label,
             "end": end_label,
             "start_date": start, "end_date": end, "is_current": is_current,
+            "business_days": len(pd.bdate_range(start, end)),
             "events": events, "confirmed": confirmed, "days_worked": days_worked,
             "revenue": revenue, "avg": avg,
         })
@@ -391,6 +392,8 @@ def _compute_eras(dated: pd.DataFrame) -> list[dict]:
             "label": label,
             "start": start.strftime("%b %d"),
             "end": end_label,
+            "start_date": start, "end_date": end_ts,
+            "business_days": len(pd.bdate_range(start, end_ts)),
             "events": events, "confirmed": confirmed, "days_worked": days_worked,
             "revenue": revenue, "avg": avg,
         })
@@ -423,6 +426,7 @@ def _compute_calendar_months(dated: pd.DataFrame) -> list[dict]:
             "start": start.strftime("%b %d"),
             "end": end.strftime("%b %d"),
             "start_date": start, "end_date": end, "is_current": is_current,
+            "business_days": len(pd.bdate_range(start, end)),
             "events": events, "confirmed": confirmed, "days_worked": days_worked,
             "revenue": revenue, "avg": avg,
         })
@@ -463,6 +467,7 @@ def _apply_month_over_month(months: list[dict], project_current: bool = True, ne
         m["mom_pct_revenue"] = None
         m["mom_pct_avg"] = None
         m["mom_pct_avg_day"] = None
+        m["mom_pct_days_worked"] = None
         m["mom_is_projection"] = False
         prior_idx = i + prior_offset
         if prior_idx < 0 or prior_idx >= len(months):
@@ -488,6 +493,13 @@ def _apply_month_over_month(months: list[dict], project_current: bool = True, ne
             m["mom_pct_avg"] = ((m["avg"] - prior_avg) / prior_avg) * 100
         if prior_avg_day > 0:
             m["mom_pct_avg_day"] = ((this_avg_day - prior_avg_day) / prior_avg_day) * 100
+        # DAYS WORKED - always a plain literal differential, current
+        # period included, never projected/run-rate-scaled. Explicit
+        # examples given were direct counts (20 vs 17, 22 vs 20, 30 vs
+        # 22) with no mention of scaling a partial period upward.
+        prior_days_worked = prior["days_worked"]
+        if prior_days_worked > 0:
+            m["mom_pct_days_worked"] = ((m["days_worked"] - prior_days_worked) / prior_days_worked) * 100
 
 
 # Action items carry Work Order numbers and specific review-flag reasons
@@ -531,6 +543,7 @@ body{color:#fff}
 .month-stat { background: rgba(15,23,42,.5); border-radius: 10px; padding: 8px 4px; text-align: center; }
 .month-stat-val { font-size: 18px; font-weight: 900; color: #fff; }
 .month-stat-lbl { font-size: 9px; font-weight: 800; color: #b8c4d9; letter-spacing: .4px; margin-top: 2px; }
+.month-stat-badge-slot { min-height: 15px; margin-top: 2px; }
 .month-revenue-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .month-revenue-item { background: rgba(244,114,182,.08); border: 1px solid rgba(244,114,182,.2); border-radius: 10px; padding: 8px 10px; text-align: center; }
 .month-revenue-val { font-size: 17px; font-weight: 900; color: #f9a8d4; text-shadow: 0 0 8px rgba(244,114,182,.4); }
@@ -605,21 +618,22 @@ def _build_month_cards(
 
     cards = []
     for m in months:
-        revenue_badge = avg_badge = avg_day_badge = ""
+        revenue_badge = avg_badge = avg_day_badge = days_worked_badge = ""
         if show_mom_change:
             revenue_badge = _badge(m.get("mom_pct_revenue"), m.get("mom_is_projection"))
             avg_badge = _badge(m.get("mom_pct_avg"), False)
             avg_day_badge = _badge(m.get("mom_pct_avg_day"), False)
+            days_worked_badge = _badge(m.get("mom_pct_days_worked"), False)
         cards.append(
             '<div class="month-card">'
             '<div class="month-card-head">'
             f'<div class="month-card-name">{escape(m["label"].upper())}</div>'
-            f'<div class="month-card-range">{escape(m["start"])} \u2013 {escape(m["end"])}</div>'
+            f'<div class="month-card-range">({m["business_days"]}) {escape(m["start"])} \u2013 {escape(m["end"])}</div>'
             '</div>'
             '<div class="month-stat-grid">'
-            f'<div class="month-stat"><div class="month-stat-val">{m["events"]}</div><div class="month-stat-lbl">EVENTS</div></div>'
-            f'<div class="month-stat"><div class="month-stat-val">{m["confirmed"]}</div><div class="month-stat-lbl">CONFIRMED</div></div>'
-            f'<div class="month-stat"><div class="month-stat-val">{m["days_worked"]}</div><div class="month-stat-lbl">DAYS WORKED</div></div>'
+            f'<div class="month-stat"><div class="month-stat-val">{m["events"]}</div><div class="month-stat-lbl">EVENTS</div><div class="month-stat-badge-slot"></div></div>'
+            f'<div class="month-stat"><div class="month-stat-val">{m["confirmed"]}</div><div class="month-stat-lbl">CONFIRMED</div><div class="month-stat-badge-slot"></div></div>'
+            f'<div class="month-stat"><div class="month-stat-val">{m["days_worked"]}</div><div class="month-stat-lbl">DAYS WORKED</div><div class="month-stat-badge-slot">{days_worked_badge}</div></div>'
             '</div>'
             '<div class="month-revenue-row">'
             f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(annualize_gross(m["revenue"], periods_per_year) if gross_view else m["revenue"]))}</div><div class="month-revenue-lbl">{revenue_lbl}</div>{revenue_badge}</div>'
