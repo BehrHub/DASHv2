@@ -7,11 +7,16 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from services.money_view import gross_up, WEEKS_PER_YEAR, MONTHS_PER_YEAR
+from services.tz import eastern_today_naive
 
 
 def _fmt(value: float, metric: str) -> str:
     if metric == "revenue":
         return f"\uFF04{value:,.0f}"
+    if metric == "avgevent":
+        return f"\uFF04{value:,.2f}"
+    if metric == "avgevents":
+        return f"{value:,.1f}"
     return f"{value:,.0f}"
 
 
@@ -36,6 +41,28 @@ def _build_series(rows: list[dict]) -> list[dict]:
     return rows
 
 
+def _with_avg_metrics(rows: list[dict], events_denom: float | None = None) -> list[dict]:
+    """Adds 'avgevent' and 'avgevents' to each row, in place.
+
+    avgevent = revenue / events (dollars per event - same concept as
+    AVG/EVENT elsewhere in the app) - applies the same way to every
+    bucket type, no exceptions.
+
+    avgevents: events_denom=None means this bucket type has no
+    recurring-unit denominator (Weekly/Monthly/Career/Clients/Cities -
+    each bar already represents ONE unique, non-repeating period or
+    entity, so there's nothing further to average over) - falls back
+    to the bucket's own raw event count, identical to the EVENTS tab.
+    DayO'Wk passes the current career week number instead, since each
+    weekday bucket sums MULTIPLE occurrences of that weekday across
+    every week so far - confirmed formula, not a guess.
+    """
+    for r in rows:
+        r["avgevent"] = round((r["revenue"] / r["events"]), 2) if r["events"] else 0.0
+        r["avgevents"] = round((r["events"] / events_denom), 2) if events_denom else float(r["events"])
+    return rows
+
+
 def _month_index(date: pd.Timestamp, career_start: pd.Timestamp) -> int:
     """Same career-month math as ledger.py's _compute_career_months —
     kept in sync so 'Month 3' here means the exact same date range as
@@ -57,6 +84,7 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
     monthly: list[dict] = []
     weekday: list[dict] = []
     career: list[dict] = []
+    current_career_week = 1
 
     if not dated.empty:
         wk = dated.copy()
@@ -64,6 +92,11 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
         wk["iso_year"], wk["iso_week"] = iso["year"], iso["week"]
         wk["week_index"] = wk["iso_year"] * 52 + wk["iso_week"]
         start_index = int(wk["week_index"].min())
+        # Current career week number, same W-numbering formula as the
+        # weekly bucket below - used by DayO'Wk's AVG EVENTS metric.
+        today_iso = eastern_today_naive().isocalendar()
+        today_week_index = today_iso.year * 52 + today_iso.week
+        current_career_week = today_week_index - start_index + 1
         grouped = (
             wk.groupby("week_index")
             .agg(
@@ -84,6 +117,7 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
             }
             for _, row in grouped.iterrows()
         ])
+        _with_avg_metrics(weekly)
 
         mo = dated.copy()
         mo["month_order"] = mo["__date"].dt.to_period("M")
@@ -108,6 +142,7 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
             }
             for _, row in grouped_m.iterrows()
         ])
+        _with_avg_metrics(monthly)
 
         wd = dated.copy()
         wd["weekday_name"] = wd["__date"].dt.day_name()
@@ -133,6 +168,7 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
             }
             for _, row in grouped_wd.iterrows()
         ])
+        _with_avg_metrics(weekday, events_denom=current_career_week)
 
         cr = dated.copy()
         career_start = cr["__date"].min().normalize()
@@ -157,8 +193,12 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
             }
             for _, row in grouped_cr.iterrows()
         ])
+        _with_avg_metrics(career)
 
-    return {"weekly": weekly, "monthly": monthly, "weekday": weekday, "career": career}
+    return {
+        "weekly": weekly, "monthly": monthly, "weekday": weekday, "career": career,
+        "current_career_week": current_career_week,
+    }
 
 
 CHART_CLIENT_LABEL_OVERRIDES: dict[str, str] = {
@@ -217,7 +257,7 @@ def _client_top7(timeline: pd.DataFrame, rank_by: str) -> list[dict]:
         }
         for _, row in grouped.iterrows()
     ]
-    return _build_series(rows)
+    return _with_avg_metrics(_build_series(rows))
 
 
 CHART_CITY_GROUP_LABEL_OVERRIDES: dict[str, str] = {
@@ -294,7 +334,7 @@ def _city_group_top7(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, rank
         }
         for r in ranked
     ]
-    return _build_series(rows)
+    return _with_avg_metrics(_build_series(rows))
 
 
 PLOT_H, BAR_MAX, BAR_MIN = 128, 108, 5
@@ -372,7 +412,9 @@ TRENDS_CSS_RULES = """
 .trend-tabs-row .trend-tab { flex: 1 1 0; text-align: center; }
 .trend-tab { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 6px 14px; font-size: 11.5px; font-weight: 800; letter-spacing: .5px; color: #c5d0e0; cursor: pointer; user-select: none; }
 .trend-tab.is-active { background: rgba(244,114,182,.1); border-color: #f472b6; color: #f9a8d4; box-shadow: 0 0 12px rgba(244,114,182,.3); }
-.trend-metric-row { display: flex; gap: 6px; margin-bottom: 14px; }
+.trend-metric-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.trend-metric-tabs-row { display: flex; gap: 6px; }
+.trend-metric-tabs-row .trend-tab { flex: 1 1 0; text-align: center; }
 .trend-annualized-badge { display: block; font-size: 10px; font-weight: 800; color: #7dd3fc; letter-spacing: .3px; margin-bottom: 8px; }
 .trend-view { display: none; }
 .trend-view.is-active { display: block; }
@@ -415,6 +457,13 @@ def _grossed_revenue_series(series: list[dict]) -> list[dict]:
     return [{**row, "revenue": gross_up(row["revenue"])} for row in series]
 
 
+def _grossed_avgevent_series(series: list[dict]) -> list[dict]:
+    """AVG REVENUE (revenue/events, a $-per-event ratio) gets the same
+    gross_up-only treatment as ledger.py's AVG/EVENT — never annualized,
+    since a per-event average isn't a time-based rate to extrapolate."""
+    return [{**row, "avgevent": gross_up(row["avgevent"])} for row in series]
+
+
 def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipeline: pd.DataFrame | None = None) -> str:
     """Returns the Performance Trends panel as an embeddable HTML fragment
     (CSS + markup + script), for insertion into a larger single-iframe
@@ -427,6 +476,10 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipe
     monthly_revenue = buckets["monthly"]
     weekday_revenue = buckets["weekday"]
     career_revenue = buckets["career"]
+    weekly_avgevent = buckets["weekly"]
+    monthly_avgevent = buckets["monthly"]
+    weekday_avgevent = buckets["weekday"]
+    career_avgevent = buckets["career"]
     if gross_view:
         weekly_revenue = _annualized_revenue_series(weekly_revenue, WEEKS_PER_YEAR)
         monthly_revenue = _annualized_revenue_series(monthly_revenue, MONTHS_PER_YEAR)
@@ -440,6 +493,10 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipe
         # every other dollar figure on the dashboard, just without a /yr
         # extrapolation on top.
         weekday_revenue = _grossed_revenue_series(weekday_revenue)
+        weekly_avgevent = _grossed_avgevent_series(weekly_avgevent)
+        monthly_avgevent = _grossed_avgevent_series(monthly_avgevent)
+        career_avgevent = _grossed_avgevent_series(career_avgevent)
+        weekday_avgevent = _grossed_avgevent_series(weekday_avgevent)
 
     # CLIENTS/CITIES are ranked lists of distinct entities, not time
     # periods — same "grossed but not annualized" treatment as WEEKDAY
@@ -448,23 +505,39 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipe
     clients_revenue = _client_top7(timeline, "revenue")
     cities_events = _city_group_top7(timeline, pipeline, "events")
     cities_revenue = _city_group_top7(timeline, pipeline, "revenue")
+    clients_avgevent = clients_revenue
+    cities_avgevent = cities_revenue
     if gross_view:
         clients_revenue = _grossed_revenue_series(clients_revenue)
         cities_revenue = _grossed_revenue_series(cities_revenue)
+        clients_avgevent = _grossed_avgevent_series(clients_avgevent)
+        cities_avgevent = _grossed_avgevent_series(cities_avgevent)
 
     charts = "".join([
         _chart(buckets["weekly"], "events", "weekly-events"),
         _chart(weekly_revenue, "revenue", "weekly-revenue", suppress_total=gross_view),
+        _chart(weekly_avgevent, "avgevent", "weekly-avgevent", suppress_total=gross_view),
+        _chart(buckets["weekly"], "avgevents", "weekly-avgevents"),
         _chart(buckets["monthly"], "events", "monthly-events"),
         _chart(monthly_revenue, "revenue", "monthly-revenue", suppress_total=gross_view),
+        _chart(monthly_avgevent, "avgevent", "monthly-avgevent", suppress_total=gross_view),
+        _chart(buckets["monthly"], "avgevents", "monthly-avgevents"),
         _chart(buckets["career"], "events", "career-events"),
         _chart(career_revenue, "revenue", "career-revenue", suppress_total=gross_view),
+        _chart(career_avgevent, "avgevent", "career-avgevent", suppress_total=gross_view),
+        _chart(buckets["career"], "avgevents", "career-avgevents"),
         _chart(buckets["weekday"], "events", "weekday-events"),
         _chart(weekday_revenue, "revenue", "weekday-revenue", suppress_total=gross_view),
+        _chart(weekday_avgevent, "avgevent", "weekday-avgevent", suppress_total=gross_view),
+        _chart(buckets["weekday"], "avgevents", "weekday-avgevents"),
         _chart(clients_events, "events", "clients-events"),
         _chart(clients_revenue, "revenue", "clients-revenue", suppress_total=gross_view),
+        _chart(clients_avgevent, "avgevent", "clients-avgevent", suppress_total=gross_view),
+        _chart(clients_events, "avgevents", "clients-avgevents"),
         _chart(cities_events, "events", "cities-events"),
         _chart(cities_revenue, "revenue", "cities-revenue", suppress_total=gross_view),
+        _chart(cities_avgevent, "avgevent", "cities-avgevent", suppress_total=gross_view),
+        _chart(cities_events, "avgevents", "cities-avgevents"),
     ])
 
     return f"""
@@ -485,8 +558,14 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipe
           </div>
         </div>
         <div class="trend-metric-row" id="metricTabs">
-          <div class="trend-tab is-active" data-metric="events">EVENTS</div>
-          <div class="trend-tab" data-metric="revenue">REVENUE</div>
+          <div class="trend-metric-tabs-row">
+            <div class="trend-tab is-active" data-metric="events">EVENTS</div>
+            <div class="trend-tab" data-metric="revenue">REVENUE</div>
+          </div>
+          <div class="trend-metric-tabs-row">
+            <div class="trend-tab" data-metric="avgevent">AVG REVENUE</div>
+            <div class="trend-tab" data-metric="avgevents">AVG EVENTS</div>
+          </div>
         </div>
         <div id="trendViews">{charts}</div>
       </div>
