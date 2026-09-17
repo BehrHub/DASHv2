@@ -340,7 +340,7 @@ def _city_group_top7(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, rank
 PLOT_H, BAR_MAX, BAR_MIN = 128, 108, 5
 
 
-def _chart(series: list[dict], metric: str, view_id: str, suppress_total: bool = False) -> str:
+def _chart(series: list[dict], metric: str, view_id: str, suppress_total: bool = False, description: str = "") -> str:
     if not series:
         return (
             f'<div class="trend-view" data-view="{view_id}">'
@@ -382,11 +382,21 @@ def _chart(series: list[dict], metric: str, view_id: str, suppress_total: bool =
         f'<span>Total <strong>{total_display}</strong></span>' if suppress_total
         else f'<span><strong>{days_worked}</strong> day{"s" if days_worked != 1 else ""} worked. <strong>{total_display}</strong> Total</span>'
     )
+    # Explicit two-row footer, not flex-wrap's incidental behavior -
+    # confirmed bug this replaces: dollar-formatted values (AVG REVENUE)
+    # are wider than plain numbers (AVG EVENTS), so the exact same
+    # flex-wrap row wrapped to 2 lines for one metric and stayed on 1
+    # for another, purely by accident of content width, not by design.
     foot = (
         '<div class="trend-foot">'
+        '<div class="trend-foot-row1">'
         f'<span>Peak <strong>{escape(best["label"])}</strong> (<strong>{escape(_fmt(best[metric], metric))}</strong>)</span>'
         f'<span>Average <strong>{escape(_fmt(round(average), metric))}</strong></span>'
+        '</div>'
+        '<div class="trend-foot-row2">'
         f'{total_span}'
+        f'<span class="trend-foot-desc">{escape(description)}</span>'
+        '</div>'
         "</div>"
     )
 
@@ -431,9 +441,11 @@ TRENDS_CSS_RULES = """
 .trend-bar-shape.is-record { background: linear-gradient(180deg, #f9a8d4, #ec4899); box-shadow: 0 0 14px rgba(244,114,182,.4), inset 0 1px 0 rgba(255,255,255,.25); }
 .trend-axis { display: flex; justify-content: space-between; gap: 6px; padding-left: 34px; margin-bottom: 10px; }
 .trend-axis span { flex: 1 1 0; min-width: 0; text-align: center; font-size: 11.5px; font-weight: 800; color: #b8c4d9; }
-.trend-foot { display: flex; gap: 14px; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); font-size: 12.5px; color: #b8c4d9; }
+.trend-foot { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); font-size: 12.5px; color: #b8c4d9; }
+.trend-foot-row1 { display: flex; gap: 14px; flex-wrap: wrap; }
+.trend-foot-row2 { display: flex; gap: 14px; align-items: baseline; justify-content: space-between; }
 .trend-foot strong { color: #fff; }
-.trend-foot-days { margin-left: auto; color: #7dd3fc; font-weight: 700; white-space: nowrap; }
+.trend-foot-desc { margin-left: auto; color: #7dd3fc; font-weight: 700; white-space: nowrap; text-transform: uppercase; letter-spacing: .3px; }
 .trend-empty { color: #b8c4d9; font-size: 13px; padding: 30px 0; text-align: center; }
 @media (max-width: 480px) {
   .trend-panel { padding: 16px 14px; }
@@ -514,30 +526,30 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipe
         cities_avgevent = _grossed_avgevent_series(cities_avgevent)
 
     charts = "".join([
-        _chart(buckets["weekly"], "events", "weekly-events"),
-        _chart(weekly_revenue, "revenue", "weekly-revenue", suppress_total=gross_view),
-        _chart(weekly_avgevent, "avgevent", "weekly-avgevent", suppress_total=gross_view),
-        _chart(buckets["weekly"], "avgevents", "weekly-avgevents"),
-        _chart(buckets["monthly"], "events", "monthly-events"),
-        _chart(monthly_revenue, "revenue", "monthly-revenue", suppress_total=gross_view),
-        _chart(monthly_avgevent, "avgevent", "monthly-avgevent", suppress_total=gross_view),
-        _chart(buckets["monthly"], "avgevents", "monthly-avgevents"),
-        _chart(buckets["career"], "events", "career-events"),
-        _chart(career_revenue, "revenue", "career-revenue", suppress_total=gross_view),
-        _chart(career_avgevent, "avgevent", "career-avgevent", suppress_total=gross_view),
-        _chart(buckets["career"], "avgevents", "career-avgevents"),
-        _chart(buckets["weekday"], "events", "weekday-events"),
-        _chart(weekday_revenue, "revenue", "weekday-revenue", suppress_total=gross_view),
-        _chart(weekday_avgevent, "avgevent", "weekday-avgevent", suppress_total=gross_view),
-        _chart(buckets["weekday"], "avgevents", "weekday-avgevents"),
-        _chart(clients_events, "events", "clients-events"),
-        _chart(clients_revenue, "revenue", "clients-revenue", suppress_total=gross_view),
-        _chart(clients_avgevent, "avgevent", "clients-avgevent", suppress_total=gross_view),
-        _chart(clients_events, "avgevents", "clients-avgevents"),
-        _chart(cities_events, "events", "cities-events"),
-        _chart(cities_revenue, "revenue", "cities-revenue", suppress_total=gross_view),
-        _chart(cities_avgevent, "avgevent", "cities-avgevent", suppress_total=gross_view),
-        _chart(cities_events, "avgevents", "cities-avgevents"),
+        _chart(buckets["weekly"], "events", "weekly-events", description="TOTAL"),
+        _chart(weekly_revenue, "revenue", "weekly-revenue", suppress_total=gross_view, description="TOTAL"),
+        _chart(weekly_avgevent, "avgevent", "weekly-avgevent", suppress_total=gross_view, description="PER EVENT"),
+        _chart(buckets["weekly"], "avgevents", "weekly-avgevents", description="TOTAL"),
+        _chart(buckets["monthly"], "events", "monthly-events", description="TOTAL"),
+        _chart(monthly_revenue, "revenue", "monthly-revenue", suppress_total=gross_view, description="TOTAL"),
+        _chart(monthly_avgevent, "avgevent", "monthly-avgevent", suppress_total=gross_view, description="PER EVENT"),
+        _chart(buckets["monthly"], "avgevents", "monthly-avgevents", description="TOTAL"),
+        _chart(buckets["career"], "events", "career-events", description="TOTAL"),
+        _chart(career_revenue, "revenue", "career-revenue", suppress_total=gross_view, description="TOTAL"),
+        _chart(career_avgevent, "avgevent", "career-avgevent", suppress_total=gross_view, description="PER EVENT"),
+        _chart(buckets["career"], "avgevents", "career-avgevents", description="TOTAL"),
+        _chart(buckets["weekday"], "events", "weekday-events", description="TOTAL"),
+        _chart(weekday_revenue, "revenue", "weekday-revenue", suppress_total=gross_view, description="TOTAL"),
+        _chart(weekday_avgevent, "avgevent", "weekday-avgevent", suppress_total=gross_view, description="PER EVENT"),
+        _chart(buckets["weekday"], "avgevents", "weekday-avgevents", description="PER WEEK"),
+        _chart(clients_events, "events", "clients-events", description="TOTAL"),
+        _chart(clients_revenue, "revenue", "clients-revenue", suppress_total=gross_view, description="TOTAL"),
+        _chart(clients_avgevent, "avgevent", "clients-avgevent", suppress_total=gross_view, description="PER EVENT"),
+        _chart(clients_events, "avgevents", "clients-avgevents", description="TOTAL"),
+        _chart(cities_events, "events", "cities-events", description="TOTAL"),
+        _chart(cities_revenue, "revenue", "cities-revenue", suppress_total=gross_view, description="TOTAL"),
+        _chart(cities_avgevent, "avgevent", "cities-avgevent", suppress_total=gross_view, description="PER EVENT"),
+        _chart(cities_events, "avgevents", "cities-avgevents", description="TOTAL"),
     ])
 
     return f"""
