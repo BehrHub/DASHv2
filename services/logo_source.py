@@ -92,7 +92,15 @@ def normalize_client_filename(client: object) -> str:
 
 @st.cache_data(show_spinner=False)
 def discover_logos(logos_dir: Path) -> tuple[dict[str, Path], dict[str, list[Path]]]:
-    """Discover logos, preferring approved Brand Factory assets when present."""
+    """Discover logos, preferring approved Brand Factory assets when present.
+
+    No ttl - logos change rarely (once in a blue moon, not worth an
+    interval check on every rerun for something this infrequent).
+    Instead there's an explicit "Refresh Logos" button in Client Hub
+    that calls discover_logos.clear() on demand, so a newly-added file
+    shows up the moment you actually ask for it, not on a polling
+    schedule you'd otherwise be waiting out.
+    """
     logos_dir.mkdir(parents=True, exist_ok=True)
 
     brand_factory_dir = logos_dir.parent / "brand_factory" / "approved"
