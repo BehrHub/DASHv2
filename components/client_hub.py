@@ -4,7 +4,6 @@ from html import escape
 from pathlib import Path
 
 import pandas as pd
-import streamlit as st
 import streamlit.components.v1 as components
 
 from services.metrics import ExecutiveMetrics
@@ -192,18 +191,6 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     }
 
     from services.logo_studio import sync_logos_from_sheet
-
-    refresh_col, _ = st.columns([1, 4])
-    with refresh_col:
-        if st.button("\U0001F504 Refresh Logos", key="refresh_logos_btn"):
-            # Logos change rarely - no interval polling, just a manual
-            # cache-clear on demand. Clearing here, before the calls
-            # below run in this same script pass, means the fresh
-            # scan happens immediately on this exact click, not on
-            # the NEXT rerun.
-            sync_logos_from_sheet.clear()
-            discover_logos.clear()
-
     sync_logos_from_sheet(str(LOGOS_DIR), str(LOGOS_DIR / "logo_profiles.json"))
     logo_files, _duplicate_logos = discover_logos(LOGOS_DIR)
 
