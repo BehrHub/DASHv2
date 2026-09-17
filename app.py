@@ -371,7 +371,11 @@ def render_logo_studio_page(timeline: pd.DataFrame) -> None:
 
     col1, col2 = st.columns(2)
     with col1:
-        raw_choice = st.selectbox("Raw logo file", raw_files, key="logostudio_raw")
+        # st.selectbox always allows typing to filter its options, even
+        # without accept_new_options set - there's no way to turn that
+        # off on that widget, which is what was popping the keyboard.
+        # st.radio has no text entry at all - tap only, confirmed.
+        raw_choice = st.radio("Raw logo file", raw_files, key="logostudio_raw")
     with col2:
         client_select = st.selectbox(
             "Client", dropdown_options, format_func=_format_client_option,
@@ -464,6 +468,28 @@ def render_logo_studio_page(timeline: pd.DataFrame) -> None:
             mime="image/png",
             width="stretch",
         )
+
+    st.divider()
+
+    # Direct, undeniable proof of what's actually in assets/logos/ right
+    # now - not a claim, not an explanation, the actual files with
+    # actual thumbnails. Re-scans on every render of this page (this
+    # is a low-traffic admin tool, not the main dashboard, so a fresh
+    # os.listdir() here every time costs nothing worth caching against).
+    st.markdown("#### Currently in `assets/logos/` right now")
+    current_logo_files = sorted(
+        p for p in logos_dir.iterdir()
+        if p.is_file() and p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".svg")
+    ) if logos_dir.exists() else []
+    if not current_logo_files:
+        st.warning("This folder is completely empty. Nothing has ever been saved here yet.")
+    else:
+        st.caption(f"{len(current_logo_files)} file(s), refreshed every time this page loads:")
+        thumb_cols = st.columns(6)
+        for i, logo_path in enumerate(current_logo_files):
+            with thumb_cols[i % 6]:
+                st.image(str(logo_path), width="stretch")
+                st.caption(logo_path.name)
 
     st.divider()
     if sheets_store.is_configured():
