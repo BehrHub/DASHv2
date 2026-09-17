@@ -282,6 +282,20 @@ def render_logo_studio_page(timeline: pd.DataFrame) -> None:
         "permanent across reboots (same as Ledger workbook)"
     )
 
+    from services.logo_studio import sync_logos_from_sheet as _sync_logos_from_sheet
+    from services.logo_source import discover_logos as _discover_logos_btn, logo_data_uri as _logo_data_uri_btn
+    if st.button("\U0001F504 Refresh", key="logostudio_refresh_btn"):
+        # Manual, on-demand only - logos change rarely, so no reason to
+        # poll on an interval. This exists for the one case Save's own
+        # cache-clear doesn't cover: a logo added to the Sheet from
+        # somewhere else entirely (a different device/session), which
+        # would otherwise only surface here once sync_logos_from_sheet's
+        # own 60s cache happened to expire on its own.
+        _sync_logos_from_sheet.clear()
+        _discover_logos_btn.clear()
+        _logo_data_uri_btn.clear()
+        st.rerun()
+
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     uploaded = st.file_uploader(
