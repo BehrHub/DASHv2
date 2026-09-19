@@ -273,7 +273,6 @@ def _client_top7(timeline: pd.DataFrame, rank_by: str) -> list[dict]:
 CHART_CITY_GROUP_LABEL_OVERRIDES: dict[str, str] = {
     "Rockville-proper": "ROCK GRP",
     "Owings Mills-proper": "O.MIL GRP",
-    "Bowie-proper": "BOWIE GRP",
     "Elkridge-proper": "ELK GRP",
     "Tysons-proper": "TYSON GRP",
     "Bel Air-proper": "BEL.A GRP",
@@ -281,16 +280,20 @@ CHART_CITY_GROUP_LABEL_OVERRIDES: dict[str, str] = {
     "Towson-proper": "TOWS GRP",
     "Glen Burnie-proper": "GLN.B GRP",
     "Largo-proper": "LRGO GRP",
-    "College Park-proper": "CLGPRK GRP",
+    "Landover-proper": "LNDVR GRP",
 }
 
 
 CHART_STANDALONE_CITY_OVERRIDES: dict[str, str] = {
     "Frederick, MD": "FRED",
     "Washington, DC": "D.C.",
-    # Landover, MD removed - it's now part of College Park-proper
-    # (real rezoning, not standalone anymore), so this entry would
-    # never actually be looked up again.
+    # Bowie and College Park are standalone again now - Bowie-proper
+    # and College Park-proper were both deleted (Bowie down to a
+    # single member wasn't a real group anymore; College Park moved
+    # out of the Landover-centered group entirely, no group of its
+    # own until real neighboring cities of its own get visited).
+    # Bowie, MD is already short enough (5 chars) to need no override.
+    "College Park, MD": "C.PARK",
 }
 
 

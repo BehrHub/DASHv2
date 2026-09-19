@@ -23,9 +23,8 @@ LOCATION_GROUPS: dict[str, list[str]] = {
     "Bel Air-proper": ["Bel Air, MD", "Aberdeen, MD", "Edgewood, MD"],
     "Towson-proper": ["Towson, MD", "Cockeysville, MD", "Lutherville, MD", "Timonium, MD"],
     "Tysons-proper": ["Tysons, VA", "McLean, VA", "Falls Church, VA"],
-    # Reduced to just Bowie/Lanham - Largo, Clinton, and Upper Marlboro
-    # split off into their own new Largo-proper group below.
-    "Bowie-proper": ["Bowie, MD", "Lanham, MD"],
+    # Bowie-proper removed entirely - Bowie is standalone now. Lanham
+    # moved into the new Landover-proper group below instead.
     "Laurel-proper": ["Laurel, MD", "Scaggsville, MD"],
     "Ellicott City-proper": ["Ellicott City, MD", "West Friendship, MD"],
     "Silver Spring-proper": ["Silver Spring, MD", "Wheaton, MD"],
@@ -35,7 +34,13 @@ LOCATION_GROUPS: dict[str, list[str]] = {
     # CLIENT_GROUPS' Government Group; confirmed these are two
     # different strings before using either).
     "Largo-proper": ["Largo, MD", "Andrews AFB, MD", "Upper Marlboro, MD", "Clinton, MD"],
-    "College Park-proper": ["College Park, MD", "Hyattsville, MD", "Landover, MD"],
+    # Replaces the old College Park-proper — Landover is the real
+    # anchor here (more central to these cities, and now carries more
+    # of the actual revenue/event weight than College Park does),
+    # College Park is standalone until real neighboring cities of its
+    # own get visited, and Lanham moved in from the now-deleted
+    # Bowie-proper.
+    "Landover-proper": ["Landover, MD", "Hyattsville, MD", "Lanham, MD"],
     "Glen Burnie-proper": ["Glen Burnie, MD", "Severna Park, MD", "Pasadena, MD"],
     "Fairfax-proper": ["Fairfax, VA", "Herndon, VA"],
     "Eastern Shore-proper": ["Salisbury, MD", "Berlin, MD"],
