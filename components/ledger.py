@@ -465,6 +465,7 @@ def _apply_month_over_month(months: list[dict], project_current: bool = True, ne
     prior_offset = 1 if newest_first else -1
     for i, m in enumerate(months):
         m["mom_pct_revenue"] = None
+        m["mom_pct_events"] = None
         m["mom_pct_avg"] = None
         m["mom_pct_avg_day"] = None
         m["mom_pct_days_worked"] = None
@@ -475,20 +476,32 @@ def _apply_month_over_month(months: list[dict], project_current: bool = True, ne
 
         prior = months[prior_idx]
         prior_revenue = prior["revenue"]
+        prior_events = prior["events"]
         prior_avg = prior["avg"]
         prior_avg_day = (prior["revenue"] / prior["days_worked"]) if prior["days_worked"] else 0.0
         this_avg_day = (m["revenue"] / m["days_worked"]) if m["days_worked"] else 0.0
 
         projected_revenue = m["revenue"]
+        projected_events = m["events"]
         if project_current and m.get("is_current"):
             total_bdays = len(pd.bdate_range(m["start_date"], m["end_date"]))
             elapsed_bdays = len(pd.bdate_range(m["start_date"], min(today, m["end_date"])))
             if elapsed_bdays > 0 and total_bdays > 0:
+                # EVENTS is a cumulative count just like REVENUE, so it
+                # gets the exact same run-rate projection treatment for
+                # the current period - "just like you did the other
+                # metrics" - rather than DAYS WORKED's always-plain
+                # treatment (that one measures something fundamentally
+                # different: distinct days present, not a total that
+                # naturally grows the more of the period has elapsed).
                 projected_revenue = m["revenue"] / (elapsed_bdays / total_bdays)
+                projected_events = m["events"] / (elapsed_bdays / total_bdays)
                 m["mom_is_projection"] = True
 
         if prior_revenue > 0:
             m["mom_pct_revenue"] = ((projected_revenue - prior_revenue) / prior_revenue) * 100
+        if prior_events > 0:
+            m["mom_pct_events"] = ((projected_events - prior_events) / prior_events) * 100
         if prior_avg > 0:
             m["mom_pct_avg"] = ((m["avg"] - prior_avg) / prior_avg) * 100
         if prior_avg_day > 0:
@@ -618,9 +631,10 @@ def _build_month_cards(
 
     cards = []
     for m in months:
-        revenue_badge = avg_badge = avg_day_badge = days_worked_badge = ""
+        revenue_badge = events_badge = avg_badge = avg_day_badge = days_worked_badge = ""
         if show_mom_change:
             revenue_badge = _badge(m.get("mom_pct_revenue"), m.get("mom_is_projection"))
+            events_badge = _badge(m.get("mom_pct_events"), m.get("mom_is_projection"))
             avg_badge = _badge(m.get("mom_pct_avg"), False)
             avg_day_badge = _badge(m.get("mom_pct_avg_day"), False)
             days_worked_badge = _badge(m.get("mom_pct_days_worked"), False)
@@ -632,7 +646,7 @@ def _build_month_cards(
             f'<div class="month-card-range">{range_prefix}{escape(m["start"])} \u2013 {escape(m["end"])}</div>'
             '</div>'
             '<div class="month-stat-grid">'
-            f'<div class="month-stat"><div class="month-stat-val">{m["events"]}</div><div class="month-stat-lbl">EVENTS</div><div class="month-stat-badge-slot"></div></div>'
+            f'<div class="month-stat"><div class="month-stat-val">{m["events"]}</div><div class="month-stat-lbl">EVENTS</div><div class="month-stat-badge-slot">{events_badge}</div></div>'
             f'<div class="month-stat"><div class="month-stat-val">{m["confirmed"]}</div><div class="month-stat-lbl">CONFIRMED</div><div class="month-stat-badge-slot"></div></div>'
             f'<div class="month-stat"><div class="month-stat-val">{m["days_worked"]}</div><div class="month-stat-lbl">DAYS WORKED</div><div class="month-stat-badge-slot">{days_worked_badge}</div></div>'
             '</div>'

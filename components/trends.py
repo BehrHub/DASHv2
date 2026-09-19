@@ -464,11 +464,13 @@ def _chart(
         "</div>"
     )
 
+    connector_row = f'<div class="trend-connector-row">{"".join(connectors)}</div>' if connectors else ""
+
     return (
         f'<div class="trend-view" data-view="{view_id}">'
         f'<div class="trend-plot"><div class="trend-grid-wrap">{"".join(grid)}</div>'
-        f'<div class="trend-bar-row">{"".join(bars)}{"".join(connectors)}</div></div>'
-        f'<div class="trend-axis">{"".join(axis)}</div>{foot}</div>'
+        f'<div class="trend-bar-row">{"".join(bars)}</div></div>'
+        f'<div class="trend-axis">{"".join(axis)}</div>{connector_row}{foot}</div>'
     )
 
 
@@ -500,14 +502,21 @@ TRENDS_CSS_RULES = """
 .trend-grid-tag { position: absolute; left: 0; transform: translateY(-100%); font-size: 11px; color: #a8b4c8; font-weight: 800; }
 .trend-bar-row { position: absolute; left: 34px; right: 0; bottom: 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; height: 128px; }
 .trend-bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 1 1 0; min-width: 0; height: 100%; }
+.trend-connector-row {
+    position: relative;
+    margin-left: 34px;
+    height: 20px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
 .trend-connector {
     position: absolute;
-    top: 4px;
+    top: 0;
     transform-origin: center;
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 900;
     white-space: nowrap;
-    padding: 2px 5px;
+    padding: 1px 5px;
     border-radius: 6px;
     pointer-events: none;
     z-index: 2;
