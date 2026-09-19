@@ -372,7 +372,10 @@ def _city_group_top7(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, rank
 PLOT_H, BAR_MAX, BAR_MIN = 128, 108, 5
 
 
-def _chart(series: list[dict], metric: str, view_id: str, suppress_total: bool = False, description: str = "") -> str:
+def _chart(
+    series: list[dict], metric: str, view_id: str, suppress_total: bool = False,
+    description: str = "", show_mom_connectors: bool = False,
+) -> str:
     if not series:
         return (
             f'<div class="trend-view" data-view="{view_id}">'
@@ -405,6 +408,35 @@ def _chart(series: list[dict], metric: str, view_id: str, suppress_total: bool =
         )
         axis.append(f'<span>{escape(row["label"])}</span>')
 
+    # Month-over-month connectors (Career/Monthly only) - a small %
+    # marker floating between each consecutive pair of bars (real
+    # change from the bar just before it), plus one final marker after
+    # the LAST bar showing total growth from the very FIRST bar to the
+    # current one - "how far this has come since it started."
+    # Positioned as an absolute overlay computed from each bar's real
+    # horizontal center, rather than squeezed into the bar row's own
+    # tight 6px gaps, so the existing bar layout is never disturbed.
+    connectors = []
+    n = len(series)
+    if show_mom_connectors and n > 1:
+        def _connector_html(pct: float | None, left_pct: float, is_total: bool = False) -> str:
+            if pct is None:
+                return ""
+            sign = "+" if pct >= 0 else ""
+            cls = "trend-connector"
+            cls += " is-total" if is_total else (" is-positive" if pct >= 0 else " is-negative")
+            return f'<div class="{cls}" style="left:{left_pct:.4f}%;transform:translateX(-50%)">{sign}{pct:.1f}%</div>'
+
+        for i in range(1, n):
+            prev_val, cur_val = values[i - 1], values[i]
+            pct = ((cur_val - prev_val) / prev_val * 100) if prev_val else None
+            left_pct = (i / n) * 100
+            connectors.append(_connector_html(pct, left_pct))
+
+        first_val, last_val = values[0], values[-1]
+        total_pct = ((last_val - first_val) / first_val * 100) if first_val else None
+        connectors.append(_connector_html(total_pct, 100.0, is_total=True))
+
     best = max(series, key=lambda row: row[metric])
     total = sum(values)
     average = total / len(values)
@@ -434,7 +466,8 @@ def _chart(series: list[dict], metric: str, view_id: str, suppress_total: bool =
 
     return (
         f'<div class="trend-view" data-view="{view_id}">'
-        f'<div class="trend-plot"><div class="trend-grid-wrap">{"".join(grid)}</div><div class="trend-bar-row">{"".join(bars)}</div></div>'
+        f'<div class="trend-plot"><div class="trend-grid-wrap">{"".join(grid)}</div>'
+        f'<div class="trend-bar-row">{"".join(bars)}{"".join(connectors)}</div></div>'
         f'<div class="trend-axis">{"".join(axis)}</div>{foot}</div>'
     )
 
@@ -467,6 +500,21 @@ TRENDS_CSS_RULES = """
 .trend-grid-tag { position: absolute; left: 0; transform: translateY(-100%); font-size: 11px; color: #a8b4c8; font-weight: 800; }
 .trend-bar-row { position: absolute; left: 34px; right: 0; bottom: 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; height: 128px; }
 .trend-bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 1 1 0; min-width: 0; height: 100%; }
+.trend-connector {
+    position: absolute;
+    top: 4px;
+    transform-origin: center;
+    font-size: 10.5px;
+    font-weight: 900;
+    white-space: nowrap;
+    padding: 2px 5px;
+    border-radius: 6px;
+    pointer-events: none;
+    z-index: 2;
+}
+.trend-connector.is-positive { color: #4ade80; background: rgba(74,222,128,.12); border: 1px solid rgba(74,222,128,.4); }
+.trend-connector.is-negative { color: #f87171; background: rgba(248,113,113,.12); border: 1px solid rgba(248,113,113,.4); }
+.trend-connector.is-total { color: #f9a8d4; background: rgba(244,114,182,.18); border: 1px solid #f472b6; font-size: 11px; box-shadow: 0 0 10px rgba(244,114,182,.4); }
 .trend-bar-value { font-size: 13.5px; font-weight: 900; color: #d6e6ff; white-space: nowrap; margin-bottom: 7px; padding: 4px 9px; border-radius: 9px; background: rgba(15,23,42,.9); border: 1px solid rgba(96,165,250,.6); box-shadow: 0 0 12px rgba(96,165,250,.5); }
 .trend-bar-col.is-record .trend-bar-value { color: #ffe9f5; background: rgba(35,10,26,.9); border-color: rgba(244,114,182,.85); box-shadow: 0 0 16px rgba(244,114,182,.7); }
 .trend-bar-shape { width: 70%; max-width: 26px; border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, #60a5fa, #3b5b8f); box-shadow: inset 0 1px 0 rgba(255,255,255,.15); }
@@ -589,16 +637,16 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipe
         _chart(buckets["weekly"], "avgevent", "weekly-avgevent", description="TOTAL"),
         _chart(weekly_avgrevperevent, "avgrevperevent", "weekly-avgrevperevent", suppress_total=gross_view, description="PER EVENT"),
         _chart(weekly_avgrevperday, "avgrevperday", "weekly-avgrevperday", suppress_total=gross_view, description="PER DAY"),
-        _chart(buckets["monthly"], "events", "monthly-events", description="TOTAL"),
-        _chart(monthly_revenue, "revenue", "monthly-revenue", suppress_total=gross_view, description="TOTAL"),
-        _chart(buckets["monthly"], "avgevent", "monthly-avgevent", description="TOTAL"),
-        _chart(monthly_avgrevperevent, "avgrevperevent", "monthly-avgrevperevent", suppress_total=gross_view, description="PER EVENT"),
-        _chart(monthly_avgrevperday, "avgrevperday", "monthly-avgrevperday", suppress_total=gross_view, description="PER DAY"),
-        _chart(buckets["career"], "events", "career-events", description="TOTAL"),
-        _chart(career_revenue, "revenue", "career-revenue", suppress_total=gross_view, description="TOTAL"),
-        _chart(buckets["career"], "avgevent", "career-avgevent", description="TOTAL"),
-        _chart(career_avgrevperevent, "avgrevperevent", "career-avgrevperevent", suppress_total=gross_view, description="PER EVENT"),
-        _chart(career_avgrevperday, "avgrevperday", "career-avgrevperday", suppress_total=gross_view, description="PER DAY"),
+        _chart(buckets["monthly"], "events", "monthly-events", description="TOTAL", show_mom_connectors=True),
+        _chart(monthly_revenue, "revenue", "monthly-revenue", suppress_total=gross_view, description="TOTAL", show_mom_connectors=True),
+        _chart(buckets["monthly"], "avgevent", "monthly-avgevent", description="TOTAL", show_mom_connectors=True),
+        _chart(monthly_avgrevperevent, "avgrevperevent", "monthly-avgrevperevent", suppress_total=gross_view, description="PER EVENT", show_mom_connectors=True),
+        _chart(monthly_avgrevperday, "avgrevperday", "monthly-avgrevperday", suppress_total=gross_view, description="PER DAY", show_mom_connectors=True),
+        _chart(buckets["career"], "events", "career-events", description="TOTAL", show_mom_connectors=True),
+        _chart(career_revenue, "revenue", "career-revenue", suppress_total=gross_view, description="TOTAL", show_mom_connectors=True),
+        _chart(buckets["career"], "avgevent", "career-avgevent", description="TOTAL", show_mom_connectors=True),
+        _chart(career_avgrevperevent, "avgrevperevent", "career-avgrevperevent", suppress_total=gross_view, description="PER EVENT", show_mom_connectors=True),
+        _chart(career_avgrevperday, "avgrevperday", "career-avgrevperday", suppress_total=gross_view, description="PER DAY", show_mom_connectors=True),
         _chart(buckets["weekday"], "events", "weekday-events", description="TOTAL"),
         _chart(weekday_revenue, "revenue", "weekday-revenue", suppress_total=gross_view, description="TOTAL"),
         _chart(buckets["weekday"], "avgevent", "weekday-avgevent", description="PER WEEK"),
