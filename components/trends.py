@@ -280,13 +280,17 @@ CHART_CITY_GROUP_LABEL_OVERRIDES: dict[str, str] = {
     "Annapolis-proper": "ANNA GRP",
     "Towson-proper": "TOWS GRP",
     "Glen Burnie-proper": "GLN.B GRP",
+    "Largo-proper": "LRGO GRP",
+    "College Park-proper": "CLGPRK GRP",
 }
 
 
 CHART_STANDALONE_CITY_OVERRIDES: dict[str, str] = {
     "Frederick, MD": "FRED",
     "Washington, DC": "D.C.",
-    "Landover, MD": "LNDVR",
+    # Landover, MD removed - it's now part of College Park-proper
+    # (real rezoning, not standalone anymore), so this entry would
+    # never actually be looked up again.
 }
 
 
