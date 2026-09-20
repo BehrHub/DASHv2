@@ -374,7 +374,7 @@ PLOT_H, BAR_MAX, BAR_MIN = 128, 108, 5
 
 def _chart(
     series: list[dict], metric: str, view_id: str, suppress_total: bool = False,
-    description: str = "", show_mom_connectors: bool = False,
+    description: str = "", show_mom_connectors: bool = False, show_total_connector: bool = True,
 ) -> str:
     if not series:
         return (
@@ -433,9 +433,17 @@ def _chart(
             left_pct = (i / n) * 100
             connectors.append(_connector_html(pct, left_pct))
 
-        first_val, last_val = values[0], values[-1]
-        total_pct = ((last_val - first_val) / first_val * 100) if first_val else None
-        connectors.append(_connector_html(total_pct, 100.0, is_total=True))
+        if show_total_connector:
+            # Skippable per-call - confirmed real issue: April is the
+            # actual first career month, but as a CALENDAR-month bucket
+            # it only ran the 20th-30th (11 days), an artificially low,
+            # partial baseline that inflates "growth since the start"
+            # comparisons using it. Monthly-events specifically turns
+            # this off rather than comparing against that unfair
+            # baseline.
+            first_val, last_val = values[0], values[-1]
+            total_pct = ((last_val - first_val) / first_val * 100) if first_val else None
+            connectors.append(_connector_html(total_pct, 100.0, is_total=True))
 
     best = max(series, key=lambda row: row[metric])
     total = sum(values)
@@ -646,7 +654,7 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipe
         _chart(buckets["weekly"], "avgevent", "weekly-avgevent", description="TOTAL"),
         _chart(weekly_avgrevperevent, "avgrevperevent", "weekly-avgrevperevent", suppress_total=gross_view, description="PER EVENT"),
         _chart(weekly_avgrevperday, "avgrevperday", "weekly-avgrevperday", suppress_total=gross_view, description="PER DAY"),
-        _chart(buckets["monthly"], "events", "monthly-events", description="TOTAL", show_mom_connectors=True),
+        _chart(buckets["monthly"], "events", "monthly-events", description="TOTAL", show_mom_connectors=True, show_total_connector=False),
         _chart(monthly_revenue, "revenue", "monthly-revenue", suppress_total=gross_view, description="TOTAL", show_mom_connectors=True),
         _chart(buckets["monthly"], "avgevent", "monthly-avgevent", description="TOTAL", show_mom_connectors=True),
         _chart(monthly_avgrevperevent, "avgrevperevent", "monthly-avgrevperevent", suppress_total=gross_view, description="PER EVENT", show_mom_connectors=True),

@@ -13,6 +13,15 @@ from services.money_view import annualize_gross, gross_up, DAYS_PER_YEAR, WEEKS_
 from components.trends import build_trends_fragment, TRENDS_CSS_RULES
 from components.journey import JURISDICTION_COLORS, TERRITORY_CENTER_COLOR, jurisdiction_group
 
+# Short display names for specific long client names — display-only,
+# applied everywhere a raw client name gets shown compactly (hero
+# card's NEXT UP badge, the Upcoming events list). The real name in
+# the underlying data, and everywhere else in the app (Client Hub,
+# Ledger, etc.), is completely untouched.
+SHORT_CLIENT_LABEL_OVERRIDES = {
+    "Senate Sergeant at Arms": "Sen. Sgt. Arms",
+}
+
 
 PALETTE = [
     "#f05d73",
@@ -61,7 +70,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     revenue_value = escape(
         _compact_money(gross_up(metrics.total_revenue)) if gross_view else str(hero["revenue_value"])
     )
-    next_client = escape(str(hero["next_client"]))
+    next_client = escape(SHORT_CLIENT_LABEL_OVERRIDES.get(str(hero["next_client"]), str(hero["next_client"])))
     next_date = escape(str(hero["next_date"]))
     streak_value = escape(str(hero["streak_value"]))
     cities_value = escape(str(hero["cities_value"]))
@@ -151,8 +160,26 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     avg_dollar_per_day = float(ticker_confirmed["__amount"].sum()) / business_days
 
     if not ticker_confirmed.empty:
-        calendar_month = ticker_confirmed["__date"].dt.to_period("M")
-        highest_month = float(ticker_confirmed.groupby(calendar_month)["__amount"].sum().max())
+        # Career month, not calendar month - same anchor-date formula
+        # already used consistently in ledger.py's _compute_career_months
+        # and trends.py's career bucket, so "a month" means the same
+        # ~30-day cycle everywhere in the app, not a calendar-boundary
+        # month here specifically while everywhere else uses the real
+        # career cycle. More accurate for TOP PACE's "your single best
+        # month ever" framing, since a calendar month can be partial
+        # (April, the actual first career month, only ran the 20th-30th
+        # by calendar boundaries - an unfairly short window to compare
+        # a "best month" pace against).
+        career_start = ticker_confirmed["__date"].min()
+
+        def _career_month_idx(d: pd.Timestamp) -> int:
+            months_diff = (d.year - career_start.year) * 12 + (d.month - career_start.month)
+            if d.day < career_start.day:
+                months_diff -= 1
+            return months_diff
+
+        career_month = ticker_confirmed["__date"].apply(_career_month_idx)
+        highest_month = float(ticker_confirmed.groupby(career_month)["__amount"].sum().max())
         iso = ticker_confirmed["__date"].dt.isocalendar()
         highest_week = float(ticker_confirmed.groupby([iso["year"], iso["week"]])["__amount"].sum().max())
         highest_day = float(ticker_confirmed.groupby(ticker_confirmed["__date"].dt.normalize())["__amount"].sum().max())
@@ -534,7 +561,7 @@ def render_performance_hero(
         str(hero["revenue_value"])
     )
     next_client = escape(
-        str(hero["next_client"])
+        SHORT_CLIENT_LABEL_OVERRIDES.get(str(hero["next_client"]), str(hero["next_client"]))
     )
     next_date = escape(
         str(hero["next_date"])
@@ -1543,15 +1570,9 @@ def _upcoming_rows(
         </div>
         """
 
-    # Short display names for the Upcoming list only — the real client
-    # name everywhere else in the app (Client Hub, Ledger, etc.) is
-    # completely untouched. This exists purely to fix display crowding
-    # for specific long names, not to rename anything about the
-    # underlying data.
-    UPCOMING_CLIENT_LABEL_OVERRIDES = {
-        "Senator Sergeant at Arms": "Sen. Sgt. Arms",
-    }
-
+    # Short display names for the Upcoming list only — see
+    # SHORT_CLIENT_LABEL_OVERRIDES near the top of this file for the
+    # shared definition (also used by the hero card's NEXT UP badge).
     rows = []
 
     for item in metrics.upcoming_items:
@@ -1559,7 +1580,7 @@ def _upcoming_rows(
             item["location"]
             or "Location pending"
         )
-        client_label = UPCOMING_CLIENT_LABEL_OVERRIDES.get(item["client"], item["client"])
+        client_label = SHORT_CLIENT_LABEL_OVERRIDES.get(item["client"], item["client"])
 
         rows.append(
             f"""
