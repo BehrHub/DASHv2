@@ -160,8 +160,26 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     avg_dollar_per_day = float(ticker_confirmed["__amount"].sum()) / business_days
 
     if not ticker_confirmed.empty:
-        calendar_month = ticker_confirmed["__date"].dt.to_period("M")
-        highest_month = float(ticker_confirmed.groupby(calendar_month)["__amount"].sum().max())
+        # Career month, not calendar month - same anchor-date formula
+        # already used consistently in ledger.py's _compute_career_months
+        # and trends.py's career bucket, so "a month" means the same
+        # ~30-day cycle everywhere in the app, not a calendar-boundary
+        # month here specifically while everywhere else uses the real
+        # career cycle. More accurate for TOP PACE's "your single best
+        # month ever" framing, since a calendar month can be partial
+        # (April, the actual first career month, only ran the 20th-30th
+        # by calendar boundaries - an unfairly short window to compare
+        # a "best month" pace against).
+        career_start = ticker_confirmed["__date"].min()
+
+        def _career_month_idx(d: pd.Timestamp) -> int:
+            months_diff = (d.year - career_start.year) * 12 + (d.month - career_start.month)
+            if d.day < career_start.day:
+                months_diff -= 1
+            return months_diff
+
+        career_month = ticker_confirmed["__date"].apply(_career_month_idx)
+        highest_month = float(ticker_confirmed.groupby(career_month)["__amount"].sum().max())
         iso = ticker_confirmed["__date"].dt.isocalendar()
         highest_week = float(ticker_confirmed.groupby([iso["year"], iso["week"]])["__amount"].sum().max())
         highest_day = float(ticker_confirmed.groupby(ticker_confirmed["__date"].dt.normalize())["__amount"].sum().max())
