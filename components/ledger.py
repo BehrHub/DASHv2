@@ -590,18 +590,35 @@ body{color:#fff}
 
 def _build_month_cards(
     months: list[dict], gross_view: bool = False, periods_per_year: float = MONTHS_PER_YEAR,
-    show_mom_change: bool = False,
+    show_mom_change: bool = False, annualize_revenue: bool = True,
 ) -> str:
     """periods_per_year controls how REVENUE gets annualized when gross
     is on — must match what period each card actually represents.
     Was previously hardcoded to MONTHS_PER_YEAR everywhere, which is
-    correct for CAREER/CALENDAR/ERAS (real month-length periods) but
-    was mathematically wrong for L10WK and L10DAY: a week's revenue x12
+    correct for CAREER/CALENDAR (real month-length periods) but was
+    mathematically wrong for L10WK and L10DAY: a week's revenue x12
     doesn't represent a year (that's ~12 weeks, not 52), and a day's
     revenue x12 represents 12 days, nowhere close to annualized. Callers
     for those two now pass WEEKS_PER_YEAR / DAYS_PER_YEAR respectively.
 
-    AVG REV/DAY now uses gross_up() only (matching AVG/EVENT's existing
+    annualize_revenue=False (ERAS only) - confirmed real bug this fixes:
+    ERAS were being treated as "real month-length periods" too and
+    silently inheriting the flat x12 MONTHS_PER_YEAR default, but eras
+    are NOT month-length - their real length varies (26, 25, 24, 35+
+    business days seen in practice), and an open era like the current
+    one keeps growing longer every single day it stays open. Flat x12
+    assumes every era = one identical ~22-business-day month before
+    projecting a year, which overstates a longer era's annualized pace
+    by exactly how much longer than a true month it's actually run (a
+    35-business-day era measured this way came out ~60% too high
+    compared to correctly dividing by its own real business-day count
+    first). REVENUE for eras now just gets gross_up() with no period
+    multiplier at all - same "grossed, never projected/annualized"
+    treatment AVG/EVENT and AVG REV/DAY already correctly get below,
+    now applied consistently to all three dollar figures on an era card
+    instead of just two of them.
+
+    AVG REV/DAY uses gross_up() only (matching AVG/EVENT's existing
     treatment) instead of annualize_gross() — it shows the grossed-up
     per-day figure, not an annualized rate, for every tab.
 
@@ -651,7 +668,7 @@ def _build_month_cards(
             f'<div class="month-stat"><div class="month-stat-val">{m["days_worked"]}</div><div class="month-stat-lbl">DAYS WORKED</div><div class="month-stat-badge-slot">{days_worked_badge}</div></div>'
             '</div>'
             '<div class="month-revenue-row">'
-            f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(annualize_gross(m["revenue"], periods_per_year) if gross_view else m["revenue"]))}</div><div class="month-revenue-lbl">{revenue_lbl}</div>{revenue_badge}</div>'
+            f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money((annualize_gross(m["revenue"], periods_per_year) if annualize_revenue else gross_up(m["revenue"])) if gross_view else m["revenue"]))}</div><div class="month-revenue-lbl">{revenue_lbl}</div>{revenue_badge}</div>'
             f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(gross_up(m["avg"]) if gross_view else m["avg"]))}</div><div class="month-revenue-lbl">{avg_lbl}</div>{avg_badge}</div>'
             f'<div class="month-revenue-item"><div class="month-revenue-val">{escape(_money(gross_up((m["revenue"] / m["days_worked"]) if m["days_worked"] else 0.0) if gross_view else ((m["revenue"] / m["days_worked"]) if m["days_worked"] else 0.0)))}</div><div class="month-revenue-lbl">{avg_day_lbl}</div>{avg_day_badge}</div>'
             '</div></div>'
@@ -765,7 +782,7 @@ def render_ledger_breakdowns(
 
     career_cards = _build_month_cards(career_months, gross_view, show_mom_change=True)
     calendar_cards = _build_month_cards(calendar_months, gross_view, show_mom_change=True)
-    era_cards = _build_month_cards(eras, gross_view, show_mom_change=True)
+    era_cards = _build_month_cards(eras, gross_view, show_mom_change=True, annualize_revenue=False)
     l10wk_cards = _build_month_cards(l10wk, gross_view, periods_per_year=WEEKS_PER_YEAR)
     l10d_cards = _build_month_cards(l10d, gross_view, periods_per_year=DAYS_PER_YEAR)
     day_cards = _build_day_cards(top_days)
