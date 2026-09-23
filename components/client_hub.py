@@ -287,8 +287,8 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     # (e.g. Dunkin' is split out from Baskin-Robbins here, per explicit
     # instruction), so it's kept local rather than imported from there.
     CAROUSEL_TIERS = [
-        ["TJ Maxx", "Marshalls", "HomeGoods", "HomeSense"],
-        ["USDA", "Senator A. Alsobrooks", "Senator C. Van Hollen", "Joint Base Andrews"],
+        ["TJ Maxx", "Marshalls", "HomeGoods", "HomeSense", "Sierra"],
+        ["USDA", "Senator A. Alsobrooks", "Senator C. Van Hollen", "Joint Base Andrews", "Senate Sergeant at Arms"],
         ["Dunkin'", "McDonald's", "7-Eleven"],
         ["Bloomingdale's", "Macy's"],
         ["Verizon", "Carvana", "Hampton Inn & Suites", "Hilton Garden Inn"],
@@ -305,10 +305,31 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     for name in NURSING_HOME_LAST:
         _tier_index[name] = NURSING_HOME_TIER
 
+    # Clients that must always sit directly next to each other in the
+    # carousel, regardless of their individual revenue - explicit
+    # request, overrides the normal per-tier revenue-descending sort
+    # for just this pair. The pair sorts into its tier by its COMBINED
+    # revenue (so it still lands in a sensible spot among the rest of
+    # the tier), then always in this exact fixed order within the pair.
+    FORCED_ADJACENT_PAIRS = [
+        ("Senator A. Alsobrooks", "Senator C. Van Hollen"),
+    ]
+    _pair_of: dict[str, tuple[int, int]] = {}
+    for pair_id, pair in enumerate(FORCED_ADJACENT_PAIRS):
+        for pos, name in enumerate(pair):
+            _pair_of[name] = (pair_id, pos)
+
     def _carousel_sort_key(name: str):
-        tier = _tier_index.get(str(name), WHATEVER_ELSE_TIER)
-        revenue = details.get(str(name), {}).get("total_revenue", 0.0)
-        return (tier, -revenue)
+        key = str(name)
+        tier = _tier_index.get(key, WHATEVER_ELSE_TIER)
+        if key in _pair_of:
+            pair_id, pos_in_pair = _pair_of[key]
+            combined_revenue = sum(
+                details.get(n, {}).get("total_revenue", 0.0) for n in FORCED_ADJACENT_PAIRS[pair_id]
+            )
+            return (tier, -combined_revenue, pos_in_pair)
+        revenue = details.get(key, {}).get("total_revenue", 0.0)
+        return (tier, -revenue, 0)
 
     livery_clients = sorted(livery_clients, key=_carousel_sort_key)
 

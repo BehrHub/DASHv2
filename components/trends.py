@@ -651,32 +651,26 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipe
     charts = "".join([
         _chart(buckets["weekly"], "events", "weekly-events", description="TOTAL"),
         _chart(weekly_revenue, "revenue", "weekly-revenue", suppress_total=gross_view, description="TOTAL"),
-        _chart(buckets["weekly"], "avgevent", "weekly-avgevent", description="TOTAL"),
         _chart(weekly_avgrevperevent, "avgrevperevent", "weekly-avgrevperevent", suppress_total=gross_view, description="PER EVENT"),
         _chart(weekly_avgrevperday, "avgrevperday", "weekly-avgrevperday", suppress_total=gross_view, description="PER DAY"),
         _chart(buckets["monthly"], "events", "monthly-events", description="TOTAL", show_mom_connectors=True, show_total_connector=False),
         _chart(monthly_revenue, "revenue", "monthly-revenue", suppress_total=gross_view, description="TOTAL", show_mom_connectors=True),
-        _chart(buckets["monthly"], "avgevent", "monthly-avgevent", description="TOTAL", show_mom_connectors=True),
         _chart(monthly_avgrevperevent, "avgrevperevent", "monthly-avgrevperevent", suppress_total=gross_view, description="PER EVENT", show_mom_connectors=True),
         _chart(monthly_avgrevperday, "avgrevperday", "monthly-avgrevperday", suppress_total=gross_view, description="PER DAY", show_mom_connectors=True),
         _chart(buckets["career"], "events", "career-events", description="TOTAL", show_mom_connectors=True),
         _chart(career_revenue, "revenue", "career-revenue", suppress_total=gross_view, description="TOTAL", show_mom_connectors=True),
-        _chart(buckets["career"], "avgevent", "career-avgevent", description="TOTAL", show_mom_connectors=True),
         _chart(career_avgrevperevent, "avgrevperevent", "career-avgrevperevent", suppress_total=gross_view, description="PER EVENT", show_mom_connectors=True),
         _chart(career_avgrevperday, "avgrevperday", "career-avgrevperday", suppress_total=gross_view, description="PER DAY", show_mom_connectors=True),
         _chart(buckets["weekday"], "events", "weekday-events", description="TOTAL"),
         _chart(weekday_revenue, "revenue", "weekday-revenue", suppress_total=gross_view, description="TOTAL"),
-        _chart(buckets["weekday"], "avgevent", "weekday-avgevent", description="PER WEEK"),
         _chart(weekday_avgrevperevent, "avgrevperevent", "weekday-avgrevperevent", suppress_total=gross_view, description="PER EVENT"),
         _chart(weekday_avgrevperday, "avgrevperday", "weekday-avgrevperday", suppress_total=gross_view, description="PER DAY"),
         _chart(clients_events, "events", "clients-events", description="TOTAL"),
         _chart(clients_revenue, "revenue", "clients-revenue", suppress_total=gross_view, description="TOTAL"),
-        _chart(clients_events, "avgevent", "clients-avgevent", description="TOTAL"),
         _chart(clients_avgrevperevent, "avgrevperevent", "clients-avgrevperevent", suppress_total=gross_view, description="PER EVENT"),
         _chart(clients_avgrevperday, "avgrevperday", "clients-avgrevperday", suppress_total=gross_view, description="PER DAY"),
         _chart(cities_events, "events", "cities-events", description="TOTAL"),
         _chart(cities_revenue, "revenue", "cities-revenue", suppress_total=gross_view, description="TOTAL"),
-        _chart(cities_events, "avgevent", "cities-avgevent", description="TOTAL"),
         _chart(cities_avgrevperevent, "avgrevperevent", "cities-avgrevperevent", suppress_total=gross_view, description="PER EVENT"),
         _chart(cities_avgrevperday, "avgrevperday", "cities-avgrevperday", suppress_total=gross_view, description="PER DAY"),
     ])
@@ -704,9 +698,8 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipe
             <div class="trend-tab" data-metric="revenue">REVENUE</div>
           </div>
           <div class="trend-metric-tabs-row">
-            <div class="trend-tab" data-metric="avgevent">AVG/EVNT</div>
-            <div class="trend-tab" data-metric="avgrevperevent">AVG REV/EVNT</div>
-            <div class="trend-tab" data-metric="avgrevperday">AVG REV/DAY</div>
+            <div class="trend-tab" data-metric="avgrevperevent">AVG REVENUE/EVENT</div>
+            <div class="trend-tab" data-metric="avgrevperday">AVG REVENUE/DAY</div>
           </div>
         </div>
         <div id="trendViews">{charts}</div>
