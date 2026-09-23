@@ -288,18 +288,24 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     # instruction), so it's kept local rather than imported from there.
     CAROUSEL_TIERS = [
         ["TJ Maxx", "Marshalls", "HomeGoods", "HomeSense", "Sierra"],
-        ["USDA", "Senator A. Alsobrooks", "Senator C. Van Hollen", "Joint Base Andrews", "Senate Sergeant at Arms"],
+        # Government - explicit fixed display order (NOT revenue-sorted,
+        # unlike every other tier here) - see FIXED_ORDER_TIER_INDICES.
+        ["Senate Sergeant at Arms", "Joint Base Andrews", "USDA", "Senator A. Alsobrooks", "Senator C. Van Hollen"],
         ["Dunkin'", "McDonald's", "7-Eleven"],
         ["Bloomingdale's", "Macy's"],
         ["Verizon", "Carvana", "Hampton Inn & Suites", "Hilton Garden Inn"],
+        ["Under Armour"],  # its own tier, positioned right after Hilton Worldwide
         ["Giant Food Stores", "Food Lion", "Weis Markets"],
     ]
+    FIXED_ORDER_TIER_INDICES = {1}  # Government tier index - see note above
     NURSING_HOME_LAST = ["Hebrew Home GW", "Atrium Village", "Autumn Lake Healthcare", "Maryland Baptist Age Home"]
 
     _tier_index: dict[str, int] = {}
+    _position_in_tier: dict[str, int] = {}
     for tier_i, tier_members in enumerate(CAROUSEL_TIERS):
-        for name in tier_members:
+        for pos, name in enumerate(tier_members):
             _tier_index[name] = tier_i
+            _position_in_tier[name] = pos
     WHATEVER_ELSE_TIER = len(CAROUSEL_TIERS)
     NURSING_HOME_TIER = len(CAROUSEL_TIERS) + 1
     for name in NURSING_HOME_LAST:
@@ -311,8 +317,11 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     # for just this pair. The pair sorts into its tier by its COMBINED
     # revenue (so it still lands in a sensible spot among the rest of
     # the tier), then always in this exact fixed order within the pair.
+    # The senators are no longer listed here - Government's own fixed
+    # tier order above already places them correctly, making a separate
+    # pair-override for them redundant.
     FORCED_ADJACENT_PAIRS = [
-        ("Senator A. Alsobrooks", "Senator C. Van Hollen"),
+        ("WeWork", "PepsiCo"),
     ]
     _pair_of: dict[str, tuple[int, int]] = {}
     for pair_id, pair in enumerate(FORCED_ADJACENT_PAIRS):
@@ -322,6 +331,8 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     def _carousel_sort_key(name: str):
         key = str(name)
         tier = _tier_index.get(key, WHATEVER_ELSE_TIER)
+        if tier in FIXED_ORDER_TIER_INDICES:
+            return (tier, _position_in_tier[key], 0)
         if key in _pair_of:
             pair_id, pos_in_pair = _pair_of[key]
             combined_revenue = sum(
