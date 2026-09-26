@@ -41,17 +41,38 @@ def _hottest_clients(confirmed: pd.DataFrame, today: pd.Timestamp, n: int = 5) -
     return rows[:n]
 
 
+def _career_month_label(d: pd.Timestamp, career_start: pd.Timestamp) -> tuple[int, str]:
+    """Same anchor-date career-month formula used everywhere else in
+    this app (ledger.py, trends.py). Returns (sortable index, display
+    label) - used here instead of calendar months so every "month"
+    compared is a fair, equal ~30-day window. Confirmed real problem
+    this fixes: April as a CALENDAR month only had the ~10-11 days
+    between career start (Apr 20) and month-end, making its new-client/
+    new-city count look artificially small next to every full month
+    that followed - not because less was actually happening, just
+    because the bucket itself was shorter.
+    """
+    months_diff = (d.year - career_start.year) * 12 + (d.month - career_start.month)
+    if d.day < career_start.day:
+        months_diff -= 1
+    period_start = career_start + pd.DateOffset(months=months_diff)
+    return months_diff, period_start.strftime("%b %d")
+
+
 def _new_client_pace(confirmed: pd.DataFrame) -> list[dict]:
-    """New clients acquired per calendar month vs the running average
-    across every month on record."""
+    """New clients acquired per CAREER month (not calendar month - see
+    _career_month_label) vs the running average across every career
+    month on record."""
+    career_start = confirmed["__date"].min()
     first_seen = confirmed.groupby("Client")["__date"].min()
-    by_month = first_seen.dt.to_period("M").value_counts().sort_index()
+    labeled = first_seen.map(lambda d: _career_month_label(d, career_start))
+    by_month = labeled.value_counts().sort_index()
     avg = by_month.mean()
     rows = []
-    for month, count in by_month.items():
+    for (idx, label), count in by_month.items():
         pct_vs_avg = ((count / avg) - 1) * 100 if avg else 0.0
         rows.append({
-            "month": month.strftime("%b %Y"), "count": int(count),
+            "month": label, "count": int(count),
             "avg": round(avg, 1), "pct_vs_avg": pct_vs_avg,
         })
     return rows
@@ -77,14 +98,29 @@ def _revenue_concentration(confirmed: pd.DataFrame) -> dict:
     }
 
 
-def _at_risk_clients(confirmed: pd.DataFrame, today: pd.Timestamp, n: int = 6) -> list[dict]:
+def _at_risk_clients(confirmed: pd.DataFrame, today: pd.Timestamp, n: int = 6, min_span_days: int = 14) -> list[dict]:
     """Overdue relative to each client's OWN normal visit rhythm, not one
     flat cutoff for everyone - a client who visits daily going quiet for
-    2 weeks is far more alarming than a monthly client doing the same."""
+    2 weeks is far more alarming than a monthly client doing the same.
+
+    min_span_days excludes clients whose ENTIRE known visit history was
+    compressed into a short burst (confirmed real cases: USDA, 6 visits
+    all within 8 days; Senate Sergeant at Arms, 5 visits within 4 days) -
+    that pattern means a short project, not an ongoing relationship with
+    a real recurring cadence to be "overdue" from. A tiny median gap
+    from a burst of consecutive project-days isn't a rhythm the client
+    was ever expected to repeat, so treating a long silence afterward as
+    dramatically overdue is misleading. Genuine at-risk clients in real
+    data all span 58+ days of actual history - 14 draws a clean, wide
+    margin below every one of them.
+    """
     rows = []
     for client, grp in confirmed.groupby("Client"):
         dates = grp["__date"].sort_values()
         if len(dates) < 3:
+            continue
+        span_days = (dates.iloc[-1] - dates.iloc[0]).days
+        if span_days < min_span_days:
             continue
         gaps = dates.diff().dt.days.dropna()
         median_gap = gaps.median()
@@ -183,17 +219,19 @@ def _best_rolling_30(confirmed: pd.DataFrame) -> dict:
 
 
 def _geo_expansion_pace(confirmed: pd.DataFrame) -> list[dict]:
-    """New cities visited per calendar month vs the running average -
-    same idea as new-client pace, applied to territory instead."""
+    """New cities visited per CAREER month (not calendar month - same
+    fix and reasoning as _new_client_pace) vs the running average."""
     if "Location Detail" not in confirmed.columns:
         return []
+    career_start = confirmed["__date"].min()
     first_seen = confirmed.groupby("Location Detail")["__date"].min()
-    by_month = first_seen.dt.to_period("M").value_counts().sort_index()
+    labeled = first_seen.map(lambda d: _career_month_label(d, career_start))
+    by_month = labeled.value_counts().sort_index()
     avg = by_month.mean()
     rows = []
-    for month, count in by_month.items():
+    for (idx, label), count in by_month.items():
         pct_vs_avg = ((count / avg) - 1) * 100 if avg else 0.0
-        rows.append({"month": month.strftime("%b %Y"), "count": int(count), "pct_vs_avg": pct_vs_avg})
+        rows.append({"month": label, "count": int(count), "pct_vs_avg": pct_vs_avg})
     return rows
 
 
