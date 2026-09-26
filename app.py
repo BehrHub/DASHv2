@@ -5,6 +5,7 @@ from pathlib import Path
 import streamlit as st
 
 from components.ui import render_dashboard
+from components.stats_plus import render_stats_plus
 from components.journey import render_barrister_journey
 from components.add_event import render_add_event
 from components.client_hub import render_client_standings
@@ -213,13 +214,14 @@ def render_header(active: str, show_money_toggle: bool = False, toggle_key: str 
                 if turning_on:
                     st.session_state["gross_toggle_anim_main"] = True
                 st.rerun()
-    cols = st.columns(5)
+    cols = st.columns(6)
     labels = [
         ("\U0001F3C1", "MAIN", "main"),
         ("\U0001F3CE\uFE0F", "JOURNEY", "journey"),
         ("\u2795", "EVENTS", "addevent"),
         ("\U0001F465", "CLIENTS", "clienthub"),
         ("\U0001F4D3", "LEDGER", "ledger"),
+        ("\U0001F52C", "STATS+", "statsplus"),
     ]
     for col, (icon, label, view) in zip(cols, labels):
         with col:
@@ -553,7 +555,7 @@ def main() -> None:
     # Hub, but on Ledger it renders inline with the "BREAKDOWNS" title
     # instead (see below) — it's used constantly on that page and forcing
     # a scroll up to the header every time was the whole complaint.
-    show_money_toggle = view in ("main", "clienthub")
+    show_money_toggle = view in ("main", "clienthub", "statsplus")
     main_toggle_anim = st.session_state.pop("gross_toggle_anim_main", False)
     main_toggle_key = "gross_toggle_btn_anim" if main_toggle_anim else "gross_toggle_btn"
     render_header(view, show_money_toggle, toggle_key=main_toggle_key)
@@ -658,6 +660,8 @@ def main() -> None:
                     st.session_state["gross_toggle_anim_ledger"] = True
                 st.rerun()
         render_ledger_breakdowns(snapshot.sheets["Timeline"], gross_view, initial_tab=initial_ledger_tab, force_tab=force_ledger_tab)
+    elif view == "statsplus":
+        render_stats_plus(snapshot.sheets["Timeline"], gross_view)
     elif view == "logostudio":
         render_logo_studio_page(snapshot.sheets["Timeline"])
     else:
