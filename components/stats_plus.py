@@ -55,8 +55,7 @@ def _career_month_label(d: pd.Timestamp, career_start: pd.Timestamp) -> tuple[in
     months_diff = (d.year - career_start.year) * 12 + (d.month - career_start.month)
     if d.day < career_start.day:
         months_diff -= 1
-    period_start = career_start + pd.DateOffset(months=months_diff)
-    return months_diff, period_start.strftime("%b %d")
+    return months_diff, f"Career Month {months_diff + 1}"
 
 
 def _new_client_pace(confirmed: pd.DataFrame) -> list[dict]:
