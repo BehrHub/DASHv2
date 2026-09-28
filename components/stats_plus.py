@@ -76,9 +76,16 @@ def _new_client_pace(confirmed: pd.DataFrame) -> list[dict]:
     rows = []
     for (idx, label), count in by_month.items():
         pct_vs_avg = ((count / avg) - 1) * 100 if avg else 0.0
+        clients = sorted(
+            (
+                {"client": str(c), "first": first_seen[c]}
+                for c, lab in labeled.items() if lab[0] == idx
+            ),
+            key=lambda x: x["first"],
+        )
         rows.append({
             "month": label, "count": int(count),
-            "avg": round(avg, 1), "pct_vs_avg": pct_vs_avg,
+            "avg": round(avg, 1), "pct_vs_avg": pct_vs_avg, "clients": clients,
         })
     return rows
 
@@ -477,8 +484,39 @@ def _sub_list(items: list[dict], note: str = "") -> str:
     return "".join(out)
 
 
-def _section(title: str, subtitle: str, body_html: str, hint: bool = False) -> str:
-    hint_html = '<div class="sp-hint">Tap a row to see who\'s in it</div>' if hint else ""
+def _client_revenue_ranking(confirmed: pd.DataFrame) -> list[dict]:
+    """Every client by total revenue, with its share and running share -
+    the drill-down behind REVENUE CONCENTRATION's "N of M" pill. Uses the
+    exact same groupby as _revenue_concentration so the lists agree."""
+    by_client = confirmed.groupby("Client")["__amount"].sum().sort_values(ascending=False)
+    total = by_client.sum()
+    if total <= 0:
+        return []
+    out, cum = [], 0.0
+    for c, v in by_client.items():
+        cum += v
+        out.append({"client": str(c), "rev": float(v), "pct": v / total * 100, "cum_pct": cum / total * 100})
+    return out
+
+
+def _client_median_gaps(confirmed: pd.DataFrame) -> dict:
+    """Median days between visits per client (2+ visits) - the same
+    measure _cadence_classification buckets on, shown in its drill-down."""
+    out = {}
+    for client, grp in confirmed.groupby("Client"):
+        dates = grp["__date"].sort_values()
+        if len(dates) >= 2:
+            out[str(client)] = (float(dates.diff().dt.days.dropna().median()), len(dates))
+    return out
+
+
+def _pill_panel(group: str, key: str, inner: str) -> str:
+    return f'<div class="sp-panel" data-group="{group}" id="{group}-{key}" hidden>{inner}</div>'
+
+
+def _section(title: str, subtitle: str, body_html: str, hint: bool | str = False) -> str:
+    hint_text = hint if isinstance(hint, str) else "Tap a row to see who\'s in it"
+    hint_html = f'<div class="sp-hint">{escape(hint_text)}</div>' if hint else ""
     return (
         '<section class="sp-section">'
         f'<div class="sp-section-title">{escape(title)}</div>'
@@ -522,20 +560,44 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     pace = _new_client_pace(confirmed)
     n_rows += len(pace)
     pace_rows = "".join(
-        _row(r["month"], _badge(f'{r["pct_vs_avg"]:+.0f}%', "up" if r["pct_vs_avg"] >= 0 else "down"),
-             f'<b>{_plural(r["count"], "new client")}</b> \u00b7 avg {r["avg"]} per month')
+        _row(
+            r["month"], _badge(f'{r["pct_vs_avg"]:+.0f}%', "up" if r["pct_vs_avg"] >= 0 else "down"),
+            f'<b>{_plural(r["count"], "new client")}</b>',
+            drawer=_sub_list(
+                [{"label": c["client"], "value": c["first"].strftime("%b %d")} for c in r["clients"]],
+                note="First visit",
+            ),
+        )
         for r in pace
     )
+    pace_avg_html = (
+        f'<div class="sp-avg-strip"><span class="sp-avg-num">{pace[0]["avg"]}</span>'
+        '<span class="sp-avg-lbl">average new clients per career month</span></div>'
+    ) if pace else ""
 
     # --- 3. Revenue concentration ---
     conc = _revenue_concentration(confirmed)
+    ranking = _client_revenue_ranking(confirmed)
+    conc_items = [
+        {"label": r["client"], "value": f'{_money(conv(r["rev"]))} \u00b7 {r["pct"]:.1f}%',
+         "share": r["pct"] / ranking[0]["pct"] * 100}
+        for r in ranking
+    ]
+    n80 = conc["n_for_80"]
+    conc_panel = (
+        _sub_list(conc_items[:n80], note="All clients by revenue")
+        + f'<div class="sp-cutline">\u2191 These {n80} drive 80% of revenue</div>'
+        + f'<div class="sp-tail">{_sub_list(conc_items[n80:])}</div>'
+    ) if conc_items[n80:] else _sub_list(conc_items, note="All clients by revenue")
     conc_html = (
         '<div class="sp-stat-pair">'
-        f'<div class="sp-stat"><div class="sp-stat-val">{conc["n_for_80"]}<span class="sp-stat-of"> of {conc["total_clients"]}</span></div>'
-        '<div class="sp-stat-lbl">Clients drive 80% of revenue</div></div>'
+        '<button class="sp-stat sp-tap" data-group="conc" data-key="all" aria-expanded="false">'
+        f'<div class="sp-stat-val">{conc["n_for_80"]}<span class="sp-stat-of"> of {conc["total_clients"]}</span></div>'
+        '<div class="sp-stat-lbl">Clients drive 80% of revenue</div><div class="sp-tap-chev"></div></button>'
         f'<div class="sp-stat"><div class="sp-stat-val">{conc["top_client_pct"]:.1f}%</div>'
         f'<div class="sp-stat-lbl">From {escape(conc["top_client"])} alone</div></div>'
         '</div>'
+        + _pill_panel("conc", "all", conc_panel)
     )
 
     # --- 4. At-risk clients ---
@@ -552,7 +614,7 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     n_rows += len(nvr) + 1
     nvr_rows = "".join(
         _row(
-            r["month"], _badge(f'{r["new_pct"]:.0f}% new', "pink"),
+            r["month"], _badge(f'{100 - r["new_pct"]:.0f}% repeat', "teal"),
             f'<span class="sp-pink">{m(r["new_rev"])} new</span> \u00b7 '
             f'<span class="sp-teal">{m(r["repeat_rev"])} repeat</span>',
             extra=(f'<div class="sp-split-bar"><div class="sp-split-new" '
@@ -572,10 +634,21 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
 
     # --- 7. Cadence classification ---
     cadence = _cadence_classification(confirmed)
-    cadence_html = "".join(
-        f'<div class="sp-cadence-pill"><div class="sp-cadence-count">{len(members)}</div>'
-        f'<div class="sp-cadence-label">{escape(label)}</div></div>'
-        for label, members in cadence.items()
+    gaps = _client_median_gaps(confirmed)
+    cadence_html = '<div class="sp-cadence-row">' + "".join(
+        f'<button class="sp-cadence-pill sp-tap" data-group="cad" data-key="{i}" aria-expanded="false"'
+        f'{" disabled" if not members else ""}>'
+        f'<div class="sp-cadence-count">{len(members)}</div>'
+        f'<div class="sp-cadence-label">{escape(label)}</div>'
+        f'{"<div class=\"sp-tap-chev\"></div>" if members else ""}</button>'
+        for i, (label, members) in enumerate(cadence.items())
+    ) + '</div>' + "".join(
+        _pill_panel("cad", str(i), _sub_list(
+            [{"label": c, "value": f'every {gaps[c][0]:.0f}d \u00b7 {_plural(gaps[c][1], "visit")}'}
+             for c in sorted(members, key=lambda c: gaps.get(c, (999, 0))[0])],
+            note=f"{label} clients",
+        ))
+        for i, (label, members) in enumerate(cadence.items()) if members
     )
 
     # --- 8. Best rolling 30 ---
@@ -715,21 +788,21 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
 
     body = "".join([
         _section("\U0001F525 Hottest Clients", "Biggest jump, last 30 days vs the 30 before that", _list(hottest_rows)),
-        _section("\U0001F195 New Client Pace", "New clients acquired per career month vs your running average", _list(pace_rows)),
-        _section("\U0001F4CA Revenue Concentration", "How exposed you are to your biggest accounts", conc_html),
-        _section("\u26A0\uFE0F At-Risk Clients", "Overdue relative to their own normal rhythm, not a flat cutoff", _list(risk_rows)),
-        _section("\U0001F331 New vs Repeat Revenue", "Growth from new clients vs retention of existing ones", _list(nvr_rows)),
-        _section("\U0001F4C8 Client Rate Trajectory", "First visit's rate vs most recent, per client", _list(traj_rows)),
-        _section("\U0001F501 Visit Cadence", "Every client classified by their own real visit rhythm", f'<div class="sp-cadence-row">{cadence_html}</div>'),
+        _section("\U0001F195 New Client Pace", "New clients acquired per career month vs your running average", pace_avg_html + _list(pace_rows), hint="Tap a month to see who you gained"),
+        _section("\U0001F4CA Revenue Concentration", "How exposed you are to your biggest accounts", conc_html, hint="Tap the client count to see the full list"),
+        _section("\U0001F331 New vs Repeat Revenue", "Share of each month's revenue from returning clients", _list(nvr_rows)),
+        _section("\U0001F501 Visit Cadence", "Every client classified by their own real visit rhythm", cadence_html, hint="Tap a rhythm to see its clients"),
         _section("\U0001F3C6 Best-Ever 30-Day Stretch", "Any 30 consecutive days, not locked to calendar months", best30_html),
-        _section("\U0001F5FA\uFE0F Geographic Expansion", "New cities visited per career month vs your running average", _list(geo_rows), hint=True),
-        _section("\U0001F517 Frequency vs Rate", "Do your regulars pay more or less per visit than one-off clients?", freq_html),
-        _section("\U0001F465 Client Group Concentration", "How much of your revenue rides on your formal client groups", gconc_html),
-        _section("\U0001F4B0 Group Premium", "Grouped clients vs standalone ones, average revenue per client", premium_html),
-        _section("\u2696\uFE0F Group Efficiency", "Formal groups ranked by average revenue per event, not total volume", _list(geff_rows)),
+        _section("\U0001F5FA\uFE0F Geographic Expansion", "New cities visited per career month vs your running average", _list(geo_rows), hint="Tap a month to see the cities"),
         _section("\U0001F30D Territory Concentration", "The handful of markets your revenue actually comes from", _list(terr_rows), hint=True),
         _section("\U0001F30E Most Diverse Markets", "Territories with the widest range of distinct clients served", _list(diverse_rows), hint=True),
+        _section("\U0001F517 Frequency vs Rate", "Do your regulars pay more or less per visit than one-off clients?", freq_html),
+        _section("\U0001F465 Client Group Concentration", "How much of your revenue rides on your formal client groups", gconc_html),
+        _section("\u2696\uFE0F Group Efficiency", "Formal groups ranked by average revenue per event, not total volume", _list(geff_rows)),
         _section("\u26A1 Group Momentum", "Revenue, last 30 days vs the 30 before that, by formal client group", _list(mom_rows)),
+        _section("\u26A0\uFE0F At-Risk Clients", "Overdue relative to their own normal rhythm, not a flat cutoff", _list(risk_rows)),
+        _section("\U0001F4B0 Group Premium", "Grouped clients vs standalone ones, average revenue per client", premium_html),
+        _section("\U0001F4C8 Client Rate Trajectory", "First visit's rate vs most recent, per client", _list(traj_rows)),
     ])
 
     html = f"""<!doctype html><html><head><meta charset="utf-8">
@@ -760,6 +833,7 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     .sp-pink{{color:#f9a8d4}}
     .sp-teal{{color:#6ee7b7}}
     .sp-badge.sp-pink{{background:rgba(244,114,182,.14)}}
+    .sp-badge.sp-teal{{background:rgba(110,231,183,.13)}}
     .sp-split-bar{{grid-column:1/-1;height:9px;border-radius:5px;background:rgba(52,211,153,.28);overflow:hidden}}
     .sp-split-new{{height:100%;background:#f472b6;border-radius:5px 0 0 5px}}
     .sp-expand summary{{list-style:none;cursor:pointer;-webkit-tap-highlight-color:transparent}}
@@ -776,6 +850,8 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     .sp-sub:last-child{{border-bottom:none}}
     .sp-sub-label{{font-size:15px;font-weight:600;color:#fff;overflow-wrap:anywhere}}
     .sp-sub-tag{{display:inline-block;margin-left:8px;font-size:11px;font-weight:700;color:#a5b1c7;background:rgba(255,255,255,.07);padding:2px 7px;border-radius:6px;vertical-align:2px}}
+    .sp-cutline{{font-size:12px;font-weight:700;color:#f9a8d4;text-align:center;padding:8px 0;margin:4px 0;border-top:1.5px dashed rgba(244,114,182,.45);border-bottom:1.5px dashed rgba(244,114,182,.45)}}
+    .sp-tail{{opacity:.6}}
     .sp-sub-val{{font-size:14px;font-weight:700;color:#dbe3f0;white-space:nowrap;font-variant-numeric:tabular-nums}}
     .sp-sub-bar{{grid-column:1/-1;height:5px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden}}
     .sp-sub-bar div{{height:100%;background:#7dd3fc;border-radius:3px}}
@@ -787,6 +863,18 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     .sp-stat-lbl{{font-size:12.5px;font-weight:600;color:#a5b1c7;margin-top:8px;line-height:1.3}}
     .sp-cadence-row{{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:16px}}
     .sp-cadence-pill{{background:rgba(255,255,255,.035);border-radius:14px;padding:16px 8px;text-align:center}}
+    button.sp-tap{{font:inherit;color:inherit;border:1px solid rgba(125,211,252,.18);cursor:pointer;position:relative;-webkit-tap-highlight-color:transparent;width:100%}}
+    button.sp-tap:disabled{{cursor:default;opacity:.55;border-color:transparent}}
+    button.sp-tap[aria-expanded="true"]{{border-color:rgba(125,211,252,.6);background:rgba(125,211,252,.08)}}
+    button.sp-tap:focus-visible{{outline:2px solid #7dd3fc;outline-offset:2px}}
+    .sp-tap-chev{{width:9px;height:9px;margin:10px auto 0;border-right:2.5px solid #7dd3fc;border-bottom:2.5px solid #7dd3fc;transform:rotate(45deg);transition:transform .2s ease}}
+    button.sp-tap[aria-expanded="true"] .sp-tap-chev{{transform:rotate(225deg);margin-top:14px}}
+    .sp-panel{{margin-top:12px;background:rgba(125,211,252,.05);border:1px solid rgba(125,211,252,.35);border-radius:13px;padding:2px 14px 12px;animation:spOpen .22s ease}}
+    .sp-panel .sp-drawer-note{{border-top:none}}
+    .sp-avg-strip{{display:flex;align-items:baseline;gap:10px;margin-top:14px;padding:12px 14px;border-radius:12px;background:rgba(125,211,252,.06);border:1px dashed rgba(125,211,252,.25)}}
+    .sp-avg-num{{font-size:26px;font-weight:700;color:#7dd3fc;line-height:1}}
+    .sp-avg-lbl{{font-size:13.5px;font-weight:600;color:#c3cddd}}
+    @media (prefers-reduced-motion:reduce){{.sp-panel{{animation:none}}.sp-tap-chev{{transition:none}}}}
     .sp-cadence-count{{font-size:30px;font-weight:700;color:#7dd3fc;line-height:1}}
     .sp-cadence-label{{font-family:"Bebas Neue",Impact,sans-serif;font-size:18px;letter-spacing:1px;color:#a5b1c7;margin-top:6px}}
     .sp-highlight{{text-align:center;padding:18px 6px 4px}}
@@ -814,6 +902,19 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
         }}catch(e){{}}
       }}
       document.querySelectorAll("details").forEach(function(d){{ d.addEventListener("toggle", fit); }});
+      document.querySelectorAll("button.sp-tap").forEach(function(b){{
+        b.addEventListener("click", function(){{
+          var g = b.dataset.group, open = b.getAttribute("aria-expanded") === "true";
+          document.querySelectorAll('button.sp-tap[data-group="'+g+'"]').forEach(function(o){{ o.setAttribute("aria-expanded","false"); }});
+          document.querySelectorAll('.sp-panel[data-group="'+g+'"]').forEach(function(p){{ p.hidden = true; }});
+          if(!open){{
+            b.setAttribute("aria-expanded","true");
+            var p = document.getElementById(g+"-"+b.dataset.key);
+            if(p) p.hidden = false;
+          }}
+          fit();
+        }});
+      }});
       if(window.ResizeObserver){{ new ResizeObserver(fit).observe(document.getElementById("sp-page")); }}
       window.addEventListener("load", fit);
       if(document.fonts && document.fonts.ready){{ document.fonts.ready.then(fit); }}
