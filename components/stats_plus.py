@@ -392,7 +392,7 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     .sp-list{{display:flex;flex-direction:column;gap:8px}}
     .sp-row{{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.03);border-radius:10px;padding:9px 11px}}
     .sp-row-name{{font-size:12.5px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
-    .sp-row-detail{{font-size:10.5px;color:#94a3b8;flex-shrink:0}}
+    .sp-row-detail{{font-size:13px;font-weight:700;color:#fff;flex-shrink:0}}
     .sp-row-badge{{font-size:11px;font-weight:900;padding:3px 8px;border-radius:8px;flex-shrink:0}}
     .sp-up{{color:#4ade80;background:rgba(74,222,128,.12)}}
     .sp-down{{color:#f87171;background:rgba(248,113,113,.12)}}
