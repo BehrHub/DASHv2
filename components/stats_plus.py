@@ -546,12 +546,12 @@ def _plural(n: int, word: str, plural: str | None = None) -> str:
 # assets/icons/stats-rocket.png; if that file is missing, the plain 🚀 emoji
 # is used instead at 3x size, so nothing breaks either way.
 #
-# Speed matches the Journey car's 3.0x setting on the same 145 px/s base
-# (journey.py speedLevels / basePixelsPerSecond). Change ROCKET_SPEED here.
+# Speed is a multiplier on the Journey car's 145 px/s base
+# (journey.py basePixelsPerSecond). Change ROCKET_SPEED here.
 # ---------------------------------------------------------------------------
 
 ROCKET_BASE_PX_PER_SEC = 145
-ROCKET_SPEED = 3.0
+ROCKET_SPEED = 5.0
 
 
 @lru_cache(maxsize=1)
@@ -972,15 +972,15 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
         _section("\U0001F195 New Client Pace", "New clients acquired per career month vs your running average", pace_avg_html + _list(pace_rows), hint="Tap a month to see who you gained"),
         _section("\U0001F4CA Revenue Concentration", "How exposed you are to your biggest accounts", conc_html, hint="Tap the client count to see the full list"),
         _section("\U0001F331 New vs Repeat Revenue", "Share of each month's revenue from returning clients", _list(nvr_rows)),
-        _section("\U0001F501 Visit Cadence", "Every client classified by their own real visit rhythm", cadence_html, hint="Tap a rhythm to see its clients"),
         _section("\U0001F3C6 Best-Ever 30-Day Stretch", "Any 30 consecutive days, not locked to calendar months", best30_html),
+        _section("\U0001F465 Client Group Concentration", "How much of your revenue rides on your formal client groups", gconc_html),
+        _section("\u26A1 Group Momentum", "Revenue, last 30 days vs the 30 before that, by formal client group", _list(mom_rows)),
         _section("\U0001F5FA\uFE0F Geographic Expansion", "New cities visited per career month vs your running average", _list(geo_rows), hint="Tap a month to see the cities"),
         _section("\U0001F30D Territory Concentration", "The handful of markets your revenue actually comes from", _list(terr_rows), hint=True),
         _section("\U0001F30E Most Diverse Markets", "Territories with the widest range of distinct clients served", _list(diverse_rows), hint=True),
-        _section("\U0001F517 Frequency vs Rate", "Do your regulars pay more or less per visit than one-off clients?", freq_html),
-        _section("\U0001F465 Client Group Concentration", "How much of your revenue rides on your formal client groups", gconc_html),
         _section("\u2696\uFE0F Group Efficiency", "Formal groups ranked by average revenue per event, not total volume", _list(geff_rows)),
-        _section("\u26A1 Group Momentum", "Revenue, last 30 days vs the 30 before that, by formal client group", _list(mom_rows)),
+        _section("\U0001F517 Frequency vs Rate", "Do your regulars pay more or less per visit than one-off clients?", freq_html),
+        _section("\U0001F501 Visit Cadence", "Every client classified by their own real visit rhythm", cadence_html, hint="Tap a rhythm to see its clients"),
         _section("\u26A0\uFE0F At-Risk Clients", "Overdue relative to their own normal rhythm, not a flat cutoff", _list(risk_rows)),
         _section("\U0001F4B0 Group Premium", "Grouped clients vs standalone ones, average revenue per client", premium_html),
         _section("\U0001F4C8 Client Rate Trajectory", "First visit's rate vs most recent, per client", _list(traj_rows)),
