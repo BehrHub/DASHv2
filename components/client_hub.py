@@ -314,31 +314,40 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     # Clients that must always sit directly next to each other in the
     # carousel, regardless of their individual revenue - explicit
     # request, overrides the normal per-tier revenue-descending sort
-    # for just this pair. The pair sorts into its tier by its COMBINED
-    # revenue (so it still lands in a sensible spot among the rest of
-    # the tier), then always in this exact fixed order within the pair.
+    # for just this group. The group sorts into its tier by its
+    # COMBINED revenue (so it still lands in a sensible spot among the
+    # rest of the tier), then always in this exact fixed order within
+    # the group. Generalized from pairs to groups of any size to fit
+    # the Pepsi/Frito-Lay/Walmart/IKEA 4-member sequence below.
     # The senators are no longer listed here - Government's own fixed
     # tier order above already places them correctly, making a separate
-    # pair-override for them redundant.
-    FORCED_ADJACENT_PAIRS = [
-        ("WeWork", "PepsiCo"),
+    # group-override for them redundant.
+    # Frito-Lay and Walmart have no confirmed events yet as of the
+    # 2026-09-20 workbook, so they won't render a card until real
+    # visits exist for them - this ordering is future-proofed so they
+    # snap into this exact position automatically once they do.
+    # WeWork was previously force-paired with PepsiCo; that pairing is
+    # replaced by this group since PepsiCo's forced neighbor is now
+    # Frito-Lay - WeWork reverts to its normal revenue-sorted position.
+    FORCED_ADJACENT_GROUPS = [
+        ("PepsiCo", "Frito-Lay", "Walmart", "IKEA"),
     ]
-    _pair_of: dict[str, tuple[int, int]] = {}
-    for pair_id, pair in enumerate(FORCED_ADJACENT_PAIRS):
-        for pos, name in enumerate(pair):
-            _pair_of[name] = (pair_id, pos)
+    _group_of: dict[str, tuple[int, int]] = {}
+    for group_id, group in enumerate(FORCED_ADJACENT_GROUPS):
+        for pos, name in enumerate(group):
+            _group_of[name] = (group_id, pos)
 
     def _carousel_sort_key(name: str):
         key = str(name)
         tier = _tier_index.get(key, WHATEVER_ELSE_TIER)
         if tier in FIXED_ORDER_TIER_INDICES:
             return (tier, _position_in_tier[key], 0)
-        if key in _pair_of:
-            pair_id, pos_in_pair = _pair_of[key]
+        if key in _group_of:
+            group_id, pos_in_group = _group_of[key]
             combined_revenue = sum(
-                details.get(n, {}).get("total_revenue", 0.0) for n in FORCED_ADJACENT_PAIRS[pair_id]
+                details.get(n, {}).get("total_revenue", 0.0) for n in FORCED_ADJACENT_GROUPS[group_id]
             )
-            return (tier, -combined_revenue, pos_in_pair)
+            return (tier, -combined_revenue, pos_in_group)
         revenue = details.get(key, {}).get("total_revenue", 0.0)
         return (tier, -revenue, 0)
 
