@@ -225,10 +225,14 @@ def _best_rolling_30(confirmed: pd.DataFrame) -> dict:
 
 def _geo_expansion_pace(confirmed: pd.DataFrame) -> list[dict]:
     """New cities visited per CAREER month (not calendar month - same
-    fix and reasoning as _new_client_pace) vs the running average."""
+    fix and reasoning as _new_client_pace) vs the running average.
+    Each row also carries the actual cities first visited that month
+    (with first-visit date and the location group each rolls up to,
+    if any) for the tap-to-reveal drawer."""
     if "Location Detail" not in confirmed.columns:
         return []
     career_start = confirmed["__date"].min()
+    loc_to_group = {m: gname for gname, members in LOCATION_GROUPS.items() for m in members}
     first_seen = confirmed.groupby("Location Detail")["__date"].min()
     labeled = first_seen.map(lambda d: _career_month_label(d, career_start))
     by_month = labeled.value_counts().sort_index()
@@ -236,7 +240,14 @@ def _geo_expansion_pace(confirmed: pd.DataFrame) -> list[dict]:
     rows = []
     for (idx, label), count in by_month.items():
         pct_vs_avg = ((count / avg) - 1) * 100 if avg else 0.0
-        rows.append({"month": label, "count": int(count), "pct_vs_avg": pct_vs_avg})
+        cities = sorted(
+            (
+                {"city": str(city), "first": first_seen[city], "group": loc_to_group.get(city)}
+                for city, lab in labeled.items() if lab[0] == idx
+            ),
+            key=lambda x: x["first"],
+        )
+        rows.append({"month": label, "count": int(count), "pct_vs_avg": pct_vs_avg, "cities": cities})
     return rows
 
 
@@ -345,12 +356,44 @@ def _diverse_markets(confirmed: pd.DataFrame, n: int = 5) -> list[dict]:
     signal than revenue or event volume: a market can be modest in
     dollars but still be where you're building the broadest client
     base. Confirmed real numbers: Rockville-proper leads with 7
-    distinct clients, Washington DC 6, Owings Mills-proper 5."""
+    distinct clients, Washington DC 6, Owings Mills-proper 5.
+    Each row also carries the actual client list (with event counts
+    in that territory) for the tap-to-reveal drawer."""
     loc_to_group = {m: gname for gname, members in LOCATION_GROUPS.items() for m in members}
     tmp = confirmed.copy()
     tmp["__loc_group"] = tmp["Location Detail"].map(loc_to_group).fillna(tmp["Location Detail"])
     diversity = tmp.groupby("__loc_group")["Client"].nunique().sort_values(ascending=False)
-    return [{"name": str(name), "count": int(count)} for name, count in diversity.head(n).items()]
+    rows = []
+    for name, count in diversity.head(n).items():
+        sub = tmp[tmp["__loc_group"] == name]
+        clients = sub.groupby("Client").size().sort_values(ascending=False)
+        rows.append({
+            "name": str(name), "count": int(count), "events": int(len(sub)),
+            "n_cities": int(sub["Location Detail"].nunique()),
+            "clients": [{"client": str(c), "events": int(e)} for c, e in clients.items()],
+        })
+    return rows
+
+
+def _territory_members(confirmed: pd.DataFrame, name: str) -> dict:
+    """Drill-down for one TERRITORY CONCENTRATION row. A formal location
+    group returns its member cities that actually appear in confirmed
+    events, each with revenue and event count. A standalone city has no
+    members to list, so it returns the clients served there instead."""
+    members = LOCATION_GROUPS.get(name)
+    if members:
+        sub = confirmed[confirmed["Location Detail"].isin(members)]
+        by = sub.groupby("Location Detail").agg(rev=("__amount", "sum"), events=("__amount", "size"))
+        by = by.sort_values("rev", ascending=False)
+        return {"kind": "group", "items": [
+            {"label": str(city), "rev": float(r.rev), "events": int(r.events)} for city, r in by.iterrows()
+        ]}
+    sub = confirmed[confirmed["Location Detail"] == name]
+    by = sub.groupby("Client").agg(rev=("__amount", "sum"), events=("__amount", "size"))
+    by = by.sort_values("rev", ascending=False)
+    return {"kind": "standalone", "items": [
+        {"label": str(c), "rev": float(r.rev), "events": int(r.events)} for c, r in by.iterrows()
+    ]}
 
 
 def _group_momentum(confirmed: pd.DataFrame, today: pd.Timestamp, n: int = 4) -> list[dict]:
@@ -382,14 +425,75 @@ def _group_momentum(confirmed: pd.DataFrame, today: pd.Timestamp, n: int = 4) ->
     return rows[:n]
 
 
-def _section(title: str, subtitle: str, body_html: str) -> str:
+# ---------------------------------------------------------------------------
+# Rendering
+#
+# Layout contract for every list row (.sp-row), so every section lines up
+# the same way regardless of how long a name or stat is:
+#   col 1 = name (full width, WRAPS - never truncated)
+#   col 2 = badge (fixed min-width, right-aligned)
+#   col 3 = chevron (only on expandable rows)
+#   line 2 = detail stat, always starting at the same left edge as the name
+# Expandable rows use native <details>/<summary>: opens inline with no
+# Streamlit rerun, no widget state, and no JS required for the toggle itself.
+# ---------------------------------------------------------------------------
+
+def _badge(text: str, tone: str = "up") -> str:
+    return f'<div class="sp-badge sp-{tone}">{escape(text)}</div>'
+
+
+def _row(name: str, badge_html: str = "", detail: str = "", drawer: str = "", extra: str = "") -> str:
+    """detail is pre-escaped HTML (so it can carry <b> emphasis);
+    name is raw text and escaped here."""
+    chevron = '<div class="sp-chev" aria-hidden="true"></div>' if drawer else ""
+    head = (
+        f'<div class="sp-name">{escape(name)}</div>'
+        f'{badge_html}{chevron}'
+        + (f'<div class="sp-detail">{detail}</div>' if detail else "")
+        + extra
+    )
+    if drawer:
+        return (
+            f'<details class="sp-row sp-expand"><summary class="sp-grid">{head}</summary>'
+            f'<div class="sp-drawer">{drawer}</div></details>'
+        )
+    return f'<div class="sp-row"><div class="sp-grid">{head}</div></div>'
+
+
+def _sub_list(items: list[dict], note: str = "") -> str:
+    """Drawer body: a compact list of (label, value, optional tag,
+    optional share bar). items: {label, value, tag?, share?}."""
+    out = [f'<div class="sp-drawer-note">{escape(note)}</div>'] if note else []
+    for it in items:
+        tag = f'<span class="sp-sub-tag">{escape(it["tag"])}</span>' if it.get("tag") else ""
+        bar = (
+            f'<div class="sp-sub-bar"><div style="width:{max(it["share"], 2):.1f}%"></div></div>'
+            if it.get("share") is not None else ""
+        )
+        out.append(
+            f'<div class="sp-sub"><div class="sp-sub-label">{escape(it["label"])}{tag}</div>'
+            f'<div class="sp-sub-val">{escape(it["value"])}</div>{bar}</div>'
+        )
+    return "".join(out)
+
+
+def _section(title: str, subtitle: str, body_html: str, hint: bool = False) -> str:
+    hint_html = '<div class="sp-hint">Tap a row to see who\'s in it</div>' if hint else ""
     return (
-        '<div class="sp-section">'
+        '<section class="sp-section">'
         f'<div class="sp-section-title">{escape(title)}</div>'
         f'<div class="sp-section-sub">{escape(subtitle)}</div>'
-        f'{body_html}'
-        '</div>'
+        f'{hint_html}{body_html}'
+        '</section>'
     )
+
+
+def _list(rows: str) -> str:
+    return f'<div class="sp-list">{rows}</div>'
+
+
+def _plural(n: int, word: str, plural: str | None = None) -> str:
+    return f"{n} {word if n == 1 else (plural or word + 's')}"
 
 
 def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
@@ -400,21 +504,26 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     today = confirmed["__date"].max()
     conv = gross_up if gross_view else (lambda x: x)
 
+    def m(v: float) -> str:
+        return escape(_money(conv(v)))
+
+    n_rows = 0  # counted for the fallback iframe height estimate
+
     # --- 1. Hottest clients ---
     hottest = _hottest_clients(confirmed, today)
+    n_rows += len(hottest)
     hottest_rows = "".join(
-        f'<div class="sp-row"><div class="sp-row-name">{escape(r["client"])}</div>'
-        f'<div class="sp-row-detail">{r["prior"]} \u2192 {r["recent"]} events (last 30d)</div>'
-        f'<div class="sp-row-badge sp-up">+{r["change"]}</div></div>'
+        _row(r["client"], _badge(f'+{r["change"]}'),
+             f'{r["prior"]} \u2192 <b>{r["recent"]}</b> events in the last 30 days')
         for r in hottest
     ) or '<div class="sp-empty">Not enough recent activity yet.</div>'
 
     # --- 2. New client pace ---
     pace = _new_client_pace(confirmed)
+    n_rows += len(pace)
     pace_rows = "".join(
-        f'<div class="sp-row"><div class="sp-row-name">{escape(r["month"])}</div>'
-        f'<div class="sp-row-detail">{r["count"]} new (avg {r["avg"]}/mo)</div>'
-        f'<div class="sp-row-badge {"sp-up" if r["pct_vs_avg"] >= 0 else "sp-down"}">{r["pct_vs_avg"]:+.0f}%</div></div>'
+        _row(r["month"], _badge(f'{r["pct_vs_avg"]:+.0f}%', "up" if r["pct_vs_avg"] >= 0 else "down"),
+             f'<b>{_plural(r["count"], "new client")}</b> \u00b7 avg {r["avg"]} per month')
         for r in pace
     )
 
@@ -422,37 +531,42 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     conc = _revenue_concentration(confirmed)
     conc_html = (
         '<div class="sp-stat-pair">'
-        f'<div class="sp-stat"><div class="sp-stat-val">{conc["n_for_80"]} of {conc["total_clients"]}</div>'
-        '<div class="sp-stat-lbl">CLIENTS DRIVE 80% OF REVENUE</div></div>'
+        f'<div class="sp-stat"><div class="sp-stat-val">{conc["n_for_80"]}<span class="sp-stat-of"> of {conc["total_clients"]}</span></div>'
+        '<div class="sp-stat-lbl">Clients drive 80% of revenue</div></div>'
         f'<div class="sp-stat"><div class="sp-stat-val">{conc["top_client_pct"]:.1f}%</div>'
-        f'<div class="sp-stat-lbl">FROM {escape(conc["top_client"].upper())} ALONE</div></div>'
+        f'<div class="sp-stat-lbl">From {escape(conc["top_client"])} alone</div></div>'
         '</div>'
     )
 
     # --- 4. At-risk clients ---
     at_risk = _at_risk_clients(confirmed, today)
+    n_rows += len(at_risk)
     risk_rows = "".join(
-        f'<div class="sp-row"><div class="sp-row-name">{escape(r["client"])}</div>'
-        f'<div class="sp-row-detail">usually every {r["median_gap"]:.0f}d, now {r["days_since_last"]}d silent</div>'
-        f'<div class="sp-row-badge sp-down">{r["ratio"]:.1f}x</div></div>'
+        _row(r["client"], _badge(f'{r["ratio"]:.1f}x', "down"),
+             f'Usually every {r["median_gap"]:.0f}d \u00b7 now <b>{r["days_since_last"]}d silent</b>')
         for r in at_risk
     ) or '<div class="sp-empty">Nothing overdue right now.</div>'
 
     # --- 5. New vs repeat revenue ---
     nvr = _new_vs_repeat_revenue(confirmed, today)
+    n_rows += len(nvr) + 1
     nvr_rows = "".join(
-        f'<div class="sp-row"><div class="sp-row-name">{escape(r["month"])}</div>'
-        f'<div class="sp-split-bar"><div class="sp-split-new" style="width:{r["new_pct"]:.1f}%"></div></div>'
-        f'<div class="sp-row-detail">{escape(_money(conv(r["new_rev"])))} new / {escape(_money(conv(r["repeat_rev"])))} repeat</div></div>'
+        _row(
+            r["month"], _badge(f'{r["new_pct"]:.0f}% new', "pink"),
+            f'<span class="sp-pink">{m(r["new_rev"])} new</span> \u00b7 '
+            f'<span class="sp-teal">{m(r["repeat_rev"])} repeat</span>',
+            extra=(f'<div class="sp-split-bar"><div class="sp-split-new" '
+                   f'style="width:{r["new_pct"]:.1f}%"></div></div>'),
+        )
         for r in nvr
     )
 
     # --- 6. Lifetime trajectory ---
     traj = _lifetime_trajectory(confirmed)
+    n_rows += len(traj)
     traj_rows = "".join(
-        f'<div class="sp-row"><div class="sp-row-name">{escape(r["client"])}</div>'
-        f'<div class="sp-row-detail">{escape(_money(conv(r["first_rate"])))} \u2192 {escape(_money(conv(r["last_rate"])))} /event</div>'
-        f'<div class="sp-row-badge {"sp-up" if r["pct_change"] >= 0 else "sp-down"}">{r["pct_change"]:+.0f}%</div></div>'
+        _row(r["client"], _badge(f'{r["pct_change"]:+.0f}%', "up" if r["pct_change"] >= 0 else "down"),
+             f'{m(r["first_rate"])} \u2192 <b>{m(r["last_rate"])}</b> per event \u00b7 {r["visits"]} visits')
         for r in traj
     ) or '<div class="sp-empty">Not enough repeat history yet.</div>'
 
@@ -460,7 +574,7 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     cadence = _cadence_classification(confirmed)
     cadence_html = "".join(
         f'<div class="sp-cadence-pill"><div class="sp-cadence-count">{len(members)}</div>'
-        f'<div class="sp-cadence-label">{escape(label.upper())}</div></div>'
+        f'<div class="sp-cadence-label">{escape(label)}</div></div>'
         for label, members in cadence.items()
     )
 
@@ -468,22 +582,28 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     best30 = _best_rolling_30(confirmed)
     if best30["start"] is not None:
         is_current = best30["end"].normalize() == today.normalize()
+        now_tag = '<div class="sp-now">That\'s right now</div>' if is_current else ""
         best30_html = (
             '<div class="sp-highlight">'
-            f'<div class="sp-highlight-val">{escape(_money(conv(best30["revenue"])))}</div>'
-            f'<div class="sp-highlight-sub">{best30["start"].strftime("%b %d")} \u2013 {best30["end"].strftime("%b %d")}'
-            f'{" \u2014 that\'s RIGHT NOW" if is_current else ""}</div>'
-            '</div>'
+            f'<div class="sp-highlight-val">{m(best30["revenue"])}</div>'
+            f'<div class="sp-highlight-sub">{best30["start"].strftime("%b %d")} \u2013 {best30["end"].strftime("%b %d")}</div>'
+            f'{now_tag}</div>'
         )
     else:
         best30_html = '<div class="sp-empty">Not enough history yet (need 30+ days worked).</div>'
 
-    # --- 9. Geographic expansion ---
+    # --- 9. Geographic expansion (expandable: cities introduced that month) ---
     geo = _geo_expansion_pace(confirmed)
+    n_rows += len(geo)
     geo_rows = "".join(
-        f'<div class="sp-row"><div class="sp-row-name">{escape(r["month"])}</div>'
-        f'<div class="sp-row-detail">{r["count"]} new cities</div>'
-        f'<div class="sp-row-badge {"sp-up" if r["pct_vs_avg"] >= 0 else "sp-down"}">{r["pct_vs_avg"]:+.0f}%</div></div>'
+        _row(
+            r["month"], _badge(f'{r["pct_vs_avg"]:+.0f}%', "up" if r["pct_vs_avg"] >= 0 else "down"),
+            f'<b>{_plural(r["count"], "new city", "new cities")}</b>',
+            drawer=_sub_list([
+                {"label": c["city"], "value": c["first"].strftime("%b %d"), "tag": c["group"]}
+                for c in r["cities"]
+            ], note="First visited"),
+        )
         for r in geo
     )
 
@@ -492,11 +612,16 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     if freq["correlation"] is not None:
         c = freq["correlation"]
         strength = "strong" if abs(c) > 0.5 else ("weak" if abs(c) > 0.2 else "no real")
-        direction = "MORE" if c > 0 else "LESS"
+        direction = "more" if c > 0 else "less"
+        if strength == "no real":
+            freq_sub = "No real relationship \u2014 frequent clients pay about the same per event as occasional ones."
+        else:
+            freq_sub = (f"A {strength} relationship \u2014 your more frequent clients tend to pay "
+                        f"{direction} per event.")
         freq_html = (
             '<div class="sp-highlight">'
             f'<div class="sp-highlight-val">{c:+.2f}</div>'
-            f'<div class="sp-highlight-sub">A {strength} relationship \u2014 your more frequent clients tend to pay {direction} per event, not the opposite.</div>'
+            f'<div class="sp-highlight-sub">{freq_sub}</div>'
             '</div>'
         )
     else:
@@ -511,9 +636,10 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     gconc_html = (
         '<div class="sp-stat-pair">'
         f'<div class="sp-stat"><div class="sp-stat-val">{gconc["group_rev_pct"]:.1f}%</div>'
-        f'<div class="sp-stat-lbl">OF REVENUE FROM {gconc["n_groups"]} FORMAL GROUPS ({gconc["grouped_clients"]} OF {gconc["total_clients"]} CLIENTS)</div></div>'
-        f'<div class="sp-stat"><div class="sp-stat-val">TOP {gconc["top_n"]}</div>'
-        f'<div class="sp-stat-lbl">GROUPS/CLIENTS = {gconc["top_n_pct"]:.0f}% OF REVENUE</div></div>'
+        f'<div class="sp-stat-lbl">Of revenue from {gconc["n_groups"]} formal groups '
+        f'({gconc["grouped_clients"]} of {gconc["total_clients"]} clients)</div></div>'
+        f'<div class="sp-stat"><div class="sp-stat-val">Top {gconc["top_n"]}</div>'
+        f'<div class="sp-stat-lbl">Groups/clients = {gconc["top_n_pct"]:.0f}% of revenue</div></div>'
         '</div>'
     )
 
@@ -522,9 +648,9 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     if premium:
         premium_html = (
             '<div class="sp-highlight">'
-            f'<div class="sp-highlight-val">{premium["premium_pct"]:+.0f}%</div>'
-            f'<div class="sp-highlight-sub">Grouped clients average {escape(_money(conv(premium["grouped_avg"])))}/client vs '
-            f'{escape(_money(conv(premium["standalone_avg"])))} for standalone ones.</div>'
+            f'<div class="sp-highlight-val{"" if premium["premium_pct"] >= 0 else " sp-neg"}">{premium["premium_pct"]:+.0f}%</div>'
+            f'<div class="sp-highlight-sub">Grouped clients average <b>{m(premium["grouped_avg"])}</b> per client vs '
+            f'<b>{m(premium["standalone_avg"])}</b> for standalone ones.</div>'
             '</div>'
         )
     else:
@@ -532,95 +658,172 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
 
     # --- 13. Group efficiency (avg $/event) ---
     geff = _group_efficiency(client_rank)
+    n_rows += len(geff)
     geff_rows = "".join(
-        f'<div class="sp-row"><div class="sp-row-name">{escape(r["name"])}</div>'
-        f'<div class="sp-row-detail">{r["events"]} events</div>'
-        f'<div class="sp-row-badge sp-up">{escape(_money(conv(r["avg"])))}/evt</div></div>'
+        _row(r["name"], _badge(f'{_money(conv(r["avg"]))}/evt'), f'{_plural(r["events"], "event")}')
         for r in geff
     ) or '<div class="sp-empty">No group event data yet.</div>'
 
-    # --- 14. Territory concentration ---
+    # --- 14. Territory concentration (expandable: member cities / clients) ---
     tconc = _territory_concentration(loc_rank)
-    terr_rows = "".join(
-        f'<div class="sp-row"><div class="sp-row-name">{escape(r["name"])}</div>'
-        f'<div class="sp-row-detail">cumulative {r["cum_pct"]:.0f}%</div>'
-        f'<div class="sp-row-badge sp-up">{escape(_money(conv(r["revenue"])))}</div></div>'
-        for r in tconc["top"]
-    ) or '<div class="sp-empty">No location revenue yet.</div>'
+    n_rows += len(tconc["top"])
+    terr_parts = []
+    for r in tconc["top"]:
+        own_pct = r["revenue"] / tconc["total_rev"] * 100 if tconc["total_rev"] else 0.0
+        mem = _territory_members(confirmed, r["name"])
+        mem_total = sum(i["rev"] for i in mem["items"]) or 1.0
+        drawer = _sub_list(
+            [{"label": i["label"], "value": f'{_money(conv(i["rev"]))} \u00b7 {_plural(i["events"], "evt")}',
+              "share": i["rev"] / mem_total * 100} for i in mem["items"]],
+            note=("Member cities" if mem["kind"] == "group" else "Standalone city \u2014 clients served here"),
+        ) if mem["items"] else '<div class="sp-drawer-note">No member detail found.</div>'
+        terr_parts.append(_row(
+            r["name"], _badge(_money(conv(r["revenue"]))),
+            f'<b>{own_pct:.0f}%</b> of revenue \u00b7 {r["cum_pct"]:.0f}% running total',
+            drawer=drawer,
+        ))
+    terr_rows = "".join(terr_parts) or '<div class="sp-empty">No location revenue yet.</div>'
 
-    # --- 15. Most diverse markets ---
+    # --- 15. Most diverse markets (expandable: the clients themselves) ---
     diverse = _diverse_markets(confirmed)
+    n_rows += len(diverse)
     diverse_rows = "".join(
-        f'<div class="sp-row"><div class="sp-row-name">{escape(r["name"])}</div>'
-        f'<div class="sp-row-badge sp-up">{r["count"]} clients</div></div>'
+        _row(
+            r["name"], _badge(_plural(r["count"], "client")),
+            _plural(r["events"], "event")
+            + (f' across {_plural(r["n_cities"], "city", "cities")}' if r["name"] in LOCATION_GROUPS else ""),
+            drawer=_sub_list(
+                [{"label": c["client"], "value": _plural(c["events"], "evt")} for c in r["clients"]],
+                note="Clients served here",
+            ),
+        )
         for r in diverse
     ) or '<div class="sp-empty">Not enough location data yet.</div>'
 
     # --- 16. Group momentum ---
     mom = _group_momentum(confirmed, today)
+    n_rows += len(mom)
     mom_rows = "".join(
-        f'<div class="sp-row"><div class="sp-row-name">{escape(r["name"])}</div>'
-        f'<div class="sp-row-detail">{escape(_money(conv(r["prior"])))} \u2192 {escape(_money(conv(r["recent"])))} (30d vs prior 30d)</div>'
-        f'<div class="sp-row-badge {"sp-up" if r["delta"] >= 0 else "sp-down"}">{escape(_money(conv(abs(r["delta"]))))} {"up" if r["delta"] >= 0 else "down"}</div></div>'
+        _row(
+            r["name"],
+            _badge(f'{_money(conv(abs(r["delta"])))} {"up" if r["delta"] >= 0 else "down"}',
+                   "up" if r["delta"] >= 0 else "down"),
+            f'{m(r["prior"])} \u2192 <b>{m(r["recent"])}</b>',
+        )
         for r in mom
     ) or '<div class="sp-empty">Not enough group history yet.</div>'
 
     body = "".join([
-        _section("\U0001F525 HOTTEST CLIENTS", "Biggest jump, last 30 days vs the 30 before that", f'<div class="sp-list">{hottest_rows}</div>'),
-        _section("\U0001F195 NEW CLIENT PACE", "New clients acquired per month vs your running average", f'<div class="sp-list">{pace_rows}</div>'),
-        _section("\U0001F4CA REVENUE CONCENTRATION", "How exposed you are to your biggest accounts", conc_html),
-        _section("\u26A0\uFE0F AT-RISK CLIENTS", "Overdue relative to their OWN normal rhythm, not a flat cutoff", f'<div class="sp-list">{risk_rows}</div>'),
-        _section("\U0001F331 NEW VS REPEAT REVENUE", "Growth from new clients vs retention of existing ones", f'<div class="sp-list">{nvr_rows}</div>'),
-        _section("\U0001F4C8 CLIENT RATE TRAJECTORY", "First visit's rate vs most recent, per client", f'<div class="sp-list">{traj_rows}</div>'),
-        _section("\U0001F501 VISIT CADENCE", "Every client classified by their own real visit rhythm", f'<div class="sp-cadence-row">{cadence_html}</div>'),
-        _section("\U0001F3C6 BEST-EVER 30-DAY STRETCH", "Any 30 consecutive days, not locked to calendar months", best30_html),
-        _section("\U0001F5FA\uFE0F GEOGRAPHIC EXPANSION", "New cities visited per month vs your running average", f'<div class="sp-list">{geo_rows}</div>'),
-        _section("\U0001F517 FREQUENCY vs RATE", "Do your regulars pay more or less per visit than one-off clients?", freq_html),
-        _section("\U0001F465 CLIENT GROUP CONCENTRATION", "How much of your revenue rides on your formal client groups", gconc_html),
-        _section("\U0001F4B0 GROUP PREMIUM", "Grouped clients vs standalone ones, average revenue per client", premium_html),
-        _section("\u2696\uFE0F GROUP EFFICIENCY", "Formal groups ranked by average revenue per event, not total volume", f'<div class="sp-list">{geff_rows}</div>'),
-        _section("\U0001F30D TERRITORY CONCENTRATION", "The handful of markets your revenue actually comes from", f'<div class="sp-list">{terr_rows}</div>'),
-        _section("\U0001F30E MOST DIVERSE MARKETS", "Territories with the widest range of distinct clients served", f'<div class="sp-list">{diverse_rows}</div>'),
-        _section("\U0001F4C9 GROUP MOMENTUM", "Last 30 days vs the 30 before that, by formal client group", f'<div class="sp-list">{mom_rows}</div>'),
+        _section("\U0001F525 Hottest Clients", "Biggest jump, last 30 days vs the 30 before that", _list(hottest_rows)),
+        _section("\U0001F195 New Client Pace", "New clients acquired per career month vs your running average", _list(pace_rows)),
+        _section("\U0001F4CA Revenue Concentration", "How exposed you are to your biggest accounts", conc_html),
+        _section("\u26A0\uFE0F At-Risk Clients", "Overdue relative to their own normal rhythm, not a flat cutoff", _list(risk_rows)),
+        _section("\U0001F331 New vs Repeat Revenue", "Growth from new clients vs retention of existing ones", _list(nvr_rows)),
+        _section("\U0001F4C8 Client Rate Trajectory", "First visit's rate vs most recent, per client", _list(traj_rows)),
+        _section("\U0001F501 Visit Cadence", "Every client classified by their own real visit rhythm", f'<div class="sp-cadence-row">{cadence_html}</div>'),
+        _section("\U0001F3C6 Best-Ever 30-Day Stretch", "Any 30 consecutive days, not locked to calendar months", best30_html),
+        _section("\U0001F5FA\uFE0F Geographic Expansion", "New cities visited per career month vs your running average", _list(geo_rows), hint=True),
+        _section("\U0001F517 Frequency vs Rate", "Do your regulars pay more or less per visit than one-off clients?", freq_html),
+        _section("\U0001F465 Client Group Concentration", "How much of your revenue rides on your formal client groups", gconc_html),
+        _section("\U0001F4B0 Group Premium", "Grouped clients vs standalone ones, average revenue per client", premium_html),
+        _section("\u2696\uFE0F Group Efficiency", "Formal groups ranked by average revenue per event, not total volume", _list(geff_rows)),
+        _section("\U0001F30D Territory Concentration", "The handful of markets your revenue actually comes from", _list(terr_rows), hint=True),
+        _section("\U0001F30E Most Diverse Markets", "Territories with the widest range of distinct clients served", _list(diverse_rows), hint=True),
+        _section("\u26A1 Group Momentum", "Revenue, last 30 days vs the 30 before that, by formal client group", _list(mom_rows)),
     ])
 
     html = f"""<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
-    *{{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}}
-    html,body{{width:100%;background:transparent;color:#fff}}
-    .sp-page{{padding:4px 2px 24px}}
-    .sp-title{{font-size:20px;font-weight:900;letter-spacing:.5px;margin-bottom:2px}}
-    .sp-subtitle{{font-size:11px;color:#94a3b8;margin-bottom:18px}}
-    .sp-section{{background:rgba(15,20,32,.4);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:16px;margin-bottom:14px}}
-    .sp-section-title{{font-size:13.5px;font-weight:800;letter-spacing:.3px}}
-    .sp-section-sub{{font-size:10.5px;color:#7d8aa3;margin-top:2px;margin-bottom:12px}}
-    .sp-list{{display:flex;flex-direction:column;gap:8px}}
-    .sp-row{{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.03);border-radius:10px;padding:9px 11px}}
-    .sp-row-name{{font-size:12.5px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
-    .sp-row-detail{{font-size:13px;font-weight:700;color:#fff;flex-shrink:0}}
-    .sp-row-badge{{font-size:11px;font-weight:900;padding:3px 8px;border-radius:8px;flex-shrink:0}}
-    .sp-up{{color:#4ade80;background:rgba(74,222,128,.12)}}
-    .sp-down{{color:#f87171;background:rgba(248,113,113,.12)}}
-    .sp-empty{{font-size:11px;color:#64748b;padding:8px 0;text-align:center}}
-    .sp-stat-pair{{display:flex;gap:10px}}
-    .sp-stat{{flex:1;background:rgba(255,255,255,.03);border-radius:12px;padding:14px;text-align:center}}
-    .sp-stat-val{{font-size:20px;font-weight:900;color:#f472b6}}
-    .sp-stat-lbl{{font-size:9px;font-weight:800;color:#94a3b8;letter-spacing:.3px;margin-top:4px}}
-    .sp-split-bar{{flex:1;height:8px;border-radius:4px;background:rgba(52,211,153,.25);overflow:hidden}}
-    .sp-split-new{{height:100%;background:#f472b6}}
-    .sp-cadence-row{{display:flex;gap:8px;flex-wrap:wrap}}
-    .sp-cadence-pill{{flex:1;min-width:70px;background:rgba(255,255,255,.03);border-radius:12px;padding:12px 6px;text-align:center}}
-    .sp-cadence-count{{font-size:18px;font-weight:900;color:#7dd3fc}}
-    .sp-cadence-label{{font-size:8.5px;font-weight:800;color:#94a3b8;letter-spacing:.3px;margin-top:2px}}
-    .sp-highlight{{text-align:center;padding:10px 0}}
-    .sp-highlight-val{{font-size:26px;font-weight:900;color:#34d399}}
-    .sp-highlight-sub{{font-size:11px;color:#94a3b8;margin-top:6px}}
+    *{{box-sizing:border-box;margin:0;padding:0}}
+    html,body{{width:100%;background:transparent;color:#fff;overflow-x:hidden}}
+    body{{font-family:"Space Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}}
+    .sp-page{{padding:6px 2px 28px}}
+    .sp-title{{font-family:"Bebas Neue",Impact,sans-serif;font-size:34px;letter-spacing:1.5px;line-height:1}}
+    .sp-subtitle{{font-size:13px;color:#a5b1c7;margin:4px 0 22px}}
+    .sp-section{{background:linear-gradient(180deg,rgba(22,30,48,.55),rgba(12,17,28,.55));border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:20px 16px 18px;margin-bottom:18px}}
+    .sp-section-title{{font-family:"Bebas Neue",Impact,sans-serif;font-size:24px;letter-spacing:1.2px;line-height:1.05}}
+    .sp-section-sub{{font-size:13px;color:#a5b1c7;margin-top:5px;line-height:1.35}}
+    .sp-hint{{font-size:11.5px;color:#7dd3fc;margin-top:6px;font-weight:600}}
+    .sp-list{{display:flex;flex-direction:column;gap:10px;margin-top:16px}}
+    .sp-row{{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.04);border-radius:13px}}
+    .sp-grid{{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;row-gap:6px;align-items:center;padding:13px 14px}}
+    .sp-expand .sp-grid{{grid-template-columns:minmax(0,1fr) auto 18px}}
+    .sp-name{{font-family:"Bebas Neue",Impact,sans-serif;font-size:21px;letter-spacing:.8px;line-height:1.1;overflow-wrap:anywhere}}
+    .sp-detail{{grid-column:1/-1;font-size:14.5px;font-weight:500;color:#dbe3f0;line-height:1.35}}
+    .sp-detail b{{font-weight:700;color:#fff}}
+    .sp-badge{{justify-self:end;min-width:84px;text-align:center;font-size:14px;font-weight:700;padding:5px 10px;border-radius:9px;white-space:nowrap;font-variant-numeric:tabular-nums}}
+    .sp-up{{color:#4ade80;background:rgba(74,222,128,.13)}}
+    .sp-down{{color:#f87171;background:rgba(248,113,113,.13)}}
+    .sp-pink{{color:#f9a8d4}}
+    .sp-teal{{color:#6ee7b7}}
+    .sp-badge.sp-pink{{background:rgba(244,114,182,.14)}}
+    .sp-split-bar{{grid-column:1/-1;height:9px;border-radius:5px;background:rgba(52,211,153,.28);overflow:hidden}}
+    .sp-split-new{{height:100%;background:#f472b6;border-radius:5px 0 0 5px}}
+    .sp-expand summary{{list-style:none;cursor:pointer;-webkit-tap-highlight-color:transparent}}
+    .sp-expand summary::-webkit-details-marker{{display:none}}
+    .sp-chev{{width:10px;height:10px;border-right:2.5px solid #7dd3fc;border-bottom:2.5px solid #7dd3fc;transform:rotate(45deg) translate(-2px,-2px);transition:transform .2s ease;justify-self:center}}
+    .sp-expand[open] .sp-chev{{transform:rotate(225deg) translate(-2px,-2px)}}
+    .sp-expand[open]{{border-color:rgba(125,211,252,.35);background:rgba(125,211,252,.05)}}
+    .sp-expand summary:focus-visible{{outline:2px solid #7dd3fc;outline-offset:-2px;border-radius:13px}}
+    .sp-drawer{{padding:2px 14px 14px;animation:spOpen .22s ease}}
+    @keyframes spOpen{{from{{opacity:0;transform:translateY(-4px)}}to{{opacity:1;transform:none}}}}
+    @media (prefers-reduced-motion:reduce){{.sp-drawer{{animation:none}}.sp-chev{{transition:none}}}}
+    .sp-drawer-note{{font-size:11.5px;font-weight:700;color:#7dd3fc;letter-spacing:.4px;text-transform:uppercase;padding:10px 0 6px;border-top:1px solid rgba(255,255,255,.08)}}
+    .sp-sub{{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:10px;row-gap:5px;align-items:baseline;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05)}}
+    .sp-sub:last-child{{border-bottom:none}}
+    .sp-sub-label{{font-size:15px;font-weight:600;color:#fff;overflow-wrap:anywhere}}
+    .sp-sub-tag{{display:inline-block;margin-left:8px;font-size:11px;font-weight:700;color:#a5b1c7;background:rgba(255,255,255,.07);padding:2px 7px;border-radius:6px;vertical-align:2px}}
+    .sp-sub-val{{font-size:14px;font-weight:700;color:#dbe3f0;white-space:nowrap;font-variant-numeric:tabular-nums}}
+    .sp-sub-bar{{grid-column:1/-1;height:5px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden}}
+    .sp-sub-bar div{{height:100%;background:#7dd3fc;border-radius:3px}}
+    .sp-empty{{font-size:13px;color:#8391a8;padding:14px 0 4px;text-align:center}}
+    .sp-stat-pair{{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}}
+    .sp-stat{{background:rgba(255,255,255,.035);border-radius:14px;padding:18px 12px;text-align:center;display:flex;flex-direction:column;justify-content:center}}
+    .sp-stat-val{{font-size:30px;font-weight:700;color:#f472b6;line-height:1.05}}
+    .sp-stat-of{{font-size:17px;color:#f9a8d4}}
+    .sp-stat-lbl{{font-size:12.5px;font-weight:600;color:#a5b1c7;margin-top:8px;line-height:1.3}}
+    .sp-cadence-row{{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:16px}}
+    .sp-cadence-pill{{background:rgba(255,255,255,.035);border-radius:14px;padding:16px 8px;text-align:center}}
+    .sp-cadence-count{{font-size:30px;font-weight:700;color:#7dd3fc;line-height:1}}
+    .sp-cadence-label{{font-family:"Bebas Neue",Impact,sans-serif;font-size:18px;letter-spacing:1px;color:#a5b1c7;margin-top:6px}}
+    .sp-highlight{{text-align:center;padding:18px 6px 4px}}
+    .sp-highlight-val{{font-size:40px;font-weight:700;color:#34d399;line-height:1}}
+    .sp-highlight-val.sp-neg{{color:#f87171}}
+    .sp-highlight-sub{{font-size:14px;color:#c3cddd;margin-top:10px;line-height:1.4}}
+    .sp-highlight-sub b{{color:#fff}}
+    .sp-now{{display:inline-block;margin-top:10px;font-size:12px;font-weight:700;color:#34d399;background:rgba(52,211,153,.13);padding:4px 10px;border-radius:8px}}
+    @media (min-width:700px){{.sp-cadence-row{{grid-template-columns:repeat(4,1fr)}}}}
     </style></head><body>
-    <div class="sp-page">
+    <div class="sp-page" id="sp-page">
     <div class="sp-title">STATS+</div>
     <div class="sp-subtitle">Deeper patterns your other tabs don't surface on their own</div>
     {body}
     </div>
+    <script>
+    (function(){{
+      function fit(){{
+        try{{
+          var f = window.frameElement;
+          if(!f) return;
+          var h = document.getElementById("sp-page").getBoundingClientRect().height + 16;
+          f.style.height = h + "px";
+          f.setAttribute("height", Math.ceil(h));
+        }}catch(e){{}}
+      }}
+      document.querySelectorAll("details").forEach(function(d){{ d.addEventListener("toggle", fit); }});
+      if(window.ResizeObserver){{ new ResizeObserver(fit).observe(document.getElementById("sp-page")); }}
+      window.addEventListener("load", fit);
+      if(document.fonts && document.fonts.ready){{ document.fonts.ready.then(fit); }}
+      fit();
+    }})();
+    </script>
     </body></html>"""
 
-    components.html(html, height=2350, scrolling=True)
+    # Fallback height if the frame can't resize itself (JS above is the
+    # primary mechanism). Generous per-row estimate + fixed blocks; any
+    # overflow from an opened drawer still scrolls inside the frame.
+    est_height = 16 * 110 + n_rows * 92 + 6 * 150 + 200
+    components.html(html, height=max(est_height, 3200), scrolling=True)
