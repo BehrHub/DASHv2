@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import base64
+from functools import lru_cache
 from html import escape
+from pathlib import Path
 
 import pandas as pd
 import streamlit.components.v1 as components
@@ -534,6 +537,184 @@ def _plural(n: int, word: str, plural: str | None = None) -> str:
     return f"{n} {word if n == 1 else (plural or word + 's')}"
 
 
+# ---------------------------------------------------------------------------
+# Back-to-top rocket
+#
+# Same idea as the Journey page's race car: a glowing 🔝 button at the very
+# bottom launches a rocket that flies up the page and carries the view with
+# it. The Genmoji rocket lives next to the Journey car at
+# assets/icons/stats-rocket.png; if that file is missing, the plain 🚀 emoji
+# is used instead at 3x size, so nothing breaks either way.
+#
+# Speed matches the Journey car's 3.0x setting on the same 145 px/s base
+# (journey.py speedLevels / basePixelsPerSecond). Change ROCKET_SPEED here.
+# ---------------------------------------------------------------------------
+
+ROCKET_BASE_PX_PER_SEC = 145
+ROCKET_SPEED = 3.0
+
+
+@lru_cache(maxsize=1)
+def _rocket_data_uri() -> str | None:
+    path = Path(__file__).resolve().parent.parent / "assets" / "icons" / "stats-rocket.png"
+    try:
+        return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
+    except OSError:
+        return None
+
+
+def _rocket_html() -> str:
+    uri = _rocket_data_uri()
+    art = (
+        f'<img class="sp-rocket-art" src="{uri}" alt="">' if uri
+        else '<span class="sp-rocket-art sp-rocket-emoji">\U0001F680</span>'
+    )
+    return (
+        '<div class="sp-launch">'
+        '<button id="sp-launch-btn" class="sp-launch-btn" type="button" aria-label="Back to top">\U0001F51D</button>'
+        '<div class="sp-launch-lbl">Back to top</div>'
+        '</div>'
+        f'<div id="sp-trail" class="sp-trail" aria-hidden="true"></div>'
+        f'<div id="sp-rocket" class="sp-rocket" aria-hidden="true">{art}</div>'
+    )
+
+
+ROCKET_CSS = """
+.sp-page{position:relative}
+.sp-launch{display:flex;flex-direction:column;align-items:center;gap:10px;padding:26px 0 10px}
+.sp-launch-btn{width:72px;height:72px;border-radius:50%;font-size:32px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;
+  background:radial-gradient(circle at 50% 38%,rgba(125,211,252,.28),rgba(15,23,42,.95) 70%);border:2px solid rgba(125,211,252,.7);
+  animation:spGlow 2.2s ease-out infinite;-webkit-tap-highlight-color:transparent;transition:transform .25s ease,opacity .25s ease}
+.sp-launch-btn:active{transform:scale(.93)}
+.sp-launch-btn:focus-visible{outline:2px solid #fff;outline-offset:4px}
+.sp-launch-btn.is-launched{opacity:0;transform:scale(.4);pointer-events:none}
+.sp-launch-lbl{font-family:"Bebas Neue",Impact,sans-serif;font-size:17px;letter-spacing:1.4px;color:#7dd3fc}
+@keyframes spGlow{
+  0%{box-shadow:0 0 0 0 rgba(125,211,252,.55),0 0 18px rgba(125,211,252,.35)}
+  70%{box-shadow:0 0 0 18px rgba(125,211,252,0),0 0 26px rgba(125,211,252,.5)}
+  100%{box-shadow:0 0 0 0 rgba(125,211,252,0),0 0 18px rgba(125,211,252,.35)}}
+.sp-rocket{position:absolute;left:50%;top:0;width:96px;height:96px;margin-left:-48px;z-index:50;pointer-events:none;opacity:0;will-change:transform}
+.sp-rocket.is-live{opacity:1}
+.sp-rocket-art{display:block;width:100%;height:100%;object-fit:contain;transform:rotate(-45deg);
+  filter:drop-shadow(0 0 10px rgba(255,150,60,.55))}
+.sp-rocket-emoji{font-size:60px;line-height:96px;text-align:center}
+.sp-rocket.is-igniting .sp-rocket-art{animation:spShake .07s linear infinite}
+.sp-rocket.is-flying .sp-rocket-art{animation:spFlicker .12s ease-in-out infinite alternate}
+@keyframes spShake{0%{transform:rotate(-45deg) translate(1.5px,0)}50%{transform:rotate(-45deg) translate(-1.5px,1px)}100%{transform:rotate(-45deg) translate(0,-1px)}}
+@keyframes spFlicker{from{filter:drop-shadow(0 0 8px rgba(255,150,60,.45))}to{filter:drop-shadow(0 0 16px rgba(255,190,80,.8))}}
+.sp-trail{position:absolute;left:50%;top:0;width:10px;margin-left:-5px;height:0;z-index:49;pointer-events:none;opacity:0;border-radius:6px;
+  background:linear-gradient(to bottom,rgba(255,210,120,.85),rgba(255,120,40,.45) 35%,rgba(255,80,30,0));filter:blur(3px)}
+.sp-trail.is-live{opacity:1;transition:opacity .4s ease}
+@media (prefers-reduced-motion:reduce){.sp-launch-btn{animation:none}}
+"""
+
+ROCKET_JS = """
+(function(){
+  var SPEED = __SPEED__;                       // px per second at full thrust
+  var btn = document.getElementById("sp-launch-btn");
+  var rocket = document.getElementById("sp-rocket");
+  var trail = document.getElementById("sp-trail");
+  var page = document.getElementById("sp-page");
+  if(!btn || !rocket || !page) return;
+  var H = 96, TRAIL = 240, flying = false, rafId = null;
+
+  // Parent-page scroller: same lookup the Journey car uses.
+  var pdoc = null, pwin = null, frame = null;
+  try { pwin = window.parent; pdoc = pwin.document; frame = window.frameElement; } catch(e) {}
+  function scroller(){
+    if(!pdoc) return null;
+    return pdoc.querySelector('[data-testid="stMain"]') || pdoc.scrollingElement || pdoc.documentElement;
+  }
+  function isDocScroller(s){ return s === pdoc.scrollingElement || s === pdoc.documentElement || s === pdoc.body; }
+  function getTop(s){ return isDocScroller(s) ? (pwin.scrollY || pdoc.documentElement.scrollTop || 0) : s.scrollTop; }
+  function setTop(s, t){ if(isDocScroller(s)) pwin.scrollTo(0, t); else s.scrollTop = t; }
+  function viewH(s){ return (s && !isDocScroller(s) && s.clientHeight) || (pwin ? pwin.innerHeight : window.innerHeight); }
+
+  function place(y){
+    rocket.style.transform = "translateY(" + y + "px)";
+    trail.style.transform = "translateY(" + (y + H * 0.78) + "px)";
+  }
+
+  // Keep the rocket ~60% down the visible screen by scrolling the page
+  // (and the frame itself, if it ever falls back to inner scrolling).
+  function follow(y){
+    var innerMax = document.documentElement.scrollHeight - window.innerHeight;
+    if(innerMax > 4){ window.scrollTo(0, Math.max(0, y - window.innerHeight * 0.6)); }
+    var s = scroller();
+    if(!s || !frame) return;
+    var yOnScreen = frame.getBoundingClientRect().top + y - (window.scrollY || 0);
+    var delta = yOnScreen - viewH(s) * 0.6;
+    if(delta < 0) setTop(s, Math.max(0, getTop(s) + delta));
+  }
+
+  function scrollAllTop(){
+    try { window.scrollTo(0, 0); } catch(e) {}
+    var s = scroller();
+    if(s){ try { if(isDocScroller(s)) pwin.scrollTo({top:0, behavior:"smooth"}); else s.scrollTo({top:0, behavior:"smooth"}); } catch(e){ setTop(s, 0); } }
+  }
+
+  function land(){
+    flying = false;
+    if(rafId) cancelAnimationFrame(rafId);
+    rocket.className = "sp-rocket";
+    trail.className = "sp-trail";
+    trail.style.height = "0px";
+    detachAbort();
+    setTimeout(function(){ btn.classList.remove("is-launched"); }, 600);
+  }
+
+  // Any manual scroll/touch during the flight hands control back to the user.
+  function abort(){ if(flying) land(); }
+  var abortTargets = [];
+  function attachAbort(){
+    [window, pwin].forEach(function(w){
+      if(!w) return;
+      try { w.addEventListener("wheel", abort, {passive:true}); w.addEventListener("touchstart", abort, {passive:true}); abortTargets.push(w); } catch(e) {}
+    });
+  }
+  function detachAbort(){
+    abortTargets.forEach(function(w){ try { w.removeEventListener("wheel", abort); w.removeEventListener("touchstart", abort); } catch(e) {} });
+    abortTargets = [];
+  }
+
+  btn.addEventListener("click", function(){
+    if(flying) return;
+    if(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches){ scrollAllTop(); return; }
+    flying = true;
+    var pr = page.getBoundingClientRect(), br = btn.getBoundingClientRect();
+    var y = (br.top - pr.top) + br.height / 2 - H / 2;
+    place(y);
+    btn.classList.add("is-launched");
+    rocket.className = "sp-rocket is-live is-igniting";
+    // Ignition: shake in place for a beat, then lift off.
+    setTimeout(function(){
+      if(!flying) return;
+      rocket.className = "sp-rocket is-live is-flying";
+      trail.className = "sp-trail is-live";
+      setTimeout(attachAbort, 150);
+      var start = null, last = null, exitAt = null;
+      function step(now){
+        if(!flying) return;
+        if(start === null){ start = last = now; }
+        var dt = Math.min(48, now - last) / 1000; last = now;
+        var ramp = Math.min(1, (now - start) / 700);          // 0.7s throttle-up
+        y -= SPEED * (0.25 + 0.75 * ramp * ramp) * dt;
+        place(y);
+        trail.style.height = Math.min(TRAIL, (now - start) * 0.5) + "px";
+        if(y > 0){ follow(y); }
+        else {
+          if(exitAt === null){ exitAt = now; scrollAllTop(); }
+          if(y < -H * 2 || now - exitAt > 900){ land(); return; }
+        }
+        rafId = requestAnimationFrame(step);
+      }
+      rafId = requestAnimationFrame(step);
+    }, 420);
+  });
+})();
+"""
+
+
 def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     confirmed = _prep(timeline)
     if confirmed.empty:
@@ -884,12 +1065,15 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     .sp-highlight-sub b{{color:#fff}}
     .sp-now{{display:inline-block;margin-top:10px;font-size:12px;font-weight:700;color:#34d399;background:rgba(52,211,153,.13);padding:4px 10px;border-radius:8px}}
     @media (min-width:700px){{.sp-cadence-row{{grid-template-columns:repeat(4,1fr)}}}}
+    {ROCKET_CSS}
     </style></head><body>
     <div class="sp-page" id="sp-page">
     <div class="sp-title">STATS+</div>
     <div class="sp-subtitle">Deeper patterns your other tabs don't surface on their own</div>
     {body}
+    {_rocket_html()}
     </div>
+    <script>{ROCKET_JS.replace("__SPEED__", str(ROCKET_BASE_PX_PER_SEC * ROCKET_SPEED))}</script>
     <script>
     (function(){{
       function fit(){{
@@ -926,5 +1110,5 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     # Fallback height if the frame can't resize itself (JS above is the
     # primary mechanism). Generous per-row estimate + fixed blocks; any
     # overflow from an opened drawer still scrolls inside the frame.
-    est_height = 16 * 110 + n_rows * 92 + 6 * 150 + 200
+    est_height = 16 * 110 + n_rows * 92 + 6 * 150 + 360
     components.html(html, height=max(est_height, 3200), scrolling=True)
