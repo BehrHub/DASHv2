@@ -91,12 +91,12 @@ html,body{background:transparent;overflow:hidden}
   var flying = false, raf = null, rocket = null, trail = null, aborts = [];
   function cleanup(){
     flying = false;
-    if(raf) cancelAnimationFrame(raf);
+    if(raf) pwin.clearTimeout(raf);
     if(rocket){ rocket.remove(); rocket = null; }
     if(trail){ trail.remove(); trail = null; }
     aborts.forEach(function(w){ try{ w.removeEventListener("wheel", abort); w.removeEventListener("touchstart", abort); }catch(e){} });
     aborts = [];
-    setTimeout(function(){ btn.classList.remove("launched"); }, 600);
+    pwin.setTimeout(function(){ btn.classList.remove("launched"); }, 600);
   }
   function abort(){ if(flying) cleanup(); }
   pwin.addEventListener("pagehide", function(){ cleanup(); });
@@ -127,11 +127,15 @@ html,body{background:transparent;overflow:hidden}
     place();
     btn.classList.add("launched");
 
-    setTimeout(function(){
+    pwin.setTimeout(function(){
       if(!flying) return;
       rocket.className = "flying";
       [window, pwin].forEach(function(w){ try{ w.addEventListener("wheel", abort, {passive:true}); w.addEventListener("touchstart", abort, {passive:true}); aborts.push(w);}catch(e){} });
       var start = null, last = null;
+      // Drive the loop from the PARENT window's timers (same as journey.py's car),
+      // not requestAnimationFrame inside this small iframe: Safari pauses rAF in an
+      // iframe once it scrolls out of view, which froze the rocket mid-flight.
+      function tick(){ raf = pwin.setTimeout(function(){ step(Date.now()); }, 16); }
       function step(now){
         if(!flying) return;
         if(start === null){ start = last = now; }
@@ -144,9 +148,9 @@ html,body{background:transparent;overflow:hidden}
         place();
         trail.style.height = Math.min(TRAIL, (now - start)*0.5) + "px";
         if(y - getTop(s) < -H*2){ cleanup(); return; }
-        raf = requestAnimationFrame(step);
+        tick();
       }
-      raf = requestAnimationFrame(step);
+      tick();
     }, 420);
   });
 })();
