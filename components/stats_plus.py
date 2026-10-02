@@ -816,12 +816,13 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     # --- 7. Cadence classification ---
     cadence = _cadence_classification(confirmed)
     gaps = _client_median_gaps(confirmed)
+    tap_chev = '<div class="sp-tap-chev"></div>'   # built outside the f-string: Python 3.9 forbids backslashes in f-string expressions
     cadence_html = '<div class="sp-cadence-row">' + "".join(
         f'<button class="sp-cadence-pill sp-tap" data-group="cad" data-key="{i}" aria-expanded="false"'
         f'{" disabled" if not members else ""}>'
         f'<div class="sp-cadence-count">{len(members)}</div>'
         f'<div class="sp-cadence-label">{escape(label)}</div>'
-        f'{"<div class=\"sp-tap-chev\"></div>" if members else ""}</button>'
+        f'{tap_chev if members else ""}</button>'
         for i, (label, members) in enumerate(cadence.items())
     ) + '</div>' + "".join(
         _pill_panel("cad", str(i), _sub_list(
