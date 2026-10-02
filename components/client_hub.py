@@ -298,7 +298,7 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
         ["Giant Food Stores", "Food Lion", "Weis Markets"],
     ]
     FIXED_ORDER_TIER_INDICES = {1}  # Government tier index - see note above
-    NURSING_HOME_LAST = ["Hebrew Home GW", "Atrium Village", "Autumn Lake Healthcare", "Maryland Baptist Age Home"]
+    NURSING_HOME_LAST = ["Hebrew Home GW", "Atrium Village", "Autumn Lake Healthcare", "Maryland Baptist Age Home", "Seaton"]
 
     _tier_index: dict[str, int] = {}
     _position_in_tier: dict[str, int] = {}

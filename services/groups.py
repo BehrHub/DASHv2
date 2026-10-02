@@ -11,6 +11,7 @@ CLIENT_GROUPS: dict[str, list[str]] = {
     ],
     "Nursing Home Group": [
         "Hebrew Home GW", "Atrium Village", "Autumn Lake Healthcare", "Maryland Baptist Age Home",
+        "Seaton",
     ],
     "Hilton Worldwide Group": ["Hampton Inn & Suites", "Hilton Garden Inn"],
     "Macy's Inc. Group": ["Bloomingdale's", "Macy's"],

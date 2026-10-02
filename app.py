@@ -10,6 +10,7 @@ from components.journey import render_barrister_journey
 from components.add_event import render_add_event
 from components.client_hub import render_client_standings
 from components.ledger import render_ledger_summary, render_ledger_breakdowns
+from components.rocket import render_back_to_top_rocket
 from services.data_source import load_snapshot
 from services.metrics import build_executive_metrics
 
@@ -583,6 +584,7 @@ def main() -> None:
             "Logo Studio</a></div>",
             unsafe_allow_html=True,
         )
+        render_back_to_top_rocket()
     elif view == "ledger":
         # One-shot deep link: read (and clear) which tab to open to, so
         # this only applies on the render immediately after navigating
@@ -660,6 +662,7 @@ def main() -> None:
                     st.session_state["gross_toggle_anim_ledger"] = True
                 st.rerun()
         render_ledger_breakdowns(snapshot.sheets["Timeline"], gross_view, initial_tab=initial_ledger_tab, force_tab=force_ledger_tab)
+        render_back_to_top_rocket()
     elif view == "statsplus":
         render_stats_plus(snapshot.sheets["Timeline"], gross_view)
     elif view == "logostudio":
@@ -694,6 +697,7 @@ def main() -> None:
             st.query_params["view"] = "ledger"
             st.query_params["ledger_tab"] = "cities"
             st.rerun()
+        render_back_to_top_rocket()
 
 
 if __name__ == "__main__":
