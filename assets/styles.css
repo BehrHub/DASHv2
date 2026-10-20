@@ -1299,10 +1299,13 @@ div[data-testid="stMainBlockContainer"] div[data-testid="stVerticalBlockBorderWr
    on iOS Safari, which is the exact bug this app moved away from
    earlier. Only the visual styling is ported, not the link markup. */
 div.st-key-nav_main button,
+div.st-key-nav_mainv2 button,
 div.st-key-nav_addevent button,
 div.st-key-nav_journey button,
 div.st-key-nav_clienthub button,
-div.st-key-nav_ledger button {
+div.st-key-nav_clientsv2 button,
+div.st-key-nav_ledger button,
+div.st-key-nav_ledgerv2 button {
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
@@ -1327,10 +1330,13 @@ div.st-key-nav_ledger button {
   color: #aebdd1 !important;
 }
 div.st-key-nav_main button::after,
+div.st-key-nav_mainv2 button::after,
 div.st-key-nav_addevent button::after,
 div.st-key-nav_journey button::after,
 div.st-key-nav_clienthub button::after,
-div.st-key-nav_ledger button::after {
+div.st-key-nav_clientsv2 button::after,
+div.st-key-nav_ledger button::after,
+div.st-key-nav_ledgerv2 button::after {
   content: "";
   position: absolute;
   left: 50%;
@@ -1342,38 +1348,53 @@ div.st-key-nav_ledger button::after {
   opacity: 0.45;
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
-div.st-key-nav_main button { border-color: rgba(244, 114, 182, 0.55) !important; }
-div.st-key-nav_main button::after { background: #f472b6; }
+div.st-key-nav_main button,
+div.st-key-nav_mainv2 button { border-color: rgba(244, 114, 182, 0.55) !important; }
+div.st-key-nav_main button::after,
+div.st-key-nav_mainv2 button::after { background: #f472b6; }
 div.st-key-nav_addevent button { border-color: rgba(249, 115, 22, 0.4) !important; }
 div.st-key-nav_addevent button::after { background: #f97316; }
 div.st-key-nav_journey button { border-color: rgba(220, 38, 38, 0.4) !important; }
 div.st-key-nav_journey button::after { background: #dc2626; }
-div.st-key-nav_clienthub button { border-color: rgba(234, 179, 8, 0.4) !important; }
-div.st-key-nav_clienthub button::after { background: #eab308; }
-div.st-key-nav_ledger button { border-color: rgba(34, 197, 94, 0.4) !important; }
-div.st-key-nav_ledger button::after { background: #22c55e; }
+div.st-key-nav_clienthub button,
+div.st-key-nav_clientsv2 button { border-color: rgba(234, 179, 8, 0.4) !important; }
+div.st-key-nav_clienthub button::after,
+div.st-key-nav_clientsv2 button::after { background: #eab308; }
+div.st-key-nav_ledger button,
+div.st-key-nav_ledgerv2 button { border-color: rgba(34, 197, 94, 0.4) !important; }
+div.st-key-nav_ledger button::after,
+div.st-key-nav_ledgerv2 button::after { background: #22c55e; }
 
 /* Active tab: brighter background, white text, fuller underline —
    replaces Streamlit's own solid pink primary-button fill entirely. */
 div.st-key-nav_main button[data-testid="stBaseButton-primary"],
+div.st-key-nav_mainv2 button[data-testid="stBaseButton-primary"],
 div.st-key-nav_addevent button[data-testid="stBaseButton-primary"],
 div.st-key-nav_journey button[data-testid="stBaseButton-primary"],
 div.st-key-nav_clienthub button[data-testid="stBaseButton-primary"],
-div.st-key-nav_ledger button[data-testid="stBaseButton-primary"] {
+div.st-key-nav_clientsv2 button[data-testid="stBaseButton-primary"],
+div.st-key-nav_ledger button[data-testid="stBaseButton-primary"],
+div.st-key-nav_ledgerv2 button[data-testid="stBaseButton-primary"] {
   opacity: 1;
   color: #f8fafc !important;
   background: linear-gradient(180deg, rgba(30, 45, 68, 0.85), rgba(9, 19, 34, 0.95)) !important;
 }
-div.st-key-nav_main button[data-testid="stBaseButton-primary"] { border-color: rgba(244, 114, 182, 0.85) !important; }
+div.st-key-nav_main button[data-testid="stBaseButton-primary"],
+div.st-key-nav_mainv2 button[data-testid="stBaseButton-primary"] { border-color: rgba(244, 114, 182, 0.85) !important; }
 div.st-key-nav_addevent button[data-testid="stBaseButton-primary"] { border-color: rgba(249, 115, 22, 0.75) !important; }
 div.st-key-nav_journey button[data-testid="stBaseButton-primary"] { border-color: rgba(220, 38, 38, 0.75) !important; }
-div.st-key-nav_clienthub button[data-testid="stBaseButton-primary"] { border-color: rgba(234, 179, 8, 0.75) !important; }
-div.st-key-nav_ledger button[data-testid="stBaseButton-primary"] { border-color: rgba(34, 197, 94, 0.75) !important; }
+div.st-key-nav_clienthub button[data-testid="stBaseButton-primary"],
+div.st-key-nav_clientsv2 button[data-testid="stBaseButton-primary"] { border-color: rgba(234, 179, 8, 0.75) !important; }
+div.st-key-nav_ledger button[data-testid="stBaseButton-primary"],
+div.st-key-nav_ledgerv2 button[data-testid="stBaseButton-primary"] { border-color: rgba(34, 197, 94, 0.75) !important; }
 div.st-key-nav_main button[data-testid="stBaseButton-primary"]::after,
+div.st-key-nav_mainv2 button[data-testid="stBaseButton-primary"]::after,
 div.st-key-nav_addevent button[data-testid="stBaseButton-primary"]::after,
 div.st-key-nav_journey button[data-testid="stBaseButton-primary"]::after,
 div.st-key-nav_clienthub button[data-testid="stBaseButton-primary"]::after,
-div.st-key-nav_ledger button[data-testid="stBaseButton-primary"]::after {
+div.st-key-nav_clientsv2 button[data-testid="stBaseButton-primary"]::after,
+div.st-key-nav_ledger button[data-testid="stBaseButton-primary"]::after,
+div.st-key-nav_ledgerv2 button[data-testid="stBaseButton-primary"]::after {
   opacity: 1;
   transform: translateX(-50%) scaleX(1);
   width: 34px;

@@ -11,6 +11,7 @@ from components.add_event import render_add_event
 from components.client_hub import render_client_standings
 from components.ledger import render_ledger_summary, render_ledger_breakdowns
 from components.rocket import render_back_to_top_rocket
+from components.v2_pages import V2_VIEWS, render_v2_page
 from services.data_source import load_snapshot
 from services.metrics import build_executive_metrics
 
@@ -215,27 +216,35 @@ def render_header(active: str, show_money_toggle: bool = False, toggle_key: str 
                 if turning_on:
                     st.session_state["gross_toggle_anim_main"] = True
                 st.rerun()
-    cols = st.columns(6)
+    # Ten tabs in two rows of five: each original page sits right next to
+    # its V2 counterpart (V2 = the BehrHub preview design, read-only) so
+    # they can be compared side by side before deciding which to keep.
     labels = [
         ("\U0001F3C1", "MAIN", "main"),
+        ("\U0001F3C1", "MAIN V2", "mainv2"),
         ("\U0001F3CE\uFE0F", "JOURNEY", "journey"),
         ("\u2795", "EVENTS", "addevent"),
         ("\U0001F465", "CLIENTS", "clienthub"),
+        ("\U0001F465", "CLIENTS V2", "clientsv2"),
         ("\U0001F4D3", "LEDGER", "ledger"),
+        ("\U0001F4D3", "LEDGER V2", "ledgerv2"),
         ("\U0001F52C", "STATS+", "statsplus"),
+        ("\U0001F52C", "STATS+ V2", "statsv2"),
     ]
-    for col, (icon, label, view) in zip(cols, labels):
-        with col:
-            is_active = view == active
-            if st.button(
-                f"{icon}\n{label}",
-                key=f"nav_{view}",
-                type="primary" if is_active else "secondary",
-                width="stretch",
-            ):
-                if not is_active:
-                    st.query_params["view"] = view
-                    st.rerun()
+    for row in (labels[:5], labels[5:]):
+        cols = st.columns(5)
+        for col, (icon, label, view) in zip(cols, row):
+            with col:
+                is_active = view == active
+                if st.button(
+                    f"{icon}\n{label}",
+                    key=f"nav_{view}",
+                    type="primary" if is_active else "secondary",
+                    width="stretch",
+                ):
+                    if not is_active:
+                        st.query_params["view"] = view
+                        st.rerun()
 
 
 def render_logo_studio_page(timeline: pd.DataFrame) -> None:
@@ -667,6 +676,9 @@ def main() -> None:
         render_stats_plus(snapshot.sheets["Timeline"], gross_view)
     elif view == "logostudio":
         render_logo_studio_page(snapshot.sheets["Timeline"])
+    elif view in V2_VIEWS:
+        render_v2_page(view, snapshot.sheets["Timeline"], snapshot.sheets["Pipeline"])
+        render_back_to_top_rocket()
     else:
         # render_dashboard() is one big components.html() iframe. The
         # previous attempt tried to pull the iframe itself up via
@@ -677,9 +689,11 @@ def main() -> None:
         # above the iframe), anchored to the MAIN nav button's own proven
         # .st-key-nav_main class — a selector we're actually certain
         # exists, rather than guessing at Streamlit's internal iframe
-        # wrapper markup again.
+        # wrapper markup again. (Now keyed to STATS+, which sits in the
+        # second/bottom nav row since the V2 tabs were added — the row
+        # directly above this page's iframe.)
         st.markdown(
-            "<style>div[data-testid='stHorizontalBlock']:has(div.st-key-nav_main) "
+            "<style>div[data-testid='stHorizontalBlock']:has(div.st-key-nav_statsplus) "
             "{ margin-bottom: -8px !important; }</style>",
             unsafe_allow_html=True,
         )
