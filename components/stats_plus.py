@@ -552,6 +552,8 @@ def _plural(n: int, word: str, plural: str | None = None) -> str:
 
 ROCKET_BASE_PX_PER_SEC = 145
 ROCKET_SPEED = 5.0
+ROCKET_BOOST_AFTER_MS = 2500   # after this much flight time...
+ROCKET_BOOST_FACTOR = 1.5      # ...50% faster, with a bigger flame + smoke
 
 
 @lru_cache(maxsize=1)
@@ -605,12 +607,20 @@ ROCKET_CSS = """
 .sp-trail{position:absolute;left:50%;top:0;width:10px;margin-left:-5px;height:0;z-index:49;pointer-events:none;opacity:0;border-radius:6px;
   background:linear-gradient(to bottom,rgba(255,210,120,.85),rgba(255,120,40,.45) 35%,rgba(255,80,30,0));filter:blur(3px)}
 .sp-trail.is-live{opacity:1;transition:opacity .4s ease}
+.sp-trail.is-boost{width:20px;margin-left:-10px;filter:blur(4px);box-shadow:0 0 22px rgba(255,140,40,.65);
+  background:linear-gradient(to bottom,rgba(255,255,220,.95),rgba(255,190,70,.85) 18%,rgba(255,110,30,.6) 45%,rgba(255,60,20,0))}
+.sp-rocket.is-boost .sp-rocket-art{animation:spFlickerHot .08s ease-in-out infinite alternate}
+@keyframes spFlickerHot{from{filter:drop-shadow(0 0 14px rgba(255,160,60,.75))}to{filter:drop-shadow(0 0 28px rgba(255,210,90,1))}}
+.sp-smoke{position:absolute;left:50%;width:26px;height:26px;margin-left:-13px;border-radius:50%;z-index:48;pointer-events:none;
+  background:radial-gradient(circle,rgba(226,232,240,.75),rgba(148,163,184,.35) 55%,rgba(148,163,184,0) 72%);animation:spPuff 1s ease-out forwards}
+@keyframes spPuff{from{transform:translate(0,0) scale(.45);opacity:.85}to{transform:translate(var(--dx,0px),70px) scale(2.6);opacity:0}}
 @media (prefers-reduced-motion:reduce){.sp-launch-btn{animation:none}}
 """
 
 ROCKET_JS = """
 (function(){
   var SPEED = __SPEED__;                       // px per second at full thrust
+  var BOOST_AT = __BOOST_AT__, BOOST = __BOOST__;  // ms before the boost kicks in, and its multiplier
   var btn = document.getElementById("sp-launch-btn");
   var rocket = document.getElementById("sp-rocket");
   var trail = document.getElementById("sp-trail");
@@ -658,6 +668,7 @@ ROCKET_JS = """
     if(rafId) cancelAnimationFrame(rafId);
     rocket.className = "sp-rocket";
     trail.className = "sp-trail";
+    Array.prototype.forEach.call(page.querySelectorAll(".sp-smoke"), function(p){ p.remove(); });
     trail.style.height = "0px";
     detachAbort();
     setTimeout(function(){ btn.classList.remove("is-launched"); }, 600);
@@ -692,15 +703,26 @@ ROCKET_JS = """
       rocket.className = "sp-rocket is-live is-flying";
       trail.className = "sp-trail is-live";
       setTimeout(attachAbort, 150);
-      var start = null, last = null, exitAt = null;
+      var start = null, last = null, exitAt = null, boosted = false, lastPuff = 0;
+      function puff(py){
+        var p = document.createElement("div"); p.className = "sp-smoke";
+        p.style.top = (py + H * 0.85) + "px";
+        p.style.marginLeft = (-13 + Math.random() * 16 - 8) + "px";
+        p.style.setProperty("--dx", (Math.random() * 40 - 20).toFixed(0) + "px");
+        page.appendChild(p);
+        setTimeout(function(){ p.remove(); }, 1050);
+      }
       function step(now){
         if(!flying) return;
         if(start === null){ start = last = now; }
         var dt = Math.min(48, now - last) / 1000; last = now;
         var ramp = Math.min(1, (now - start) / 700);          // 0.7s throttle-up
-        y -= SPEED * (0.25 + 0.75 * ramp * ramp) * dt;
+        var boostK = (now - start) > BOOST_AT ? Math.min(1, (now - start - BOOST_AT) / 400) : 0;
+        if(boostK > 0 && !boosted){ boosted = true; rocket.className = "sp-rocket is-live is-flying is-boost"; trail.className = "sp-trail is-live is-boost"; }
+        y -= SPEED * (0.25 + 0.75 * ramp * ramp) * (1 + (BOOST - 1) * boostK) * dt;
         place(y);
-        trail.style.height = Math.min(TRAIL, (now - start) * 0.5) + "px";
+        trail.style.height = Math.min(boosted ? TRAIL * 1.6 : TRAIL, (now - start) * 0.5) + "px";
+        if(boosted && now - lastPuff > 45){ lastPuff = now; puff(y); }
         if(y > 0){ follow(y); }
         else {
           if(exitAt === null){ exitAt = now; scrollAllTop(); }
@@ -1074,7 +1096,7 @@ def render_stats_plus(timeline: pd.DataFrame, gross_view: bool = False) -> None:
     {body}
     {_rocket_html()}
     </div>
-    <script>{ROCKET_JS.replace("__SPEED__", str(ROCKET_BASE_PX_PER_SEC * ROCKET_SPEED))}</script>
+    <script>{ROCKET_JS.replace("__SPEED__", str(ROCKET_BASE_PX_PER_SEC * ROCKET_SPEED)).replace("__BOOST_AT__", str(int(ROCKET_BOOST_AFTER_MS))).replace("__BOOST__", str(float(ROCKET_BOOST_FACTOR)))}</script>
     <script>
     (function(){{
       function fit(){{

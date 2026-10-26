@@ -259,6 +259,19 @@
   html.embed body { background:transparent; }
   html.embed .bar { display:none; }
   html.embed main { padding:2px 0 16px; max-width:none; }
+  .ltabs { display:grid; gap:8px; margin:4px 0 14px; }
+  .ltrow { display:flex; flex-wrap:wrap; gap:8px; }
+  .ltab { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.16); border-radius:20px; padding:8px 15px; cursor:pointer;
+    font-family:var(--body); font-size:14px; font-weight:800; letter-spacing:.05em; color:var(--text); }
+  .ltab:hover { border-color:rgba(255,255,255,.35); }
+  .ltab[aria-pressed="true"] { background:rgba(244,114,182,.14); border-color:#f472b6; color:#fbcfe8; box-shadow:0 0 10px rgba(244,114,182,.3); }
+  .ltab:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  @media (max-width:560px) { .ltrow { gap:6px; } .ltab { font-size:12.5px; padding:7px 10px; letter-spacing:.03em; } }
+  .pcard .ph { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .pcard .pdays { flex:none; text-align:right; }
+  .pcard .pdays .k { font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+  .pcard .pdays .v { font-family:var(--head); font-weight:700; font-size:28px; line-height:1.1; font-variant-numeric:tabular-nums; }
+  .pcard .pdays .delta { margin-top:2px; font-size:12px; padding:1px 8px; }
   .hero.one { grid-template-columns:1fr; gap:14px; }
   .hero.one .wheel { position:absolute; height:0; width:0; visibility:hidden; pointer-events:none; }
   .wnav.big { gap:12px; } .wnav.big button { width:52px; height:52px; font-size:18px; }
@@ -437,15 +450,15 @@
 
   <!-- ===================== CLIENTS ===================== -->
   <div id="view-clients" hidden>
-    <section class="hero" aria-label="Client group selector">
+    <section class="hero one" aria-label="Client group selector">
       <div class="wheelcol">
-        <div class="wheel" id="wheelC" role="listbox" aria-label="Client groups" tabindex="0"></div>
-        <div class="wnav">
-          <button id="prevC" type="button" aria-label="Previous group">&#9650;</button>
-          <button id="nextC" type="button" aria-label="Next group">&#9660;</button>
-          <span class="count" id="countC">01 / 09</span>
+        <div class="wheel" id="wheelC" aria-hidden="true"></div>
+        <div class="wnav big">
+          <button id="prevC" type="button" aria-label="Previous group">&#9664;</button>
+          <button id="nextC" type="button" aria-label="Next group">&#9654;</button>
+          <span class="count" id="countC">01 / 08</span>
+          <span class="rname" id="cname"></span>
         </div>
-        <div class="hint">Pick a group, then filter the standings to it.</div>
       </div>
       <div class="stage fit" id="stageC"></div>
     </section>
@@ -478,22 +491,20 @@
   <!-- ===================== LEDGER ===================== -->
   <div id="view-ledger" hidden>
     <h2 class="sec" style="margin-top:6px">Ledger <small>&middot; all regions</small></h2>
-    <div class="ctl"><div class="seg" id="ledSeg" role="group" aria-label="Ledger section" style="flex-wrap:wrap"></div></div>
+    <div class="ltabs" id="ledTabs" role="group" aria-label="Ledger section"></div>
     <div id="ledBody"></div>
   </div>
 
   <!-- ===================== STATS+ ===================== -->
   <div id="view-stats" hidden>
-    <h2 class="sec" style="margin-top:6px">Stats+ <small>&middot; career to date</small></h2>
     <section class="kgrid" id="kgrid" aria-label="Key stats"></section>
-    <article class="card chartcard"><div class="label">Every day on the road &middot; revenue per day</div><div class="heat" id="heat" role="img" aria-label="Calendar heat map of daily revenue"></div><div class="heatlbl"><span id="heatA"></span><span class="hm">darker = more revenue</span><span id="heatB"></span></div></article>
-    <article class="card chartcard"><div class="label">Cumulative revenue by career week</div><svg class="line" id="cumSvg" viewBox="0 0 600 200" preserveAspectRatio="none" aria-hidden="true"></svg><div class="heatlbl"><span>W1</span><span id="cumNote"></span><span id="cumB"></span></div></article>
     <div class="two">
       <article class="card"><div class="label">Event size</div><div id="hAmt"></div></article>
       <article class="card"><div class="label">Events per working day</div><div id="hEpd"></div></article>
       <article class="card"><div class="label">Revenue per day worked &middot; by weekday</div><div id="hDow"></div></article>
       <article class="card"><div class="label">Revenue by region</div><div id="hReg"></div><div class="label" style="margin-top:18px">Billing type</div><div class="chipset" id="bill"></div></article>
     </div>
+    <article class="card chartcard"><div class="label">Cumulative revenue by career week</div><svg class="line" id="cumSvg" viewBox="0 0 600 200" preserveAspectRatio="none" aria-hidden="true"></svg><div class="heatlbl"><span>W1</span><span id="cumNote"></span><span id="cumB"></span></div></article>
   </div>
 
   <!-- ===================== JOURNEY ===================== -->
@@ -875,6 +886,7 @@ function updateClients(i) {
   accentFor.clients = GR[i].color;
   if (!$("view-clients").hidden) document.documentElement.style.setProperty("--accent", GR[i].color);
   slidesC.forEach(function (s, k) { s.classList.toggle("on", k === i); });
+  $("cname").textContent = GR[i].name;
   fitStage();
   if (onlyGroup) renderStandings();
 }
@@ -970,31 +982,36 @@ $("locs").innerHTML = locHtml;
 
 
 /* ===================== LEDGER ===================== */
-var LED = D.ledger, ledTab = "cycles", evShown = 25, evQ = "";
-var LTABS = [["cycles", "Career"], ["months", "Calendar"], ["topDays", "Top days"], ["topWeeks", "Top weeks"], ["topClients", "Clients"], ["topCities", "Cities"], ["events", "All events"]];
+var LED = D.ledger, ledTab = "l10wk", evShown = 25, evQ = "";
+// Same three rows, same order as Ledger V1 (ALL EVENTS sits where V1 has ERAS).
+var LROWS = [
+  [["cycles", "CAREER"], ["months", "CALENDAR"], ["events", "ALL EVENTS"]],
+  [["l10d", "L10DAYS"], ["l10wk", "L10WKS"]],
+  [["topDays", "TOP.DAYS"], ["topWeeks", "TOP.WEEKS"], ["topCities", "CITIES"], ["topClients", "CLIENTS"]]
+];
 function dl(v) {
   if (v === null || v === undefined) return '<span class="delta flat">—</span>';
   return '<span class="delta' + (v < 0 ? " neg" : "") + '">' + (v >= 0 ? "▲ +" : "▼ ") + Math.abs(v).toFixed(1) + '%</span>';
 }
 function pcard(p) {
   var m = p.mom, g = function (k) { return m ? dl(m[k]) : '<span class="delta flat">first</span>'; };
-  return '<article class="card pcard"><h3>' + esc(p.l) + (p.open ? '<span class="pill">OPEN</span>' : '') + (p.partial ? '<span class="pill" style="--accent:var(--muted)">PARTIAL</span>' : '') + '</h3>' +
-    '<div class="rg">(' + p.bd + ') ' + esc(p.range) + (p.open ? ' · ' + p.bdDone + ' business days in' : '') + '</div>' +
+  return '<article class="card pcard"><div class="ph"><div><h3>' + esc(p.l) + (p.open ? '<span class="pill">OPEN</span>' : '') + (p.partial ? '<span class="pill" style="--accent:var(--muted)">PARTIAL</span>' : '') + '</h3>' +
+    '<div class="rg">(' + p.bd + ') ' + esc(p.range) + (p.open ? ' · ' + p.bdDone + ' business days in' : '') + '</div></div>' +
+    '<div class="pdays"><div class="k">Days worked</div><div class="v">' + p.days + '</div>' + g("days") + '</div></div>' +
     '<div class="pm">' +
     '<div><div class="k">Revenue</div><div class="v">' + fmt0(p.rev) + (p.open ? '<small>proj ' + fmt0(p.pRev) + '</small>' : '') + '</div>' + g("rev") + '</div>' +
     '<div><div class="k">Events</div><div class="v">' + p.ev + (p.open ? '<small>proj ' + Math.round(p.pEv) + '</small>' : '') + '</div>' + g("ev") + '</div>' +
     '<div><div class="k">Avg / event</div><div class="v">' + fmt0(p.avgEv) + '</div>' + g("avgEv") + '</div>' +
     '<div><div class="k">Avg rev / day</div><div class="v">' + fmt0(p.avgDay) + '</div>' + g("avgDay") + '</div>' +
-    '<div style="grid-column:1/-1"><div class="k">Days worked</div><div class="v">' + p.days + '</div>' + g("days") + '</div>' +
     '</div></article>';
 }
 function renderLedger() {
   var html = "", L = LED[ledTab];
-  Array.prototype.forEach.call($("ledSeg").children, function (b) { b.setAttribute("aria-pressed", b.dataset.t === ledTab ? "true" : "false"); });
-  if (ledTab === "cycles" || ledTab === "months") {
+  Array.prototype.forEach.call($("ledTabs").querySelectorAll(".ltab"), function (b) { b.setAttribute("aria-pressed", b.dataset.t === ledTab ? "true" : "false"); });
+  if (ledTab === "cycles" || ledTab === "months" || ledTab === "l10wk") {
     html = '<div class="pgrid">' + L.map(pcard).join("") + '</div>' +
       '<p class="note">(n) = business days in range. Badges compare each period with the one before it. Revenue and events use a run-rate projection for the open period; avg / event, avg rev / day and days worked are plain differentials. ' +
-      (ledTab === "cycles" ? 'Cycles run the 20th to the 19th.' : 'April starts at your first day, Apr 20.') + '</p>';
+      (ledTab === "cycles" ? 'Cycles run the 20th to the 19th.' : ledTab === "l10wk" ? 'Weeks run Monday to Sunday; W1 is the week of Apr 20.' : 'April starts at your first day, Apr 20.') + '</p>';
   } else if (ledTab === "events") {
     var q = evQ.toLowerCase(), list = LED.events.filter(function (e) { return !q || (e.c + " " + e.p + " " + e.r + " " + e.d).toLowerCase().indexOf(q) > -1; });
     html = '<div class="ctl"><input class="srch" id="evQ" type="search" placeholder="Search client, city, date…" value="' + esc(evQ) + '" aria-label="Search events"><span class="lbl">' + list.length + ' events &middot; ' + fmt2(sum(list.map(function (e) { return e.a; }))) + '</span></div><article class="card elist">' +
@@ -1014,10 +1031,14 @@ function renderLedger() {
   }
   if ($("evMore")) $("evMore").addEventListener("click", function () { evShown += 25; renderLedger(); });
 }
-LTABS.forEach(function (t) {
-  var b = document.createElement("button"); b.type = "button"; b.dataset.t = t[0]; b.textContent = t[1];
-  b.addEventListener("click", function () { ledTab = t[0]; renderLedger(); });
-  $("ledSeg").appendChild(b);
+LROWS.forEach(function (row) {
+  var r = document.createElement("div"); r.className = "ltrow";
+  row.forEach(function (t) {
+    var b = document.createElement("button"); b.type = "button"; b.className = "ltab"; b.dataset.t = t[0]; b.textContent = t[1];
+    b.addEventListener("click", function () { ledTab = t[0]; renderLedger(); });
+    r.appendChild(b);
+  });
+  $("ledTabs").appendChild(r);
 });
 renderLedger();
 
@@ -1028,6 +1049,7 @@ $("kgrid").innerHTML = SX.kpis.map(function (k) { return '<article class="card">
   var weeks = SX.cal[SX.cal.length - 1].w + 1, cells = [], i, c, grid = [];
   for (i = 0; i < weeks * 7; i++) grid.push(null);
   SX.cal.forEach(function (d) { grid[d.w * 7 + d.x] = d; });
+  if ($("heat")) {
   $("heat").style.gridTemplateColumns = "repeat(" + weeks + ",1fr)";
   $("heat").innerHTML = grid.map(function (d) {
     if (!d) return '<i style="opacity:.25"></i>';
@@ -1035,6 +1057,7 @@ $("kgrid").innerHTML = SX.kpis.map(function (k) { return '<article class="card">
     return '<i title="' + esc(d.d) + ': ' + (d.rev ? fmt0(d.rev) + ' · ' + plural(d.ev, "event") : "no events") + '"' + (a ? ' style="background:color-mix(in srgb, var(--accent) ' + Math.round(a * 100) + '%, var(--panel2))"' : '') + '></i>';
   }).join("");
   $("heatA").textContent = SX.cal[0].d; $("heatB").textContent = SX.cal[SX.cal.length - 1].d;
+  }
   var cum = SX.cum, n = cum.length, top = cum[n - 1], pts = cum.map(function (v, k) { return [k / (n - 1) * 600, 190 - v / top * 170]; });
   var ln = pts.map(function (p, k) { return (k ? "L" : "M") + p[0].toFixed(1) + "," + p[1].toFixed(1); }).join(" ");
   $("cumSvg").innerHTML = '<path class="ar" d="' + ln + ' L600,200 L0,200 Z"></path><path class="pc" d="M0,190 L600,20"></path><path class="ln" d="' + ln + '" vector-effect="non-scaling-stroke"></path>';
@@ -1145,7 +1168,18 @@ if (D.embed) {
       try {
         var h = Math.ceil(document.querySelector("main").getBoundingClientRect().bottom + window.scrollY + 8);
         var fr = window.parent.document.querySelectorAll("iframe");
-        for (var i = 0; i < fr.length; i++) { if (fr[i].contentWindow === window) { fr[i].style.height = h + "px"; fr[i].setAttribute("height", h); break; } }
+        for (var i = 0; i < fr.length; i++) {
+          if (fr[i].contentWindow !== window) continue;
+          fr[i].style.height = h + "px"; fr[i].setAttribute("height", h);
+          // Streamlit's wrapper keeps the height passed to components.html(),
+          // so a taller iframe spilled over whatever came next (the rocket).
+          // Grow the wrappers too, up to the page's vertical block.
+          for (var el = fr[i].parentElement, n = 0; el && n < 4; el = el.parentElement, n++) {
+            if (el.getAttribute("data-testid") === "stVerticalBlock") break;
+            el.style.height = h + "px"; el.style.minHeight = h + "px";
+          }
+          break;
+        }
       } catch (e) {}
     }
     resize();

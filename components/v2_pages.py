@@ -26,17 +26,19 @@ from services.v2_data import build_v2_data
 TEMPLATE_PATH = Path(__file__).resolve().parent / "v2_template.html"
 LOGOS_DIR = Path(__file__).resolve().parent.parent / "assets" / "logos"
 
-# Streamlit view name -> view id inside the V2 template.
+# Streamlit view name -> view id inside the V2 template. Only Clients V2
+# and Ledger V2 are standalone tabs now; "statsv2" is rendered at the top
+# of the merged STATS+ page (Main V2's region card lives in
+# components/region_panel.py on MAIN).
 V2_VIEWS = {
-    "mainv2": "main",
     "clientsv2": "clients",
     "ledgerv2": "ledger",
-    "statsv2": "stats",
 }
+_INNER = {"statsv2": "stats", **V2_VIEWS}
 
 # Static fallback height used only for the instant before the iframe's
 # own JS measures itself and resizes (same pattern as client_hub.py).
-_FALLBACK_HEIGHT = {"main": 2600, "clients": 4200, "ledger": 3000, "stats": 2800}
+_FALLBACK_HEIGHT = {"main": 2600, "clients": 4200, "ledger": 3000, "stats": 2300}
 
 
 def _frame_fingerprint(frame: pd.DataFrame | None) -> str:
@@ -71,7 +73,7 @@ def _logo_map(clients: list[str]) -> dict[str, str]:
 
 
 def render_v2_page(view: str, timeline: pd.DataFrame, pipeline: pd.DataFrame | None) -> None:
-    inner_view = V2_VIEWS.get(view, "main")
+    inner_view = _INNER.get(view, "main")
     try:
         today = eastern_today_naive()
         payload = _cached_payload(

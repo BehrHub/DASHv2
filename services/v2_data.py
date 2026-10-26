@@ -357,6 +357,8 @@ def build_v2_data(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, today) 
     for g, ms in LG.items():
         sub = df[df["loc"].isin(ms)]
         cities = [{"n": m.split(",")[0], "v": int((sub["loc"] == m).sum())} for m in ms if (sub["loc"] == m).any()]
+        if sub.empty:
+            continue  # no visits yet in this group - nothing to show
         loc_groups.append({"name": g, "visits": int(len(sub)), "rev": round(float(sub["amt"].sum()), 2), "cities": cities})
     loc_groups.sort(key=lambda x: (-x["visits"], -x["rev"]))
     solo = df[~df["loc"].isin(loc_group.keys())]
@@ -400,6 +402,22 @@ def build_v2_data(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, today) 
                                    int(np.busday_count(a.date(), (b + pd.Timedelta(days=1)).date())), partial=part))
     add_mom(months)
     cycles.reverse(); months.reverse()
+    # L10WKS: last 10 career weeks (Mon-Sun, W1 = week of Apr 20), current one open.
+    l10wk = []
+    for cw in range(max(1, CUR_CW - 10), CUR_CW + 1):
+        a = START + pd.Timedelta(days=7 * (cw - 1)); b = a + pd.Timedelta(days=6)
+        op = cw == CUR_CW
+        bd_tot = int(np.busday_count(a.date(), (b + pd.Timedelta(days=1)).date()))
+        bd_done = max(1, int(np.busday_count(a.date(), (TODAY + pd.Timedelta(days=1)).date()))) if op else 0
+        l10wk.append(period_block(f"W{cw}", a, b, df[df.cw == cw], op, min(bd_done, bd_tot) if op else 0, bd_tot))
+    add_mom(l10wk)
+    l10wk = l10wk[-10:][::-1]
+    # L10DAYS: last 10 days actually worked, newest first.
+    l10d = []
+    for d0 in sorted(df["d"].unique())[-10:][::-1]:
+        d0 = pd.Timestamp(d0); sub = df[df.d == d0]
+        cl = sub.groupby("client")["amt"].sum().sort_values(ascending=False)
+        l10d.append({"l": d0.strftime("%b %-d"), "dow": d0.strftime("%a"), "ev": int(len(sub)), "rev": round(float(sub["amt"].sum()), 2), "sub": " · ".join(cl.index[:3])})
 
     dd = df.groupby("d").agg(ev=("amt", "size"), rev=("amt", "sum")).reset_index().sort_values(["rev", "ev"], ascending=False).head(10)
     top_days = []
@@ -414,7 +432,7 @@ def build_v2_data(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, today) 
     top_cities = [{"l": city_nm(c), "dow": "", "ev": int(r["ev"]), "rev": round(float(r["rev"]), 2), "sub": f"${r['rev']/r['ev']:.0f} / visit"} for c, r in lc.iterrows()]
     events = [{"d": fd(r.d), "c": r.client, "p": city_nm(r["loc"]), "r": r.rc, "a": float(r.amt), "b": (r["Billing Type"] if isinstance(r["Billing Type"], str) else "")}
               for _, r in df.sort_values(["d", "Event ID"], ascending=[False, False]).iterrows()]
-    ledger = {"cycles": cycles, "months": months, "topDays": top_days, "topWeeks": top_weeks, "topClients": top_clients, "topCities": top_cities, "events": events}
+    ledger = {"l10wk": l10wk, "l10d": l10d, "cycles": cycles, "months": months, "topDays": top_days, "topWeeks": top_weeks, "topClients": top_clients, "topCities": top_cities, "events": events}
 
     amts = df["amt"].astype(float)
     by_day = df.groupby("d").agg(ev=("amt", "size"), rev=("amt", "sum"))

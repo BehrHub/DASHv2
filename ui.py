@@ -271,6 +271,44 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     ]
     ticker_markup = "".join(f'<span class="main-ticker-item">{item}</span>' for item in ticker_items * 2)
 
+    # Main page region card (from the Main V2 preview) replaces the old
+    # Territory & Jurisdictions panel. If it fails for any reason the old
+    # panel renders instead, so Main can never lose this section.
+    region_panel_ok = False
+    try:
+        from components.region_panel import build_region_panel
+        territory_panel = build_region_panel(timeline, pipeline, f"{next_client} &middot; {next_date}")
+        region_panel_ok = True
+    except Exception:
+        territory_panel = f"""
+      <div class="frosted-panel panel" id="territoryPanel">
+        <svg class="neon-pipe-bg" viewBox="0 0 300 100" fill="none" aria-hidden="true">
+          <path d="M 0 60 C 100 60, 150 10, 300 10" stroke="url(#blue-grad2)" stroke-width="2" opacity="0.4"/>
+          <path d="M 0 70 C 110 70, 160 20, 300 20" stroke="url(#pink-grad2)" stroke-width="3" opacity="0.6"/>
+          <defs>
+            <linearGradient id="pink-grad2" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#ec4899"/><stop offset="100%" stop-color="#a855f7"/></linearGradient>
+            <linearGradient id="blue-grad2" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#06b6d4"/></linearGradient>
+          </defs>
+        </svg>
+        <div class="section-header">
+          <div class="section-title">TERRITORY &amp; JURISDICTIONS</div>
+          <div class="section-sub">{jurisdiction_summary}</div>
+        </div>
+        <div class="territory-split">
+          <div class="chart-section">
+            <div class="arc-container">
+              <svg class="arc-svg" width="135" height="135" viewBox="0 0 36 36">
+                <path class="arc-base" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                {''.join(arc_paths)}
+              </svg>
+              <div class="total-number">{total_events:,}</div>
+            </div>
+          </div>
+          <div class="jurisdiction-list">{''.join(jurisdiction_rows)}</div>
+        </div>
+      </div>
+"""
+
     html = f"""
     <!DOCTYPE html>
     <html><head><meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -414,32 +452,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
 
       {trends_fragment}
 
-      <div class="frosted-panel panel" id="territoryPanel">
-        <svg class="neon-pipe-bg" viewBox="0 0 300 100" fill="none" aria-hidden="true">
-          <path d="M 0 60 C 100 60, 150 10, 300 10" stroke="url(#blue-grad2)" stroke-width="2" opacity="0.4"/>
-          <path d="M 0 70 C 110 70, 160 20, 300 20" stroke="url(#pink-grad2)" stroke-width="3" opacity="0.6"/>
-          <defs>
-            <linearGradient id="pink-grad2" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#ec4899"/><stop offset="100%" stop-color="#a855f7"/></linearGradient>
-            <linearGradient id="blue-grad2" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#06b6d4"/></linearGradient>
-          </defs>
-        </svg>
-        <div class="section-header">
-          <div class="section-title">TERRITORY &amp; JURISDICTIONS</div>
-          <div class="section-sub">{jurisdiction_summary}</div>
-        </div>
-        <div class="territory-split">
-          <div class="chart-section">
-            <div class="arc-container">
-              <svg class="arc-svg" width="135" height="135" viewBox="0 0 36 36">
-                <path class="arc-base" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-                {''.join(arc_paths)}
-              </svg>
-              <div class="total-number">{total_events:,}</div>
-            </div>
-          </div>
-          <div class="jurisdiction-list">{''.join(jurisdiction_rows)}</div>
-        </div>
-      </div>
+      {territory_panel}
 
       <script>
         (function() {{
@@ -541,7 +554,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     </body></html>
     """
 
-    height = 36 + 300 + 472 + 16 + 240 + max(len(jurisdictions) - 4, 0) * 36
+    height = 36 + 300 + 472 + 16 + (360 if region_panel_ok else 240 + max(len(jurisdictions) - 4, 0) * 36)
     components.html(html, height=height, scrolling=False)
 
 

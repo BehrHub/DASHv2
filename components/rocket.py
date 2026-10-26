@@ -26,6 +26,8 @@ import streamlit.components.v1 as components
 ROCKET_BASE_PX_PER_SEC = 145   # same base as journey.py's car
 DEFAULT_SPEED = 3.0            # multiplier; STAT+ uses 5.0 (it is the longest page)
 IFRAME_HEIGHT = 150
+BOOST_AFTER_MS = 2500          # after this much flight time...
+BOOST_FACTOR = 1.5             # ...the rocket goes 50% faster, with a bigger flame + smoke
 
 
 @lru_cache(maxsize=1)
@@ -59,7 +61,7 @@ html,body{background:transparent;overflow:hidden}
 <div class="wrap"><button id="btn" class="btn" type="button" aria-label="Back to top">&#x1F51D;</button><div class="lbl">Back to top</div></div>
 <script>
 (function(){
-  var SPEED = __SPEED__, ART = __ART__, H = 96, TRAIL = 240;
+  var SPEED = __SPEED__, ART = __ART__, H = 96, TRAIL = 240, BOOST_AT = __BOOST_AT__, BOOST = __BOOST__;
   var btn = document.getElementById("btn");
   var pwin, pdoc, frame;
   try { pwin = window.parent; pdoc = pwin.document; frame = window.frameElement; } catch(e) { return; }
@@ -67,6 +69,7 @@ html,body{background:transparent;overflow:hidden}
 
   // Clear anything a previous run (or a rerun mid-flight) left behind.
   ["bt-rocket","bt-trail"].forEach(function(id){ var o = pdoc.getElementById(id); if(o) o.remove(); });
+  Array.prototype.forEach.call(pdoc.querySelectorAll(".bt-smoke"), function(o){ o.remove(); });
   if(!pdoc.getElementById("bt-rocket-style")){
     var st = pdoc.createElement("style"); st.id = "bt-rocket-style";
     st.textContent =
@@ -78,7 +81,13 @@ html,body{background:transparent;overflow:hidden}
      +"@keyframes btShake{0%{transform:rotate(-45deg) translate(1.5px,0)}50%{transform:rotate(-45deg) translate(-1.5px,1px)}100%{transform:rotate(-45deg) translate(0,-1px)}}"
      +"@keyframes btFlicker{from{filter:drop-shadow(0 0 8px rgba(255,150,60,.45))}to{filter:drop-shadow(0 0 16px rgba(255,190,80,.8))}}"
      +"#bt-trail{position:fixed;width:10px;height:0;z-index:999989;pointer-events:none;border-radius:6px;filter:blur(3px);"
-     +"background:linear-gradient(to bottom,rgba(255,210,120,.85),rgba(255,120,40,.45) 35%,rgba(255,80,30,0))}";
+     +"background:linear-gradient(to bottom,rgba(255,210,120,.85),rgba(255,120,40,.45) 35%,rgba(255,80,30,0))}"
+     +"#bt-trail.boost{width:20px;filter:blur(4px);background:linear-gradient(to bottom,rgba(255,255,220,.95),rgba(255,190,70,.85) 18%,rgba(255,110,30,.6) 45%,rgba(255,60,20,0));box-shadow:0 0 22px rgba(255,140,40,.65)}"
+     +"#bt-rocket.boost .art{animation:btFlickerHot .08s ease-in-out infinite alternate}"
+     +"@keyframes btFlickerHot{from{filter:drop-shadow(0 0 14px rgba(255,160,60,.75))}to{filter:drop-shadow(0 0 28px rgba(255,210,90,1))}}"
+     +".bt-smoke{position:fixed;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;z-index:999988;pointer-events:none;"
+     +"background:radial-gradient(circle,rgba(226,232,240,.75),rgba(148,163,184,.35) 55%,rgba(148,163,184,0) 72%);animation:btPuff 1s ease-out forwards}"
+     +"@keyframes btPuff{from{transform:translate(0,0) scale(.45);opacity:.85}to{transform:translate(var(--dx,0px),90px) scale(2.6);opacity:0}}";
     pdoc.head.appendChild(st);
   }
 
@@ -88,12 +97,13 @@ html,body{background:transparent;overflow:hidden}
   function setTop(s,t){ if(isDoc(s)) pwin.scrollTo(0,t); else s.scrollTop = t; }
   function viewH(s){ return (!isDoc(s) && s.clientHeight) || pwin.innerHeight; }
 
-  var flying = false, raf = null, rocket = null, trail = null, aborts = [];
+  var flying = false, raf = null, rocket = null, trail = null, aborts = [], puffs = [];
   function cleanup(){
     flying = false;
     if(raf) pwin.clearTimeout(raf);
     if(rocket){ rocket.remove(); rocket = null; }
     if(trail){ trail.remove(); trail = null; }
+    puffs.forEach(function(p){ try{ p.remove(); }catch(e){} }); puffs = [];
     aborts.forEach(function(w){ try{ w.removeEventListener("wheel", abort); w.removeEventListener("touchstart", abort); }catch(e){} });
     aborts = [];
     pwin.setTimeout(function(){ btn.classList.remove("launched"); }, 600);
@@ -131,7 +141,15 @@ html,body{background:transparent;overflow:hidden}
       if(!flying) return;
       rocket.className = "flying";
       [window, pwin].forEach(function(w){ try{ w.addEventListener("wheel", abort, {passive:true}); w.addEventListener("touchstart", abort, {passive:true}); aborts.push(w);}catch(e){} });
-      var start = null, last = null;
+      var start = null, last = null, boosted = false, lastPuff = 0;
+      function puff(sy){
+        var p = pdoc.createElement("div"); p.className = "bt-smoke";
+        p.style.left = (sx + (Math.random()*16 - 8)) + "px";
+        p.style.top = (sy + H*0.42) + "px";
+        p.style.setProperty("--dx", (Math.random()*40 - 20).toFixed(0) + "px");
+        pdoc.body.appendChild(p); puffs.push(p);
+        pwin.setTimeout(function(){ p.remove(); var i = puffs.indexOf(p); if(i > -1) puffs.splice(i, 1); }, 1050);
+      }
       // Drive the loop from the PARENT window's timers (same as journey.py's car),
       // not requestAnimationFrame inside this small iframe: Safari pauses rAF in an
       // iframe once it scrolls out of view, which froze the rocket mid-flight.
@@ -141,12 +159,15 @@ html,body{background:transparent;overflow:hidden}
         if(start === null){ start = last = now; }
         var dt = Math.min(48, now - last)/1000; last = now;
         var ramp = Math.min(1, (now - start)/700);
-        y -= SPEED * (0.25 + 0.75*ramp*ramp) * dt;
+        var boostK = (now - start) > BOOST_AT ? Math.min(1, (now - start - BOOST_AT)/400) : 0;
+        if(boostK > 0 && !boosted){ boosted = true; rocket.className = "flying boost"; trail.classList.add("boost"); }
+        y -= SPEED * (0.25 + 0.75*ramp*ramp) * (1 + (BOOST - 1)*boostK) * dt;
         // follow: keep the rocket ~60% down the screen until the page bottoms out at the top
         var want = y - viewH(s)*0.6;
         if(want < getTop(s)) setTop(s, Math.max(0, want));
         place();
-        trail.style.height = Math.min(TRAIL, (now - start)*0.5) + "px";
+        trail.style.height = Math.min(boosted ? TRAIL*1.6 : TRAIL, (now - start)*0.5) + "px";
+        if(boosted && now - lastPuff > 45){ lastPuff = now; puff(y - getTop(s)); }
         if(y - getTop(s) < -H*2){ cleanup(); return; }
         tick();
       }
@@ -164,5 +185,7 @@ def render_back_to_top_rocket(speed: float = DEFAULT_SPEED) -> None:
         _TEMPLATE
         .replace("__SPEED__", repr(float(ROCKET_BASE_PX_PER_SEC * speed)))
         .replace("__ART__", json.dumps(_rocket_data_uri()))
+        .replace("__BOOST_AT__", str(int(BOOST_AFTER_MS)))
+        .replace("__BOOST__", repr(float(BOOST_FACTOR)))
     )
     components.html(html, height=IFRAME_HEIGHT, scrolling=False)

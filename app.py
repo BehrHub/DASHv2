@@ -216,12 +216,11 @@ def render_header(active: str, show_money_toggle: bool = False, toggle_key: str 
                 if turning_on:
                     st.session_state["gross_toggle_anim_main"] = True
                 st.rerun()
-    # Ten tabs in two rows of five: each original page sits right next to
-    # its V2 counterpart (V2 = the BehrHub preview design, read-only) so
-    # they can be compared side by side before deciding which to keep.
+    # Eight tabs in two rows of four. Main V2 and Stats+ V2 have been
+    # merged into MAIN and STATS+; Clients and Ledger still have their V2
+    # versions alongside for side-by-side comparison.
     labels = [
         ("\U0001F3C1", "MAIN", "main"),
-        ("\U0001F3C1", "MAIN V2", "mainv2"),
         ("\U0001F3CE\uFE0F", "JOURNEY", "journey"),
         ("\u2795", "EVENTS", "addevent"),
         ("\U0001F465", "CLIENTS", "clienthub"),
@@ -229,10 +228,9 @@ def render_header(active: str, show_money_toggle: bool = False, toggle_key: str 
         ("\U0001F4D3", "LEDGER", "ledger"),
         ("\U0001F4D3", "LEDGER V2", "ledgerv2"),
         ("\U0001F52C", "STATS+", "statsplus"),
-        ("\U0001F52C", "STATS+ V2", "statsv2"),
     ]
-    for row in (labels[:5], labels[5:]):
-        cols = st.columns(5)
+    for row in (labels[:4], labels[4:]):
+        cols = st.columns(4)
         for col, (icon, label, view) in zip(cols, row):
             with col:
                 is_active = view == active
@@ -561,6 +559,8 @@ def main() -> None:
         )
 
     view = st.query_params.get("view", "main")
+    # Old links to the retired V2 tabs land on the merged pages instead.
+    view = {"mainv2": "main", "statsv2": "statsplus"}.get(view, view)
     # The gross/net toggle lives in the top app header for Main and Client
     # Hub, but on Ledger it renders inline with the "BREAKDOWNS" title
     # instead (see below) — it's used constantly on that page and forcing
@@ -673,6 +673,9 @@ def main() -> None:
         render_ledger_breakdowns(snapshot.sheets["Timeline"], gross_view, initial_tab=initial_ledger_tab, force_tab=force_ledger_tab)
         render_back_to_top_rocket()
     elif view == "statsplus":
+        # Merged page: the V2 stats (key stats, distributions, cumulative
+        # revenue last) on top, the original STAT+ content below, unchanged.
+        render_v2_page("statsv2", snapshot.sheets["Timeline"], snapshot.sheets["Pipeline"])
         render_stats_plus(snapshot.sheets["Timeline"], gross_view)
     elif view == "logostudio":
         render_logo_studio_page(snapshot.sheets["Timeline"])
