@@ -463,12 +463,6 @@
       <div class="stage fit" id="stageC"></div>
     </section>
 
-    <h2 class="sec">Current clients <small id="curNote"></small></h2>
-    <section aria-label="Current clients">
-      <div class="ticker" id="ticker"></div>
-      <div class="dots" id="tdots"></div>
-    </section>
-
     <h2 class="sec">Client standings <span class="mstrip" id="mstrip" role="img"></span></h2>
     <div class="ctl">
       <span class="lbl">Sort</span>
@@ -483,6 +477,12 @@
     </div>
     <section class="slist" id="slist" aria-label="Client standings"></section>
     <button class="showall" id="showall" type="button"></button>
+
+    <h2 class="sec">Current clients <small id="curNote"></small></h2>
+    <section aria-label="Current clients">
+      <div class="ticker" id="ticker"></div>
+      <div class="dots" id="tdots"></div>
+    </section>
 
     <h2 class="sec">Location groups</h2>
     <section class="locgrid bento" id="locs" aria-label="Location groups"></section>
@@ -665,6 +665,7 @@ function makeWheel(cfg) {
   cfg.next.addEventListener("click", function () { nudge(1); });
 
   var api = {
+    jump: function (i) { pos = target = i; lastRendered = null; },
     resize: function () { H = wheel.clientHeight || 360; lastRendered = null; },
     step: function (dt) {
       if (!wheel.offsetParent) return;
@@ -865,7 +866,7 @@ buildGroup("segP", PERIODS, function () { return chartP; }, function (v) { chart
 buildGroup("segM", METRICS, function () { return chartM; }, function (v) { chartM = v; });
 
 /* ===================== CLIENTS VIEW ===================== */
-var GR = D.groups, gIdx = 0, slidesC = [];
+var GR = D.groups, gIdx = 0, slidesC = []; var savedGroup = (function () { try { return window.localStorage.getItem("bh_v2_group"); } catch (e) { return null; } })();
 GR.forEach(function (g, i) {
   var sl = document.createElement("div");
   sl.className = "slide"; sl.style.setProperty("--c", g.color);
@@ -882,7 +883,7 @@ GR.forEach(function (g, i) {
   $("stageC").appendChild(sl); slidesC.push(sl);
 });
 function updateClients(i) {
-  gIdx = i;
+  gIdx = i; lsSet("bh_v2_group", GR[i].name);
   accentFor.clients = GR[i].color;
   if (!$("view-clients").hidden) document.documentElement.style.setProperty("--accent", GR[i].color);
   slidesC.forEach(function (s, k) { s.classList.toggle("on", k === i); });
@@ -982,7 +983,12 @@ $("locs").innerHTML = locHtml;
 
 
 /* ===================== LEDGER ===================== */
-var LED = D.ledger, ledTab = "l10wk", evShown = 25, evQ = "";
+function lsGet(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { window.localStorage.setItem(k, v); } catch (e) {} }
+var LED = D.ledger, evShown = 25, evQ = "";
+// Opening tab: explicit deep link, else the one the person last used (so the
+// NET/GROSS switch, which re-renders the page, doesn't reset it), else L10WKS.
+var ledTab = (D.tab && D.ledger[D.tab] !== undefined) ? D.tab : (D.ledger[lsGet("bh_v2_ledtab")] !== undefined ? lsGet("bh_v2_ledtab") : "l10wk");
 // Same three rows, same order as Ledger V1 (ALL EVENTS sits where V1 has ERAS).
 var LROWS = [
   [["cycles", "CAREER"], ["months", "CALENDAR"], ["events", "ALL EVENTS"]],
@@ -1035,7 +1041,7 @@ LROWS.forEach(function (row) {
   var r = document.createElement("div"); r.className = "ltrow";
   row.forEach(function (t) {
     var b = document.createElement("button"); b.type = "button"; b.className = "ltab"; b.dataset.t = t[0]; b.textContent = t[1];
-    b.addEventListener("click", function () { ledTab = t[0]; renderLedger(); });
+    b.addEventListener("click", function () { ledTab = t[0]; lsSet("bh_v2_ledtab", ledTab); renderLedger(); });
     r.appendChild(b);
   });
   $("ledTabs").appendChild(r);
@@ -1161,6 +1167,7 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitStage);
 
 paintHero(); renderStandings();
 wheelMain.init(); wheelClients.init();
+(function () { var n = savedGroup; if (!n) return; for (var i = 0; i < GR.length; i++) if (GR[i].name === n) { if (i) wheelClients.jump(i); break; } })();
 var hv = location.hash.slice(1); showView(D.view && accentFor[D.view] ? D.view : (accentFor[hv] ? hv : "main"));
 if (D.embed) {
   (function () {

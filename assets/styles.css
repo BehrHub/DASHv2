@@ -1418,44 +1418,43 @@ div[data-testid="stElementContainer"]:has(style) {
   display: none !important;
 }
 
-/* Gross/Annualized toggle sizing/glow/animation is now generated
-   per-render by _toggle_button_css() in app.py, keyed to whichever
-   widget key is actually live that render (base vs the one-render
-   "_anim" variant after a click). It used to live here as static rules
-   hardcoded to the literal "gross_toggle_btn" key, which silently
-   stopped applying — size, chrome, and glow all — on the one render
-   right after a click, when the key temporarily switched to the "_anim"
-   variant. That's what caused the button to visibly flicker between
-   several different looks depending on click history.
-*/
-div.st-key-gross_toggle_btn {
+/* Universal NET / GROSS switch (top right of every page). A native
+   st.toggle keyed "gross_annual_view": off = NET (default), on = GROSS.
+   "NET" is injected as a ::before on the label so it sits to the left of
+   the switch; the active side is bold + pink, both sides stay near-white. */
+div.st-key-gross_annual_view {
   display: flex;
   justify-content: flex-end;
   align-items: center;
   height: 100%;
+  margin-top: 4px;
 }
-
-/* Toggle-click flourish: the car+bag drives straight across the screen
-   at constant speed (::before pseudo-element) — no parking, no separate
-   toss element, no disappear-timer. Once it reaches its endpoint it's
-   already off-screen by construction. The actual selector targeting a
-   specific button's .st-key-* class (and the bank glow's exact trigger
-   time) is built dynamically per-render in app.py, since which key is
-   "live" changes on the one render right after a click that turns the
-   toggle ON — turning off is deliberately instant/unanimated.
-
-   No scaleX flip here — unlike the old race-car emoji (which faced left
-   natively and needed mirroring), this artwork already faces right,
-   matching the direction of travel as-is. */
-@keyframes barrister-car-drive-through {
-  0%   { transform: translateY(-50%) translateX(-500px); }
-  100% { transform: translateY(-50%) translateX(300px); }
+div.st-key-gross_annual_view label {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 7px !important;
+  width: auto !important;
+  cursor: pointer;
+  white-space: nowrap;
 }
-@keyframes barrister-toggle-flash {
-  0%   { filter: brightness(1); }
-  15%  { filter: brightness(2.8); }
-  100% { filter: brightness(1); }
+div.st-key-gross_annual_view label::before {
+  content: "NET";
+  order: -1;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  color: #fbcfe8;
 }
+div.st-key-gross_annual_view label p {
+  margin: 0 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  letter-spacing: .06em !important;
+  color: #ffffff !important;
+}
+div.st-key-gross_annual_view label:has(input:checked)::before { font-weight: 600; color: #ffffff; }
+div.st-key-gross_annual_view label:has(input:checked) p { font-weight: 900 !important; color: #fbcfe8 !important; }
 
 
 

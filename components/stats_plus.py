@@ -553,7 +553,7 @@ def _plural(n: int, word: str, plural: str | None = None) -> str:
 ROCKET_BASE_PX_PER_SEC = 145
 ROCKET_SPEED = 5.0
 ROCKET_BOOST_AFTER_MS = 2500   # after this much flight time...
-ROCKET_BOOST_FACTOR = 1.5      # ...50% faster, with a bigger flame + smoke
+ROCKET_BOOST_FACTOR = 2.0      # ...full-speed mode: twice the base speed, bigger flame + smoke
 
 
 @lru_cache(maxsize=1)

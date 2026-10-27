@@ -27,7 +27,7 @@ ROCKET_BASE_PX_PER_SEC = 145   # same base as journey.py's car
 DEFAULT_SPEED = 3.0            # multiplier; STAT+ uses 5.0 (it is the longest page)
 IFRAME_HEIGHT = 150
 BOOST_AFTER_MS = 2500          # after this much flight time...
-BOOST_FACTOR = 1.5             # ...the rocket goes 50% faster, with a bigger flame + smoke
+BOOST_FACTOR = 2.0             # ...full-speed mode: twice the base speed, bigger flame + smoke
 
 
 @lru_cache(maxsize=1)
