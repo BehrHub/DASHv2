@@ -211,7 +211,7 @@
   .loc h3 { margin:0; font-family:var(--head); font-size:22px; letter-spacing:.05em; text-transform:uppercase; }
   .loc small { display:block; margin-top:2px; font-size:14px; color:var(--muted); letter-spacing:.06em; }
   .cities { margin-top:10px; font-family:var(--head); font-weight:600; font-size:17px; letter-spacing:.07em; text-transform:uppercase; line-height:1.5; }
-  .cities s { text-decoration:none; color:var(--muted); padding:0 5px; }
+  .cities s { text-decoration:none; color:rgba(255,255,255,.45); padding:0 6px; }
   .loc.solo { grid-column:1 / -1; }
   .chipset { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
   .chipset span { font-size:15px; padding:5px 12px; border-radius:999px; background:var(--panel2); border:1px solid var(--line); }
@@ -871,6 +871,10 @@ buildGroup("segP", PERIODS, function () { return chartP; }, function (v) { chart
 buildGroup("segM", METRICS, function () { return chartM; }, function (v) { chartM = v; });
 
 /* ===================== CLIENTS VIEW ===================== */
+// Kith-inspired palette, lifted a few shades so every tone stays crisp on the
+// dark navy cards: sand, sage, dusty sky, clay, mauve, ochre, mint.
+var KITH = ["#EAD9B5", "#B7D3A8", "#A9C8F0", "#F2A88A", "#E5B3D6", "#F0CF7A", "#9EE3D0"];
+function kith(k) { return KITH[k % KITH.length]; }
 var GR = D.groups, gIdx = 0, slidesC = []; var savedGroup = (function () { try { return window.localStorage.getItem("bh_v2_group"); } catch (e) { return null; } })();
 GR.forEach(function (g, i) {
   var sl = document.createElement("div");
@@ -878,7 +882,7 @@ GR.forEach(function (g, i) {
   sl.innerHTML =
     '<div class="code">' + esc(g.code) + '</div><div class="sname">' + esc(g.name) + '</div>' +
     trackSvg(i + 11) +
-    '<div class="members">' + g.members.map(function (m) { return '<span class="mem"><i>' + esc(m.n) + '</i><em>' + m.v + '</em></span>'; }).join("") + '</div>' +
+    '<div class="members">' + g.members.map(function (m, k) { return '<span class="mem"><i style="color:' + kith(k) + '">' + esc(m.n) + '</i><em>' + m.v + '</em></span>'; }).join("") + '</div>' +
     '<div class="stats">' +
       '<div class="stat"><b>' + g.events + '</b><span>Events</span></div>' +
       '<div class="stat"><b>' + fmt0(g.rev) + '</b><span>Revenue</span></div>' +
@@ -980,7 +984,7 @@ setInterval(function () {
 /* location groups */
 var locHtml = D.locGroups.map(function (g) {
   return '<article class="card loc"><h3>' + esc(g.name) + '</h3><small>' + plural(g.visits, "visit") + ' · ' + fmt0(g.rev) + '</small><div class="cities">' +
-    g.cities.map(function (c) { return esc(c.n); }).join("<s>|</s>") + '</div></article>';
+    g.cities.map(function (c, k) { return '<span style="color:' + kith(k) + '">' + esc(c.n) + '</span>'; }).join("<s>|</s>") + '</div></article>';
 }).join("");
 locHtml += '<article class="card loc solo"><h3>Standalone cities</h3><small>' + D.soloCities.length + ' cities, not in a group</small><div class="chipset">' +
   D.soloCities.map(function (c) { return '<span>' + esc(c.n) + '<em>' + c.v + '</em></span>'; }).join("") + '</div></article>';

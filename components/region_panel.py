@@ -81,7 +81,7 @@ def build_region_panel(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, ne
         + '<div><div class="rg-code" id="rgCode">' + escape(first["code"]) + '</div>'
         + '<div class="rg-full" id="rgFull">' + escape(first["name"]) + '</div>'
         + '<div class="rg-ev"><b id="rgEv">' + str(first["events"]) + '</b><span>EVENTS</span></div>'
-        + '<div class="rg-next">NEXT UP &middot; ' + next_label + '</div></div>'
+        + '</div>'
         + '<div class="rg-side">'
         + '<div class="rg-stat"><b id="rgCities">' + str(first["cities"]) + '</b><span>CITIES</span></div>'
         + '<div class="rg-stat"><b id="rgDays">' + str(first["days"]) + '</b><span>DAYS</span></div>'

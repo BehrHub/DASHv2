@@ -554,7 +554,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     </body></html>
     """
 
-    height = 36 + 300 + 496 + 16 + (360 if region_panel_ok else 240 + max(len(jurisdictions) - 4, 0) * 36)
+    height = 36 + 300 + 472 + 16 + (268 if region_panel_ok else 240 + max(len(jurisdictions) - 4, 0) * 36)
     components.html(html, height=height, scrolling=False)
 
 

@@ -10,9 +10,8 @@ from services.money_view import gross_up, WEEKS_PER_YEAR, MONTHS_PER_YEAR
 from services.tz import eastern_today_naive
 
 
-# Bars: the chart keeps at most MAX_BARS (newest / top ones) and shows
-# VISIBLE_BARS at a time; anything beyond that is reached by swiping left.
-MAX_BARS = 10
+# Bars: every period / client / city is kept (no cap); VISIBLE_BARS show at
+# a time and the rest are reached by swiping right (chart opens on the newest).
 VISIBLE_BARS = 6
 
 
@@ -115,7 +114,6 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
             )
             .reset_index()
             .sort_values("week_index")
-            .tail(MAX_BARS)
         )
         weekly = _build_series([
             {
@@ -140,7 +138,6 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
             )
             .reset_index()
             .sort_values("month_order")
-            .tail(MAX_BARS)
         )
         monthly = _build_series([
             {
@@ -191,7 +188,6 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
             )
             .reset_index()
             .sort_values("career_month_idx")
-            .tail(MAX_BARS)
         )
         career = _build_series([
             {
@@ -251,7 +247,6 @@ def _client_top7(timeline: pd.DataFrame, rank_by: str) -> list[dict]:
         )
         .reset_index()
         .sort_values(rank_by, ascending=False)
-        .head(MAX_BARS)
         # Selection above must stay descending (to correctly pick the
         # actual top 7). This second sort only re-orders THAT subset
         # for DISPLAY -- ascending left-to-right, so the #1 client lands
@@ -327,7 +322,7 @@ def _city_group_top7(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, rank
         return []
 
     metric_key = "trips" if rank_by == "events" else "revenue"
-    ranked = sorted(results, key=lambda r: -r[metric_key])[:MAX_BARS]
+    ranked = sorted(results, key=lambda r: -r[metric_key])
     ranked = sorted(ranked, key=lambda r: r[metric_key])
 
     def _label(r: dict) -> str:
@@ -485,14 +480,13 @@ def _chart(
     # % connectors scroll together. direction:rtl on the scroller makes it
     # open on the RIGHT end (newest bars) with no JS; swipe right for older.
     track_w = max(100.0, n / VISIBLE_BARS * 100)
-    hint = '<div class="trend-swipe-hint">&#8249; Swipe for earlier</div>' if n > VISIBLE_BARS else ""
     return (
         f'<div class="trend-view" data-view="{view_id}">'
         f'<div class="trend-chart"><div class="trend-grid-wrap">{"".join(grid)}</div>'
         f'<div class="trend-scroll{" is-scrollable" if n > VISIBLE_BARS else ""}"><div class="trend-track" style="width:{track_w:.4f}%">'
         f'<div class="trend-plot"><div class="trend-bar-row">{"".join(bars)}</div></div>'
         f'<div class="trend-axis">{"".join(axis)}</div>{connector_row}'
-        f'</div></div></div>{hint}{foot}</div>'
+        f'</div></div></div>{foot}</div>'
     )
 
 
@@ -525,7 +519,7 @@ TRENDS_CSS_RULES = """
 .trend-scroll.is-scrollable { scroll-snap-type: x proximity; }
 .trend-track { direction: ltr; min-width: 100%; }
 .trend-scroll.is-scrollable .trend-bar-col { scroll-snap-align: start; }
-.trend-swipe-hint { font-size: 12px; font-weight: 800; letter-spacing: .3px; color: #e2e8f0; margin: -2px 0 8px 34px; }
+
 .trend-grid-line { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,.07); }
 .trend-grid-line.is-base { background: rgba(255,255,255,.18); }
 .trend-grid-tag { position: absolute; left: 0; transform: translateY(-100%); font-size: 11px; color: #a8b4c8; font-weight: 800; }
@@ -570,7 +564,6 @@ TRENDS_CSS_RULES = """
   .trend-title { font-size: 13px; }
   .trend-tab { padding: 5px 10px; font-size: 10.5px; }
   .trend-scroll { margin-left: 30px; }
-  .trend-swipe-hint { margin-left: 30px; }
   .trend-bar-value { font-size: 11px; padding: 3px 6px; margin-bottom: 5px; }
   .trend-grid-tag { font-size: 10px; }
 }
