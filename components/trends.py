@@ -10,6 +10,12 @@ from services.money_view import gross_up, WEEKS_PER_YEAR, MONTHS_PER_YEAR
 from services.tz import eastern_today_naive
 
 
+# Bars: the chart keeps at most MAX_BARS (newest / top ones) and shows
+# VISIBLE_BARS at a time; anything beyond that is reached by swiping left.
+MAX_BARS = 10
+VISIBLE_BARS = 6
+
+
 def _fmt(value: float, metric: str) -> str:
     if metric == "revenue":
         return f"\uFF04{value:,.0f}"
@@ -109,7 +115,7 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
             )
             .reset_index()
             .sort_values("week_index")
-            .tail(6)
+            .tail(MAX_BARS)
         )
         weekly = _build_series([
             {
@@ -134,7 +140,7 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
             )
             .reset_index()
             .sort_values("month_order")
-            .tail(6)
+            .tail(MAX_BARS)
         )
         monthly = _build_series([
             {
@@ -185,7 +191,7 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
             )
             .reset_index()
             .sort_values("career_month_idx")
-            .tail(6)
+            .tail(MAX_BARS)
         )
         career = _build_series([
             {
@@ -245,7 +251,7 @@ def _client_top7(timeline: pd.DataFrame, rank_by: str) -> list[dict]:
         )
         .reset_index()
         .sort_values(rank_by, ascending=False)
-        .head(7)
+        .head(MAX_BARS)
         # Selection above must stay descending (to correctly pick the
         # actual top 7). This second sort only re-orders THAT subset
         # for DISPLAY -- ascending left-to-right, so the #1 client lands
@@ -321,7 +327,7 @@ def _city_group_top7(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, rank
         return []
 
     metric_key = "trips" if rank_by == "events" else "revenue"
-    ranked = sorted(results, key=lambda r: -r[metric_key])[:7]
+    ranked = sorted(results, key=lambda r: -r[metric_key])[:MAX_BARS]
     ranked = sorted(ranked, key=lambda r: r[metric_key])
 
     def _label(r: dict) -> str:
@@ -370,6 +376,7 @@ def _city_group_top7(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, rank
 
 
 PLOT_H, BAR_MAX, BAR_MIN = 128, 108, 5
+
 
 
 def _chart(
@@ -474,11 +481,18 @@ def _chart(
 
     connector_row = f'<div class="trend-connector-row">{"".join(connectors)}</div>' if connectors else ""
 
+    # Swipeable window: the y-axis grid stays put while bars, labels and
+    # % connectors scroll together. direction:rtl on the scroller makes it
+    # open on the RIGHT end (newest bars) with no JS; swipe right for older.
+    track_w = max(100.0, n / VISIBLE_BARS * 100)
+    hint = '<div class="trend-swipe-hint">&#8249; Swipe for earlier</div>' if n > VISIBLE_BARS else ""
     return (
         f'<div class="trend-view" data-view="{view_id}">'
-        f'<div class="trend-plot"><div class="trend-grid-wrap">{"".join(grid)}</div>'
-        f'<div class="trend-bar-row">{"".join(bars)}</div></div>'
-        f'<div class="trend-axis">{"".join(axis)}</div>{connector_row}{foot}</div>'
+        f'<div class="trend-chart"><div class="trend-grid-wrap">{"".join(grid)}</div>'
+        f'<div class="trend-scroll{" is-scrollable" if n > VISIBLE_BARS else ""}"><div class="trend-track" style="width:{track_w:.4f}%">'
+        f'<div class="trend-plot"><div class="trend-bar-row">{"".join(bars)}</div></div>'
+        f'<div class="trend-axis">{"".join(axis)}</div>{connector_row}'
+        f'</div></div></div>{hint}{foot}</div>'
     )
 
 
@@ -503,16 +517,23 @@ TRENDS_CSS_RULES = """
 .trend-annualized-badge { display: block; font-size: 10px; font-weight: 800; color: #7dd3fc; letter-spacing: .3px; margin-bottom: 8px; }
 .trend-view { display: none; }
 .trend-view.is-active { display: block; }
+.trend-chart { position: relative; }
 .trend-plot { position: relative; height: 158px; margin-bottom: 8px; }
-.trend-grid-wrap { position: absolute; left: 0; right: 0; bottom: 0; height: 128px; }
+.trend-grid-wrap { position: absolute; left: 0; right: 0; top: 30px; height: 128px; pointer-events: none; }
+.trend-scroll { position: relative; margin-left: 34px; overflow-x: auto; overflow-y: hidden; direction: rtl; -webkit-overflow-scrolling: touch; scrollbar-width: none; overscroll-behavior-x: contain; }
+.trend-scroll::-webkit-scrollbar { display: none; }
+.trend-scroll.is-scrollable { scroll-snap-type: x proximity; }
+.trend-track { direction: ltr; min-width: 100%; }
+.trend-scroll.is-scrollable .trend-bar-col { scroll-snap-align: start; }
+.trend-swipe-hint { font-size: 12px; font-weight: 800; letter-spacing: .3px; color: #e2e8f0; margin: -2px 0 8px 34px; }
 .trend-grid-line { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,.07); }
 .trend-grid-line.is-base { background: rgba(255,255,255,.18); }
 .trend-grid-tag { position: absolute; left: 0; transform: translateY(-100%); font-size: 11px; color: #a8b4c8; font-weight: 800; }
-.trend-bar-row { position: absolute; left: 34px; right: 0; bottom: 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; height: 128px; }
+.trend-bar-row { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; height: 128px; }
 .trend-bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 1 1 0; min-width: 0; height: 100%; }
 .trend-connector-row {
     position: relative;
-    margin-left: 34px;
+    margin-left: 0;
     height: 20px;
     margin-top: 4px;
     margin-bottom: 4px;
@@ -536,7 +557,7 @@ TRENDS_CSS_RULES = """
 .trend-bar-col.is-record .trend-bar-value { color: #ffe9f5; background: rgba(35,10,26,.9); border-color: rgba(244,114,182,.85); box-shadow: 0 0 16px rgba(244,114,182,.7); }
 .trend-bar-shape { width: 70%; max-width: 26px; border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, #60a5fa, #3b5b8f); box-shadow: inset 0 1px 0 rgba(255,255,255,.15); }
 .trend-bar-shape.is-record { background: linear-gradient(180deg, #f9a8d4, #ec4899); box-shadow: 0 0 14px rgba(244,114,182,.4), inset 0 1px 0 rgba(255,255,255,.25); }
-.trend-axis { display: flex; justify-content: space-between; gap: 6px; padding-left: 34px; margin-bottom: 10px; }
+.trend-axis { display: flex; justify-content: space-between; gap: 6px; padding-left: 0; margin-bottom: 10px; }
 .trend-axis span { flex: 1 1 0; min-width: 0; text-align: center; font-size: 11.5px; font-weight: 800; color: #b8c4d9; }
 .trend-foot { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); font-size: 12.5px; color: #b8c4d9; }
 .trend-foot-row1 { display: flex; gap: 14px; flex-wrap: wrap; }
@@ -548,8 +569,8 @@ TRENDS_CSS_RULES = """
   .trend-panel { padding: 16px 14px; }
   .trend-title { font-size: 13px; }
   .trend-tab { padding: 5px 10px; font-size: 10.5px; }
-  .trend-bar-row { left: 30px; }
-  .trend-axis { padding-left: 30px; }
+  .trend-scroll { margin-left: 30px; }
+  .trend-swipe-hint { margin-left: 30px; }
   .trend-bar-value { font-size: 11px; padding: 3px 6px; margin-bottom: 5px; }
   .trend-grid-tag { font-size: 10px; }
 }

@@ -277,6 +277,11 @@
   .wnav.big { gap:12px; } .wnav.big button { width:52px; height:52px; font-size:18px; }
   .wnav.big { flex-wrap:wrap; } .count { white-space:nowrap; }
   .rname { font-family:var(--head); font-weight:700; font-size:26px; letter-spacing:.06em; text-transform:uppercase; margin-left:6px; }
+  /* Right-handed picker: from the right edge, arrows first, then the counter + name. */
+  .wnav.big { justify-content:flex-end; flex-wrap:nowrap; padding-left:0; }
+  .wnav.big .count { order:1; flex:none; }
+  .wnav.big .rname { order:2; min-width:0; text-align:right; line-height:1.05; margin-left:0; }
+  .wnav.big button { order:3; flex:none; }
   .stage.fit { min-height:0; transition:height .35s ease; }
   .stage.fit .slide { inset:auto; left:0; right:0; top:0; display:flex; flex-direction:column; }
   .stage.fit .stats { position:static; margin-top:24px; }

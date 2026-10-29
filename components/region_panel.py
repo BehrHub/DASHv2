@@ -25,7 +25,8 @@ from services.tz import eastern_today_naive
 _CSS = """
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,700&display=swap" rel="stylesheet">
 <style>
-.rg-nav{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.rg-nav{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:nowrap;margin-bottom:14px}
+.rg-count{order:1;flex:none}.rg-name{order:2;min-width:0;text-align:right;line-height:1.05}.rg-btn{order:3;flex:none}
 .rg-btn{width:48px;height:48px;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(15,26,56,.9);color:#fff;font-size:17px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .rg-btn:active{transform:scale(.94)}
 .rg-btn:focus-visible{outline:2px solid #fff;outline-offset:2px}
