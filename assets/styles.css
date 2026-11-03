@@ -1453,8 +1453,28 @@ div.st-key-gross_annual_view label p {
   letter-spacing: .06em !important;
   color: #ffffff !important;
 }
-div.st-key-gross_annual_view label:has(input:checked)::before { font-weight: 600; color: #ffffff; }
-div.st-key-gross_annual_view label:has(input:checked) p { font-weight: 900 !important; color: #fbcfe8 !important; }
+/* The word GROSS is its own tappable button (right of the switch): tap it
+   while GROSS is on to go ANNUALIZED (the word glows), tap again for GROSS.
+   Per-mode colours / glow are injected from app.py's render_header(). */
+div.st-key-money_switch { flex-wrap: nowrap !important; gap: 6px !important; margin-top: 4px; }
+div.st-key-money_switch > div { width: auto !important; flex: 0 0 auto !important; }
+div.st-key-gross_annual_view { margin-top: 0; }
+div.st-key-gross_word button {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 2px 4px !important;
+  min-height: 0 !important;
+  height: auto !important;
+  width: auto !important;
+  overflow: visible !important;
+  font-size: 14px !important;
+  letter-spacing: .06em !important;
+  transition: text-shadow .25s ease, color .25s ease;
+}
+div.st-key-gross_word button p { margin: 0 !important; font-size: 14px !important; letter-spacing: .06em !important; }
+/* let the ANNUALIZED glow spill outside the button instead of being boxed in */
+div.st-key-gross_word, div.st-key-gross_word *, div.st-key-money_switch { overflow: visible !important; text-overflow: clip !important; }
 
 
 

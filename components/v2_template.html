@@ -1014,10 +1014,10 @@ function pcard(p) {
     '<div class="rg">(' + p.bd + ') ' + esc(p.range) + (p.open ? ' · ' + p.bdDone + ' business days in' : '') + '</div></div>' +
     '<div class="pdays"><div class="k">Days worked</div><div class="v">' + p.days + '</div>' + g("days") + '</div></div>' +
     '<div class="pm">' +
-    '<div><div class="k">Revenue</div><div class="v">' + fmt0(p.rev) + (p.open ? '<small>proj ' + fmt0(p.pRev) + '</small>' : '') + '</div>' + g("rev") + '</div>' +
+    '<div><div class="k">Revenue</div><div class="v">' + fmt0(p.rev) + (D.annual ? '<small>/yr</small>' : (p.open ? '<small>proj ' + fmt0(p.pRev) + '</small>' : '')) + '</div>' + g("rev") + '</div>' +
     '<div><div class="k">Events</div><div class="v">' + p.ev + (p.open ? '<small>proj ' + Math.round(p.pEv) + '</small>' : '') + '</div>' + g("ev") + '</div>' +
     '<div><div class="k">Avg / event</div><div class="v">' + fmt0(p.avgEv) + '</div>' + g("avgEv") + '</div>' +
-    '<div><div class="k">Avg rev / day</div><div class="v">' + fmt0(p.avgDay) + '</div>' + g("avgDay") + '</div>' +
+    '<div><div class="k">Avg rev / day</div><div class="v">' + fmt0(p.avgDay) + (D.annual ? '<small>/yr</small>' : '') + '</div>' + g("avgDay") + '</div>' +
     '</div></article>';
 }
 function renderLedger() {
@@ -1037,7 +1037,7 @@ function renderLedger() {
   } else {
     var mx = Math.max.apply(null, L.map(function (x) { return x.rev; }));
     html = L.map(function (x, i) {
-      return '<div class="trow"><span class="n">' + (i + 1) + '</span><div><div class="t">' + esc(x.l) + (x.dow ? ' <span style="color:var(--muted);font-weight:500">· ' + esc(x.dow) + '</span>' : '') + '</div><div class="s">' + plural(x.ev, "event") + (x.sub ? ' · ' + esc(x.sub) : '') + '</div><div class="bar2"><i style="width:' + (x.rev / mx * 100).toFixed(1) + '%"></i></div></div><div class="amt">' + fmt0(x.rev) + '</div></div>';
+      return '<div class="trow"><span class="n">' + (i + 1) + '</span><div><div class="t">' + esc(x.l) + (x.dow ? ' <span style="color:var(--muted);font-weight:500">· ' + esc(x.dow) + '</span>' : '') + '</div><div class="s">' + plural(x.ev, "event") + (x.sub ? ' · ' + esc(x.sub) : '') + '</div><div class="bar2"><i style="width:' + (x.rev / mx * 100).toFixed(1) + '%"></i></div></div><div class="amt">' + fmt0(x.rev) + (D.annual && (ledTab === "l10d" || ledTab === "topDays" || ledTab === "topWeeks") ? '<small style="font-size:.7em;margin-left:2px">/yr</small>' : '') + '</div></div>';
     }).join("");
   }
   $("ledBody").innerHTML = html;

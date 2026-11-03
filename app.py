@@ -14,6 +14,8 @@ from components.rocket import render_back_to_top_rocket
 from components.v2_pages import render_v2_page
 from services.data_source import load_snapshot
 from services.metrics import build_executive_metrics
+from services.money_view import ANNUAL, GROSS, NET, NET_SHARE_DEFAULT, clean_net_share, net_share, set_net_share
+from services.sheets_store import SheetsUnavailable, read_setting, write_setting
 
 
 ROOT = Path(__file__).resolve().parent
@@ -63,11 +65,33 @@ def render_splash_screen() -> None:
     st.stop()
 
 
+def _money_mode() -> str:
+    """NET (switch off), GROSS (switch on), or ANNUALIZED (switch on and the
+    GROSS word tapped, which makes it glow). See services/money_view.py."""
+    if not st.session_state.get("gross_annual_view", False):
+        return NET
+    return ANNUAL if st.session_state.get("money_annual", False) else GROSS
+
+
+def _on_money_switch() -> None:
+    # Turning the switch off always lands on plain NET; turning it back on
+    # starts at plain GROSS, never straight into ANNUALIZED.
+    st.session_state["money_annual"] = False
+
+
+def _on_gross_word() -> None:
+    if not st.session_state.get("gross_annual_view", False):
+        st.session_state["gross_annual_view"] = True
+        st.session_state["money_annual"] = False
+    else:
+        st.session_state["money_annual"] = not st.session_state.get("money_annual", False)
+
+
 def render_header(active: str) -> None:
-    """Title row (BARRISTER + the universal NET / GROSS switch in the top
-    right, on every page) and the nav tabs. The switch is a plain native
-    st.toggle keyed straight to session state: off = NET (default),
-    on = GROSS. It is styled in assets/styles.css (div.st-key-gross_annual_view).
+    """Title row (BARRISTER + the universal money switch in the top right, on
+    every page) and the nav tabs. Switch off = NET (default), on = GROSS;
+    tapping the word GROSS while it's on makes it glow = ANNUALIZED, tap
+    again to go back to GROSS. Styled in assets/styles.css + per-mode CSS below.
     """
     title_col, toggle_col = st.columns([5, 3])
     with title_col:
@@ -77,7 +101,23 @@ def render_header(active: str) -> None:
             unsafe_allow_html=True,
         )
     with toggle_col:
-        st.toggle("GROSS", key="gross_annual_view")
+        with st.container(horizontal=True, horizontal_alignment="right", vertical_alignment="center",
+                          gap="small", key="money_switch"):
+            st.toggle("GROSS", key="gross_annual_view", label_visibility="collapsed", on_change=_on_money_switch)
+            st.button("GROSS", key="gross_word", on_click=_on_gross_word, help=None)
+        mode = _money_mode()
+        net_css = "font-weight:900;color:#fbcfe8;" if mode == NET else "font-weight:600;color:#ffffff;"
+        word_css = (
+            "font-weight:600 !important;color:#ffffff !important;text-shadow:none;" if mode == NET else
+            "font-weight:900 !important;color:#fbcfe8 !important;text-shadow:none;" if mode == GROSS else
+            "font-weight:900 !important;color:#ffffff !important;"
+            "text-shadow:0 0 6px #f472b6,0 0 14px #f472b6,0 0 24px rgba(125,211,252,.85);"
+        )
+        st.markdown(
+            f"<style>div.st-key-gross_annual_view label::before{{{net_css}}}"
+            f"div.st-key-gross_word button, div.st-key-gross_word button p{{{word_css}}}</style>",
+            unsafe_allow_html=True,
+        )
     # Six tabs in two rows of three. CLIENTS and LEDGER are the former V2
     # designs; Main and STATS+ carry their merged V2 content.
     labels = [
@@ -102,6 +142,35 @@ def render_header(active: str) -> None:
                     if not is_active:
                         st.query_params["view"] = view
                         st.rerun()
+
+
+def render_net_share_setting() -> None:
+    """Low-key GROSS rate control at the very bottom of Ledger. The saved
+    value lives in the Sheet's Settings tab, so it survives reboots/pushes."""
+    with st.expander("\u2699\uFE0F Gross rate", expanded=False):
+        st.markdown(
+            '<div style="color:#f1f5f9;font-size:14px;line-height:1.45;margin-bottom:6px;">'
+            "Net share of gross. GROSS shows every net figure \u00F7 this number "
+            f"(now <b>{net_share():.2f}</b>: \uFF0465 net shows as \uFF04{65 / net_share():,.0f}). "
+            "ANNUALIZED then multiplies per-day figures \u00D7260, per-week \u00D752, per-month \u00D712.</div>",
+            unsafe_allow_html=True,
+        )
+        if st.session_state.get("net_share_local"):
+            st.markdown('<div style="color:#fde68a;font-size:13px;font-weight:700;">Sheets isn\u2019t connected, so this value only lasts for this session.</div>', unsafe_allow_html=True)
+        value = st.number_input("Net share (0.30 \u2013 1.00)", min_value=0.30, max_value=1.00,
+                                value=float(net_share()), step=0.01, format="%.2f", key="net_share_input")
+        if st.button("Save gross rate", key="net_share_save"):
+            v = clean_net_share(value)
+            if v is None:
+                st.error("Enter a number between 0.30 and 1.00.")
+                return
+            try:
+                write_setting("net_share", v)
+                st.session_state.pop("net_share_local", None)
+            except SheetsUnavailable as exc:
+                st.session_state["net_share_local"] = v
+            set_net_share(v)
+            st.rerun()
 
 
 def render_logo_studio_page(timeline: pd.DataFrame) -> None:
@@ -420,9 +489,15 @@ def main() -> None:
     view = st.query_params.get("view", "main")
     # Old links to the retired V2 tabs land on the merged pages instead.
     view = {"mainv2": "main", "statsv2": "statsplus", "clientsv2": "clienthub", "ledgerv2": "ledger"}.get(view, view)
+    # One saved net share (Settings tab in the Sheet, default 0.65) drives
+    # every GROSS / ANNUALIZED figure on every page. A session-only value
+    # is used if Sheets isn't connected and the person saved one anyway.
+    set_net_share(st.session_state.get("net_share_local") or read_setting("net_share", NET_SHARE_DEFAULT))
     render_header(view)
-    # NET (default) / GROSS — one universal switch, read after the header drew it.
-    gross_view = bool(st.session_state.get("gross_annual_view", False))
+    # NET / GROSS / ANNUALIZED — one universal switch, read after the header drew it.
+    money_mode = _money_mode()
+    gross_view = money_mode != NET
+    annual_view = money_mode == ANNUAL
 
     if view == "journey":
         render_barrister_journey(snapshot.sheets["Timeline"])
@@ -433,7 +508,7 @@ def main() -> None:
             snapshot.sheets.get("State Coverage"),
         )
     elif view == "clienthub":
-        render_v2_page("clienthub", snapshot.sheets["Timeline"], snapshot.sheets["Pipeline"], gross=gross_view)
+        render_v2_page("clienthub", snapshot.sheets["Timeline"], snapshot.sheets["Pipeline"], mode=money_mode)
         st.markdown(
             '<div style="text-align:center;margin-top:18px;font-size:10.5px;">'
             '<a href="?entered=1&view=logostudio" target="_self" style="color:#e8c94a;text-decoration:none;'
@@ -449,14 +524,15 @@ def main() -> None:
         if "ledger_tab" in st.query_params:
             del st.query_params["ledger_tab"]
         render_v2_page("ledger", snapshot.sheets["Timeline"], snapshot.sheets["Pipeline"],
-                       gross=gross_view, tab=initial_ledger_tab)
+                       mode=money_mode, tab=initial_ledger_tab)
         # Financial closeout panel, moved to the bottom of the page.
-        render_ledger_summary(snapshot.sheets["Timeline"], gross_view)
+        render_ledger_summary(snapshot.sheets["Timeline"], gross_view, annual=annual_view)
+        render_net_share_setting()
         render_back_to_top_rocket()
     elif view == "statsplus":
         # Merged page: the V2 stats (key stats, distributions, cumulative
         # revenue last) on top, the original STAT+ content below, unchanged.
-        render_v2_page("statsv2", snapshot.sheets["Timeline"], snapshot.sheets["Pipeline"], gross=gross_view)
+        render_v2_page("statsv2", snapshot.sheets["Timeline"], snapshot.sheets["Pipeline"], mode=money_mode)
         render_stats_plus(snapshot.sheets["Timeline"], gross_view)
     elif view == "logostudio":
         render_logo_studio_page(snapshot.sheets["Timeline"])
@@ -478,7 +554,7 @@ def main() -> None:
             "{ margin-bottom: -8px !important; }</style>",
             unsafe_allow_html=True,
         )
-        render_dashboard(metrics, snapshot.sheets["Timeline"], gross_view, snapshot.sheets["Pipeline"])
+        render_dashboard(metrics, snapshot.sheets["Timeline"], gross_view, snapshot.sheets["Pipeline"], annual=annual_view)
         # Hero card's "UPCOMING" KPI clicks this via JS (window.parent lookup by
         # button text) to trigger a real Streamlit rerun/navigation. Hidden by
         # that same script once it runs; if hiding ever fails for any reason,

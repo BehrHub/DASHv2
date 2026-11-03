@@ -252,7 +252,7 @@ def _compute_top_cities(dated: pd.DataFrame, limit: int = 15) -> list[dict]:
 
 
 def _compute_summary_and_months(
-    timeline: pd.DataFrame, gross_view: bool = False
+    timeline: pd.DataFrame, gross_view: bool = False, annual: bool = False
 ) -> tuple[list[tuple[str, str]], list[dict], list[dict], list[dict], list[dict], list[dict], list[dict], list[dict], list[dict]]:
     working = timeline.copy()
     working["__date"] = pd.to_datetime(working["Service Date"], errors="coerce")
@@ -268,14 +268,18 @@ def _compute_summary_and_months(
     days_worked = dated["__date"].dt.normalize().nunique()
     avg_revenue_per_day = confirmed_revenue / days_worked if days_worked else 0.0
 
-    # Confirmed Revenue is a career-to-date point total, not a rate —
-    # gross it up. Avg Revenue/Day IS a genuine rate — annualize it.
+    # Same rules as every page (services/money_view.py): Confirmed Revenue is
+    # a career total -> GROSS only. Avg Revenue/Day is a per-day rate ->
+    # GROSS, and x260 work days only in ANNUALIZED.
     displayed_revenue = gross_up(confirmed_revenue) if gross_view else confirmed_revenue
-    displayed_avg_day = (
-        annualize_gross(avg_revenue_per_day, DAYS_PER_YEAR) if gross_view else avg_revenue_per_day
-    )
+    if annual:
+        displayed_avg_day = annualize_gross(avg_revenue_per_day, DAYS_PER_YEAR)
+    elif gross_view:
+        displayed_avg_day = gross_up(avg_revenue_per_day)
+    else:
+        displayed_avg_day = avg_revenue_per_day
     revenue_label = "Confirmed Revenue"
-    avg_day_label = "Avg Revenue / Day"
+    avg_day_label = "Avg Day Rate / Yr" if annual else "Avg Revenue / Day"
 
     payments_flagged = 1  # not modeled in the simplified Timeline schema; see ACTION_ITEMS
 
@@ -723,13 +727,13 @@ def _build_client_cards(clients: list[dict], gross_view: bool = False) -> str:
     )
 
 
-def render_ledger_summary(timeline: pd.DataFrame, gross_view: bool = False) -> None:
+def render_ledger_summary(timeline: pd.DataFrame, gross_view: bool = False, annual: bool = False) -> None:
     """Just the FINANCIAL CLOSEOUT panel — split out from the rest so a
     native Streamlit title+button row can sit between this and the
     breakdowns panel, in the exact spot the old embedded title used to
     occupy, instead of in front of the whole combined component.
     """
-    summary, _, _, _, _, _, _, _, _, _ = _compute_summary_and_months(timeline, gross_view)
+    summary, _, _, _, _, _, _, _, _, _ = _compute_summary_and_months(timeline, gross_view, annual)
     kpi_html = "".join(
         f'<div class="ledger-kpi"><div class="ledger-kpi-val">{escape(val)}</div>'
         f'<div class="ledger-kpi-lbl">{escape(label)}</div></div>'

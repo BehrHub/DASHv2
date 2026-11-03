@@ -266,3 +266,43 @@ def save_logo(key: str, filename: str, scale: float, x: int, y: int, image_base6
         LOGOS_SHEET, LOGO_HEADERS, key,
         {"Key": key, "Filename": filename, "Scale": scale, "X": x, "Y": y, "ImageBase64": image_base64},
     )
+
+
+# ---- Settings tab (small key/value store, e.g. the GROSS net share) --------
+SETTINGS_SHEET = "Settings"
+SETTINGS_HEADERS = ["Key", "Value"]
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def _cached_settings() -> dict:
+    ws = _worksheet(SETTINGS_SHEET, SETTINGS_HEADERS)
+    out = {}
+    for rec in ws.get_all_records():
+        key = str(rec.get("Key", "")).strip()
+        if key:
+            out[key] = rec.get("Value", "")
+    return out
+
+
+def read_setting(key: str, default=None):
+    """One setting from the Settings tab; never raises (returns default)."""
+    if not is_configured():
+        return default
+    try:
+        return _cached_settings().get(key, default)
+    except Exception:  # noqa: BLE001
+        return default
+
+
+def write_setting(key: str, value) -> None:
+    """Creates the Settings tab / row if needed. Raises SheetsUnavailable on failure."""
+    if not is_configured():
+        raise SheetsUnavailable("Google Sheets isn't connected, so the setting can't be saved.")
+    try:
+        update_row(SETTINGS_SHEET, SETTINGS_HEADERS, key, {"Key": key, "Value": value})
+    except SheetsUnavailable:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise SheetsUnavailable(f"Could not save setting '{key}': {exc}") from exc
+    finally:
+        _cached_settings.clear()

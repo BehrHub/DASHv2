@@ -19,7 +19,7 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-from services.money_view import GROSS_MARGIN
+from services.money_view import ANNUAL, NET, PER_YEAR, net_share
 from services.logo_source import discover_logos, logo_data_uri, resolve_client_logo
 from services.tz import eastern_today_naive
 from services.v2_data import build_v2_data
@@ -55,18 +55,36 @@ def _frame_fingerprint(frame: pd.DataFrame | None) -> str:
 
 
 @st.cache_data(show_spinner=False, ttl=300)
-def _cached_payload(fingerprint: str, today_iso: str, gross: bool, _timeline: pd.DataFrame, _pipeline: pd.DataFrame | None) -> str:
-    # fingerprint + date + gross flag are the cache key; the frames themselves
+def _cached_payload(fingerprint: str, today_iso: str, mode: str, share: float,
+                    _timeline: pd.DataFrame, _pipeline: pd.DataFrame | None) -> str:
+    # fingerprint + date + money mode + net share are the cache key; the frames
     # are passed with a leading underscore so Streamlit doesn't re-hash them.
-    if gross:
-        # GROSS view: same assumption as the rest of the app (net = 62% of
-        # gross), so every revenue figure on the V2 pages scales uniformly.
+    if mode != NET and share:
+        # GROSS / ANNUALIZED: every dollar amount / net share (services/money_view.py).
         _timeline = _timeline.copy()
         amt_col = next((c for c in _timeline.columns if str(c).strip().casefold() == "amount"), None)
         if amt_col is not None:
-            _timeline[amt_col] = pd.to_numeric(_timeline[amt_col], errors="coerce") / GROSS_MARGIN
+            _timeline[amt_col] = pd.to_numeric(_timeline[amt_col], errors="coerce") / share
     data = build_v2_data(_timeline, _pipeline, today_iso)
+    if mode == ANNUAL:
+        _annualize(data)
     return json.dumps(data, separators=(",", ":"))
+
+
+def _annualize(data: dict) -> None:
+    """ANNUALIZED (amounts are already gross): figures that belong to a time
+    period become a yearly pace. Per day x260, per week x52, per month x12;
+    an open period uses its projected run-rate. Totals and per-event
+    figures (Clients, STATS+, Top Clients/Cities, All Events) stay gross."""
+    led = data.get("ledger", {})
+    for key, per in (("cycles", "month"), ("months", "month"), ("l10wk", "week")):
+        for p in led.get(key, []):
+            base = p["pRev"] if p.get("open") else p["rev"]
+            p["rev"] = p["pRev"] = round(base * PER_YEAR[per], 2)
+            p["avgDay"] = round(p["avgDay"] * PER_YEAR["day"], 2)
+    for key, per in (("l10d", "day"), ("topDays", "day"), ("topWeeks", "week")):
+        for r in led.get(key, []):
+            r["rev"] = round(r["rev"] * PER_YEAR[per], 2)
 
 
 def _logo_map(clients: list[str]) -> dict[str, str]:
@@ -86,21 +104,23 @@ def _logo_map(clients: list[str]) -> dict[str, str]:
 
 
 def render_v2_page(view: str, timeline: pd.DataFrame, pipeline: pd.DataFrame | None,
-                   gross: bool = False, tab: str | None = None) -> None:
+                   mode: str = NET, tab: str | None = None) -> None:
     inner_view = _INNER.get(view, "main")
     try:
         today = eastern_today_naive()
         payload = _cached_payload(
             _frame_fingerprint(timeline) + "|" + _frame_fingerprint(pipeline),
             pd.Timestamp(today).strftime("%Y-%m-%d"),
-            bool(gross),
+            mode,
+            float(net_share()),
             timeline,
             pipeline,
         )
         data = json.loads(payload)
         data["view"] = inner_view
         data["embed"] = True
-        data["gross"] = bool(gross)
+        data["gross"] = mode != NET
+        data["annual"] = mode == ANNUAL
         if tab:
             data["tab"] = _LEDGER_TAB_MAP.get(str(tab), str(tab))
         if inner_view == "clients":

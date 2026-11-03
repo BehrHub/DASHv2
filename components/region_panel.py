@@ -54,7 +54,8 @@ def build_region_panel(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, ne
     payload = _cached_payload(
         _frame_fingerprint(timeline) + "|" + _frame_fingerprint(pipeline),
         pd.Timestamp(eastern_today_naive()).strftime("%Y-%m-%d"),
-        False,
+        "net",
+        1.0,
         timeline,
         pipeline,
     )

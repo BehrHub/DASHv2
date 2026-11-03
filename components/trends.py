@@ -6,7 +6,9 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-from services.money_view import gross_up, WEEKS_PER_YEAR, MONTHS_PER_YEAR
+import numpy as np
+
+from services.money_view import gross_up, DAYS_PER_YEAR, WEEKS_PER_YEAR, MONTHS_PER_YEAR
 from services.tz import eastern_today_naive
 
 
@@ -82,6 +84,18 @@ def _month_index(date: pd.Timestamp, career_start: pd.Timestamp) -> int:
     return months_diff
 
 
+def _run_rate(start: pd.Timestamp, end_excl: pd.Timestamp, today: pd.Timestamp) -> float:
+    """Projection factor for a still-open period: business days in the whole
+    period / business days elapsed so far (>=1). Closed periods -> 1.0.
+    Only used by ANNUALIZED, so an unfinished week/month is annualized at its
+    projected run-rate rather than its partial total."""
+    if not (start <= today < end_excl):
+        return 1.0
+    total = int(np.busday_count(start.date(), end_excl.date()))
+    done = max(1, int(np.busday_count(start.date(), (today + pd.Timedelta(days=1)).date())))
+    return (total / done) if total else 1.0
+
+
 def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
     working = timeline.copy()
     working["__date"] = pd.to_datetime(working["Service Date"], errors="coerce")
@@ -115,12 +129,16 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
             .reset_index()
             .sort_values("week_index")
         )
+        _today = pd.Timestamp(eastern_today_naive()).normalize()
+        _this_monday = _today - pd.Timedelta(days=_today.weekday())
         weekly = _build_series([
             {
                 "label": f"W{int(row['week_index']) - start_index + 1}",
                 "events": int(row["events"]),
                 "revenue": round(row["revenue"]),
                 "days_worked": int(row["days_worked"]),
+                "proj": _run_rate(_this_monday, _this_monday + pd.Timedelta(days=7), _today)
+                if int(row["week_index"]) == today_week_index else 1.0,
             }
             for _, row in grouped.iterrows()
         ])
@@ -145,6 +163,8 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
                 "events": int(row["events"]),
                 "revenue": round(row["revenue"]),
                 "days_worked": int(row["days_worked"]),
+                "proj": _run_rate(row["month_order"].start_time.normalize(),
+                                  (row["month_order"] + 1).start_time.normalize(), _today),
             }
             for _, row in grouped_m.iterrows()
         ])
@@ -195,6 +215,8 @@ def _prepare_buckets(timeline: pd.DataFrame) -> dict[str, list[dict]]:
                 "events": int(row["events"]),
                 "revenue": round(row["revenue"]),
                 "days_worked": int(row["days_worked"]),
+                "proj": _run_rate(career_start + pd.DateOffset(months=int(row["career_month_idx"])),
+                                  career_start + pd.DateOffset(months=int(row["career_month_idx"]) + 1), _today),
             }
             for _, row in grouped_cr.iterrows()
         ])
@@ -573,7 +595,13 @@ TRENDS_CSS = f"<style>{TRENDS_CSS_RULES}</style>"
 
 
 def _annualized_revenue_series(series: list[dict], multiplier: float) -> list[dict]:
-    return [{**row, "revenue": gross_up(row["revenue"]) * multiplier} for row in series]
+    # ANNUALIZED period revenue: gross, at the projected run-rate for an
+    # open period, x periods per year.
+    return [{**row, "revenue": gross_up(row["revenue"] * row.get("proj", 1.0)) * multiplier} for row in series]
+
+
+def _annualized_field_series(series: list[dict], field: str, multiplier: float) -> list[dict]:
+    return [{**row, field: gross_up(row[field]) * multiplier} for row in series]
 
 
 def _grossed_revenue_series(series: list[dict]) -> list[dict]:
@@ -588,7 +616,7 @@ def _grossed_field_series(series: list[dict], field: str) -> list[dict]:
     return [{**row, field: gross_up(row[field])} for row in series]
 
 
-def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipeline: pd.DataFrame | None = None) -> str:
+def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipeline: pd.DataFrame | None = None, annual: bool = False) -> str:
     """Returns the Performance Trends panel as an embeddable HTML fragment
     (CSS + markup + script), for insertion into a larger single-iframe
     document such as render_dashboard()'s combined Hero/Leaderboard/Territory
@@ -608,27 +636,34 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipe
     monthly_avgrevperday = buckets["monthly"]
     weekday_avgrevperday = buckets["weekday"]
     career_avgrevperday = buckets["career"]
+    # Same rules as every page (services/money_view.py):
+    #   GROSS      -> every dollar figure grossed up.
+    #   ANNUALIZED -> period revenue (weekly x52, monthly/career x12, open
+    #                 period at its projected run-rate) and every AVG REV/DAY
+    #                 (x260) become a yearly pace; totals (day-of-week,
+    #                 clients, cities) and AVG REV/EVENT stay gross.
     if gross_view:
-        weekly_revenue = _annualized_revenue_series(weekly_revenue, WEEKS_PER_YEAR)
-        monthly_revenue = _annualized_revenue_series(monthly_revenue, MONTHS_PER_YEAR)
-        # Career months are real month-length periods too (same as
-        # MONTHLY, just anchored to career start instead of the
-        # calendar) — same annualization treatment.
-        career_revenue = _annualized_revenue_series(career_revenue, MONTHS_PER_YEAR)
-        # Weekday view has no single clean annualization multiplier (it
-        # aggregates revenue across every real occurrence of that weekday,
-        # not one period) — but it still gets the gross-up applied like
-        # every other dollar figure on the dashboard, just without a /yr
-        # extrapolation on top.
         weekday_revenue = _grossed_revenue_series(weekday_revenue)
         weekly_avgrevperevent = _grossed_field_series(weekly_avgrevperevent, "avgrevperevent")
         monthly_avgrevperevent = _grossed_field_series(monthly_avgrevperevent, "avgrevperevent")
         career_avgrevperevent = _grossed_field_series(career_avgrevperevent, "avgrevperevent")
         weekday_avgrevperevent = _grossed_field_series(weekday_avgrevperevent, "avgrevperevent")
-        weekly_avgrevperday = _grossed_field_series(weekly_avgrevperday, "avgrevperday")
-        monthly_avgrevperday = _grossed_field_series(monthly_avgrevperday, "avgrevperday")
-        career_avgrevperday = _grossed_field_series(career_avgrevperday, "avgrevperday")
-        weekday_avgrevperday = _grossed_field_series(weekday_avgrevperday, "avgrevperday")
+        if annual:
+            weekly_revenue = _annualized_revenue_series(weekly_revenue, WEEKS_PER_YEAR)
+            monthly_revenue = _annualized_revenue_series(monthly_revenue, MONTHS_PER_YEAR)
+            career_revenue = _annualized_revenue_series(career_revenue, MONTHS_PER_YEAR)
+            weekly_avgrevperday = _annualized_field_series(weekly_avgrevperday, "avgrevperday", DAYS_PER_YEAR)
+            monthly_avgrevperday = _annualized_field_series(monthly_avgrevperday, "avgrevperday", DAYS_PER_YEAR)
+            career_avgrevperday = _annualized_field_series(career_avgrevperday, "avgrevperday", DAYS_PER_YEAR)
+            weekday_avgrevperday = _annualized_field_series(weekday_avgrevperday, "avgrevperday", DAYS_PER_YEAR)
+        else:
+            weekly_revenue = _grossed_revenue_series(weekly_revenue)
+            monthly_revenue = _grossed_revenue_series(monthly_revenue)
+            career_revenue = _grossed_revenue_series(career_revenue)
+            weekly_avgrevperday = _grossed_field_series(weekly_avgrevperday, "avgrevperday")
+            monthly_avgrevperday = _grossed_field_series(monthly_avgrevperday, "avgrevperday")
+            career_avgrevperday = _grossed_field_series(career_avgrevperday, "avgrevperday")
+            weekday_avgrevperday = _grossed_field_series(weekday_avgrevperday, "avgrevperday")
 
     # CLIENTS/CITIES are ranked lists of distinct entities, not time
     # periods — same "grossed but not annualized" treatment as WEEKDAY
@@ -646,8 +681,12 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipe
         cities_revenue = _grossed_revenue_series(cities_revenue)
         clients_avgrevperevent = _grossed_field_series(clients_avgrevperevent, "avgrevperevent")
         cities_avgrevperevent = _grossed_field_series(cities_avgrevperevent, "avgrevperevent")
-        clients_avgrevperday = _grossed_field_series(clients_avgrevperday, "avgrevperday")
-        cities_avgrevperday = _grossed_field_series(cities_avgrevperday, "avgrevperday")
+        if annual:
+            clients_avgrevperday = _annualized_field_series(clients_avgrevperday, "avgrevperday", DAYS_PER_YEAR)
+            cities_avgrevperday = _annualized_field_series(cities_avgrevperday, "avgrevperday", DAYS_PER_YEAR)
+        else:
+            clients_avgrevperday = _grossed_field_series(clients_avgrevperday, "avgrevperday")
+            cities_avgrevperday = _grossed_field_series(cities_avgrevperday, "avgrevperday")
 
     # Confirmed bug this fixes: clients_avgrevperevent/day (and the
     # cities equivalents) started as a COPY of the revenue-ranked list
@@ -664,29 +703,29 @@ def build_trends_fragment(timeline: pd.DataFrame, gross_view: bool = False, pipe
 
     charts = "".join([
         _chart(buckets["weekly"], "events", "weekly-events", description="TOTAL"),
-        _chart(weekly_revenue, "revenue", "weekly-revenue", suppress_total=gross_view, description="TOTAL"),
-        _chart(weekly_avgrevperevent, "avgrevperevent", "weekly-avgrevperevent", suppress_total=gross_view, description="PER EVENT"),
-        _chart(weekly_avgrevperday, "avgrevperday", "weekly-avgrevperday", suppress_total=gross_view, description="PER DAY"),
+        _chart(weekly_revenue, "revenue", "weekly-revenue", suppress_total=annual, description="TOTAL"),
+        _chart(weekly_avgrevperevent, "avgrevperevent", "weekly-avgrevperevent", suppress_total=False, description="PER EVENT"),
+        _chart(weekly_avgrevperday, "avgrevperday", "weekly-avgrevperday", suppress_total=annual, description="PER DAY"),
         _chart(buckets["monthly"], "events", "monthly-events", description="TOTAL", show_mom_connectors=True, show_total_connector=False),
-        _chart(monthly_revenue, "revenue", "monthly-revenue", suppress_total=gross_view, description="TOTAL", show_mom_connectors=True),
-        _chart(monthly_avgrevperevent, "avgrevperevent", "monthly-avgrevperevent", suppress_total=gross_view, description="PER EVENT", show_mom_connectors=True),
-        _chart(monthly_avgrevperday, "avgrevperday", "monthly-avgrevperday", suppress_total=gross_view, description="PER DAY", show_mom_connectors=True),
+        _chart(monthly_revenue, "revenue", "monthly-revenue", suppress_total=annual, description="TOTAL", show_mom_connectors=True),
+        _chart(monthly_avgrevperevent, "avgrevperevent", "monthly-avgrevperevent", suppress_total=False, description="PER EVENT", show_mom_connectors=True),
+        _chart(monthly_avgrevperday, "avgrevperday", "monthly-avgrevperday", suppress_total=annual, description="PER DAY", show_mom_connectors=True),
         _chart(buckets["career"], "events", "career-events", description="TOTAL", show_mom_connectors=True),
-        _chart(career_revenue, "revenue", "career-revenue", suppress_total=gross_view, description="TOTAL", show_mom_connectors=True),
-        _chart(career_avgrevperevent, "avgrevperevent", "career-avgrevperevent", suppress_total=gross_view, description="PER EVENT", show_mom_connectors=True),
-        _chart(career_avgrevperday, "avgrevperday", "career-avgrevperday", suppress_total=gross_view, description="PER DAY", show_mom_connectors=True),
+        _chart(career_revenue, "revenue", "career-revenue", suppress_total=annual, description="TOTAL", show_mom_connectors=True),
+        _chart(career_avgrevperevent, "avgrevperevent", "career-avgrevperevent", suppress_total=False, description="PER EVENT", show_mom_connectors=True),
+        _chart(career_avgrevperday, "avgrevperday", "career-avgrevperday", suppress_total=annual, description="PER DAY", show_mom_connectors=True),
         _chart(buckets["weekday"], "events", "weekday-events", description="TOTAL"),
-        _chart(weekday_revenue, "revenue", "weekday-revenue", suppress_total=gross_view, description="TOTAL"),
-        _chart(weekday_avgrevperevent, "avgrevperevent", "weekday-avgrevperevent", suppress_total=gross_view, description="PER EVENT"),
-        _chart(weekday_avgrevperday, "avgrevperday", "weekday-avgrevperday", suppress_total=gross_view, description="PER DAY"),
+        _chart(weekday_revenue, "revenue", "weekday-revenue", suppress_total=False, description="TOTAL"),
+        _chart(weekday_avgrevperevent, "avgrevperevent", "weekday-avgrevperevent", suppress_total=False, description="PER EVENT"),
+        _chart(weekday_avgrevperday, "avgrevperday", "weekday-avgrevperday", suppress_total=annual, description="PER DAY"),
         _chart(clients_events, "events", "clients-events", description="TOTAL"),
-        _chart(clients_revenue, "revenue", "clients-revenue", suppress_total=gross_view, description="TOTAL"),
-        _chart(clients_avgrevperevent, "avgrevperevent", "clients-avgrevperevent", suppress_total=gross_view, description="PER EVENT"),
-        _chart(clients_avgrevperday, "avgrevperday", "clients-avgrevperday", suppress_total=gross_view, description="PER DAY"),
+        _chart(clients_revenue, "revenue", "clients-revenue", suppress_total=False, description="TOTAL"),
+        _chart(clients_avgrevperevent, "avgrevperevent", "clients-avgrevperevent", suppress_total=False, description="PER EVENT"),
+        _chart(clients_avgrevperday, "avgrevperday", "clients-avgrevperday", suppress_total=annual, description="PER DAY"),
         _chart(cities_events, "events", "cities-events", description="TOTAL"),
-        _chart(cities_revenue, "revenue", "cities-revenue", suppress_total=gross_view, description="TOTAL"),
-        _chart(cities_avgrevperevent, "avgrevperevent", "cities-avgrevperevent", suppress_total=gross_view, description="PER EVENT"),
-        _chart(cities_avgrevperday, "avgrevperday", "cities-avgrevperday", suppress_total=gross_view, description="PER DAY"),
+        _chart(cities_revenue, "revenue", "cities-revenue", suppress_total=False, description="TOTAL"),
+        _chart(cities_avgrevperevent, "avgrevperevent", "cities-avgrevperevent", suppress_total=False, description="PER EVENT"),
+        _chart(cities_avgrevperday, "avgrevperday", "cities-avgrevperday", suppress_total=annual, description="PER DAY"),
     ])
 
     return f"""

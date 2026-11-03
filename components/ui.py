@@ -9,7 +9,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from services.metrics import ExecutiveMetrics, _compact_money
-from services.money_view import annualize_gross, gross_up, DAYS_PER_YEAR, WEEKS_PER_YEAR, MONTHS_PER_YEAR
+from services.money_view import annualize_gross, gross_up, money, DAYS_PER_YEAR, WEEKS_PER_YEAR, MONTHS_PER_YEAR
 from components.trends import build_trends_fragment, TRENDS_CSS_RULES
 from components.journey import JURISDICTION_COLORS, TERRITORY_CENTER_COLOR, jurisdiction_group
 
@@ -58,7 +58,7 @@ ICONS = {
 
 
 
-def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_view: bool = False, pipeline: "pd.DataFrame | None" = None) -> None:
+def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_view: bool = False, pipeline: "pd.DataFrame | None" = None, annual: bool = False) -> None:
     hero = metrics.hero
     data = metrics.data_views
     leaderboard = list(data.get("leaderboard", []))
@@ -142,7 +142,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     if not jurisdiction_rows:
         jurisdiction_rows.append('<div class="empty-state">No completed jurisdiction activity.</div>')
 
-    trends_fragment = build_trends_fragment(timeline, gross_view, pipeline)
+    trends_fragment = build_trends_fragment(timeline, gross_view, pipeline, annual=annual)
 
     repeat_clients = int(timeline["Client"].value_counts().gt(1).sum()) if not timeline.empty else 0
     unique_clients_count = int(timeline["Client"].nunique()) if not timeline.empty else 0
@@ -186,16 +186,14 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     else:
         highest_month = highest_week = highest_day = 0.0
 
-    # TOP PACE always shows the grossed annualized figure, independent
-    # of the Gross/Net toggle -- explicit design correction: a ticker
-    # is a poor place for a number whose meaning silently flips based
-    # on toggle state the person can't see while it's scrolling past.
-    # "Top Pace" is a pace figure, not a point-in-time revenue total,
-    # so it doesn't participate in the Net/Gross distinction the way
-    # other dollar figures on the page do.
-    pace_day = annualize_gross(highest_day, DAYS_PER_YEAR)
-    pace_week = annualize_gross(highest_week, WEEKS_PER_YEAR)
-    pace_month = annualize_gross(highest_month, MONTHS_PER_YEAR)
+    # TOP PACE follows the switch like every other figure (services/money_view.py):
+    # NET = your best day / week / month as recorded, GROSS = grossed up,
+    # ANNUALIZED = grossed and x260 / x52 / x12 (shown "/yr").
+    _mode = "annual" if annual else ("gross" if gross_view else "net")
+    pace_day = money(highest_day, _mode, "day")
+    pace_week = money(highest_week, _mode, "week")
+    pace_month = money(highest_month, _mode, "month")
+    pace_suffix = " /yr" if annual else ""
 
     # Most-visited / most-revenue clients only, for now -- Most $/Event,
     # Cities, and TJX Group were deliberately left out of this pass at
@@ -213,11 +211,8 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
     else:
         top_revenue_client, top_revenue_amount = "\u2014", 0.0
 
-    if gross_view:
-        avg_day_display = annualize_gross(avg_dollar_per_day, DAYS_PER_YEAR)
-        avg_day_item = f'\U0001F4B5 avg <strong>\uFF04{escape(f"{avg_day_display:,.0f}")}</strong>/yr'
-    else:
-        avg_day_item = f'\U0001F4B5 avg <strong>\uFF04{escape(f"{avg_dollar_per_day:,.0f}")}</strong>/day'
+    avg_day_display = money(avg_dollar_per_day, _mode, "day")
+    avg_day_item = f'\U0001F4B5 avg <strong>\uFF04{escape(f"{avg_day_display:,.0f}")}</strong>{"/yr" if annual else "/day"}'
 
     # Top Client Group and Top Location -- reusing the exact same
     # compute_*_ranking functions already powering Client Hub's Groups
@@ -267,7 +262,7 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
         f'\U0001F5FA\uFE0F Top Locations (MD &amp; VA): <strong>{escape(str(top_md_name))}</strong> &amp; <strong>{escape(str(top_va_name))}</strong>',
         f'\U0001F3C5 best month <strong>{best_month_value}</strong>',
         avg_day_item,
-        f'\U0001F4C8 TOP PACE (Day | Week | Month): <strong>\uFF04{escape(f"{pace_day:,.0f}")}</strong> | <strong>\uFF04{escape(f"{pace_week:,.0f}")}</strong> | <strong>\uFF04{escape(f"{pace_month:,.0f}")}</strong>',
+        f'\U0001F4C8 TOP PACE (Day | Week | Month): <strong>\uFF04{escape(f"{pace_day:,.0f}")}</strong> | <strong>\uFF04{escape(f"{pace_week:,.0f}")}</strong> | <strong>\uFF04{escape(f"{pace_month:,.0f}")}</strong>{pace_suffix}',
     ]
     ticker_markup = "".join(f'<span class="main-ticker-item">{item}</span>' for item in ticker_items * 2)
 
