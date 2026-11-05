@@ -546,6 +546,28 @@ def render_dashboard(metrics: ExecutiveMetrics, timeline: "pd.DataFrame", gross_
           }})();
         }})();
       </script>
+      <script>
+        // Fit the iframe to its content so the bottom card is never cut off
+        // when text wraps differently on a given phone (fixed height is only
+        // the starting guess).
+        (function fitFrame() {{
+          var fe; try {{ fe = window.frameElement; }} catch (e) {{ return; }}
+          if (!fe) return;
+          function fit() {{
+            var p = document.getElementById('territoryPanel');
+            if (!p) return;
+            var h = Math.ceil(p.getBoundingClientRect().bottom + (window.pageYOffset || 0)) + 28;
+            if (h > 400 && Math.abs(h - fe.offsetHeight) > 1) {{ fe.style.height = h + 'px'; fe.setAttribute('height', h); }}
+          }}
+          fit(); setTimeout(fit, 300); setTimeout(fit, 1200);
+          window.addEventListener('load', fit); window.addEventListener('resize', fit);
+          if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+          if (window.ResizeObserver) {{
+            var ro = new ResizeObserver(fit);
+            ['territoryPanel', 'trendViews'].forEach(function (id) {{ var n = document.getElementById(id); if (n) ro.observe(n); }});
+          }}
+        }})();
+      </script>
     </body></html>
     """
 

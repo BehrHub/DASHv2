@@ -21,9 +21,11 @@ CLIENT_GROUPS: dict[str, list[str]] = {
 LOCATION_GROUPS: dict[str, list[str]] = {
     "Rockville-proper": ["Rockville, MD", "North Bethesda, MD", "Bethesda, MD"],
     "Owings Mills-proper": ["Owings Mills, MD", "Reisterstown, MD"],
-    "Bel Air-proper": ["Bel Air, MD", "Aberdeen, MD", "Edgewood, MD"],
-    "Towson-proper": ["Towson, MD", "Cockeysville, MD", "Lutherville, MD", "Timonium, MD"],
-    "Tysons-proper": ["Tysons, VA", "McLean, VA", "Falls Church, VA"],
+    "Bel Air-proper": ["Bel Air, MD", "Aberdeen, MD", "Edgewood, MD", "Fallston, MD"],
+    "Towson-proper": ["Towson, MD", "Cockeysville, MD", "Lutherville, MD", "Timonium, MD", "Middle River, MD"],
+    # Renamed from Tysons-proper: Arlington is the hub, all within ~10 miles.
+    "Arlington Greater-proper": ["Arlington, VA", "Alexandria, VA", "McLean, VA", "Tysons, VA", "Falls Church, VA"],
+    "York-proper": ["York, PA", "Red Lion, PA"],
     # Bowie-proper removed entirely - Bowie is standalone now. Lanham
     # moved into the new Landover-proper group below instead.
     "Laurel-proper": ["Laurel, MD", "Scaggsville, MD"],
@@ -41,8 +43,8 @@ LOCATION_GROUPS: dict[str, list[str]] = {
     # College Park is standalone until real neighboring cities of its
     # own get visited, and Lanham moved in from the now-deleted
     # Bowie-proper.
-    "Landover-proper": ["Landover, MD", "Hyattsville, MD", "Lanham, MD"],
-    "Glen Burnie-proper": ["Glen Burnie, MD", "Severna Park, MD", "Pasadena, MD"],
+    "Landover-proper": ["Landover, MD", "Hyattsville, MD", "Lanham, MD", "Cheverly, MD"],
+    "Glen Burnie-proper": ["Glen Burnie, MD", "Severna Park, MD", "Pasadena, MD", "Gambrills, MD"],
     "Fairfax-proper": ["Fairfax, VA", "Herndon, VA"],
     "Eastern Shore-proper": ["Salisbury, MD", "Berlin, MD"],
     "Elkridge-proper": ["Elkridge, MD", "Columbia, MD", "Hanover, MD"],

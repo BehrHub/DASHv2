@@ -148,7 +148,7 @@ def build_v2_data(timeline: pd.DataFrame, pipeline: pd.DataFrame | None, today) 
     # ---- labels (chart-only; never touches data) ---------------------------
     CLIENT_LBL = {"Dunkin'": "DNKN'", "Marshalls": "MARSH", "7-Eleven": "7-11", "Giant Food Stores": "GIANT",
                   "Food Lion": "FOOD LION", "Senate Sergeant at Arms": "SGT. ARMS", "Hebrew Home GW": "HBRW HOME"}
-    CITY_GRP_LBL = {"Rockville": "ROCK", "Owings Mills": "O.MIL", "Elkridge": "ELK", "Tysons": "TYSON", "Bel Air": "BEL.A",
+    CITY_GRP_LBL = {"Rockville": "ROCK", "Owings Mills": "O.MIL", "Elkridge": "ELK", "Arlington Greater": "ARL.G", "York": "YORK", "Bel Air": "BEL.A",
                     "Annapolis": "ANNA", "Towson": "TOWS", "Glen Burnie": "GLN.B", "Largo": "LRGO", "Landover": "LNDVR"}
     CITY_SOLO_LBL = {"Frederick, MD": "FRED", "Washington, DC": "D.C.", "College Park, MD": "C.PARK"}
 

@@ -297,7 +297,8 @@ CHART_CITY_GROUP_LABEL_OVERRIDES: dict[str, str] = {
     "Rockville-proper": "ROCK GRP",
     "Owings Mills-proper": "O.MIL GRP",
     "Elkridge-proper": "ELK GRP",
-    "Tysons-proper": "TYSON GRP",
+    "Arlington Greater-proper": "ARL.G GRP",
+    "York-proper": "YORK GRP",
     "Bel Air-proper": "BEL.A GRP",
     "Annapolis-proper": "ANNA GRP",
     "Towson-proper": "TOWS GRP",
@@ -505,7 +506,7 @@ def _chart(
     return (
         f'<div class="trend-view" data-view="{view_id}">'
         f'<div class="trend-chart"><div class="trend-grid-wrap">{"".join(grid)}</div>'
-        f'<div class="trend-scroll{" is-scrollable" if n > VISIBLE_BARS else ""}"><div class="trend-track" style="width:{track_w:.4f}%">'
+        f'<div class="trend-scroll{" is-scrollable" if n > VISIBLE_BARS else ""}{" is-ltr" if view_id.startswith("weekday-") else ""}"><div class="trend-track" style="width:{track_w:.4f}%">'
         f'<div class="trend-plot"><div class="trend-bar-row">{"".join(bars)}</div></div>'
         f'<div class="trend-axis">{"".join(axis)}</div>{connector_row}'
         f'</div></div></div>{foot}</div>'
@@ -537,6 +538,7 @@ TRENDS_CSS_RULES = """
 .trend-plot { position: relative; height: 158px; margin-bottom: 8px; }
 .trend-grid-wrap { position: absolute; left: 0; right: 0; top: 30px; height: 128px; pointer-events: none; }
 .trend-scroll { position: relative; margin-left: 34px; overflow-x: auto; overflow-y: hidden; direction: rtl; -webkit-overflow-scrolling: touch; scrollbar-width: none; overscroll-behavior-x: contain; }
+.trend-scroll.is-ltr { direction: ltr; }
 .trend-scroll::-webkit-scrollbar { display: none; }
 .trend-scroll.is-scrollable { scroll-snap-type: x proximity; }
 .trend-track { direction: ltr; min-width: 100%; }
