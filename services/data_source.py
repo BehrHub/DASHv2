@@ -195,6 +195,27 @@ def _local_fallback_snapshot() -> tuple[pd.DataFrame, pd.DataFrame]:
     return timeline, pipeline
 
 
+# Client names are normalised once, right after loading, so every page,
+# group and logo sees the same name. Keys are casefolded.
+CLIENT_ALIASES = {
+    "pepsico": "Pepsi",
+    "frito lay": "Frito-Lay",
+    "frito-lay": "Frito-Lay",
+    "fritolay": "Frito-Lay",
+    "el supermarket": "El Supermarket",
+    "lancaster health group": "Lancaster Health Group",
+}
+
+
+def apply_client_aliases(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty or "Client" not in df.columns:
+        return df
+    df = df.copy()
+    key = df["Client"].astype(str).str.strip().str.replace(r"\s+", " ", regex=True).str.casefold()
+    df["Client"] = [CLIENT_ALIASES.get(k, c) for k, c in zip(key, df["Client"])]
+    return df
+
+
 def load_snapshot() -> WorkbookSnapshot:
     """Live snapshot, sourced from the Google Sheet that is now the
     single source of truth for Timeline and Pipeline (see
@@ -233,6 +254,9 @@ def load_snapshot() -> WorkbookSnapshot:
             "will NOT survive a restart. See SETUP.md."
         )
         timeline, pipeline = _local_fallback_snapshot()
+
+    timeline = apply_client_aliases(timeline)
+    pipeline = apply_client_aliases(pipeline)
 
     if timeline.empty:
         coverage = pd.DataFrame(columns=["State/Region", "Completed Visits"])

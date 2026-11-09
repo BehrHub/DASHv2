@@ -27,6 +27,7 @@ _GROUP_STYLE = {
     "Macy's Inc. Group": ("MCY", "#f472b6", "Macy's"),
     "Grocery Group": ("GRO", "#a3e635", "Grocery"),
     "DunkBR Group": ("D&B", "#fb923c", "Dunkin / BR"),
+    "PepsiCo Group": ("PEP", "#60a5fa", "PepsiCo"),
     "Standalone clients": ("SOLO", "#a78bfa", "Standalone"),
 }
 _SPARE_COLORS = ["#fbbf24", "#2dd4bf", "#e879f9", "#60a5fa", "#f87171"]

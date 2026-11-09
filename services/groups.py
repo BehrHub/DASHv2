@@ -11,11 +11,12 @@ CLIENT_GROUPS: dict[str, list[str]] = {
     ],
     "Nursing Home Group": [
         "Hebrew Home GW", "Atrium Village", "Autumn Lake Healthcare", "Maryland Baptist Age Home",
-        "Seaton",
+        "Seaton", "Lancaster Health Group",
     ],
     "Hilton Worldwide Group": ["Hampton Inn & Suites", "Hilton Garden Inn"],
     "Macy's Inc. Group": ["Bloomingdale's", "Macy's"],
-    "Grocery Group": ["Giant Food Stores", "Food Lion", "Weis Markets"],
+    "Grocery Group": ["Giant Food Stores", "Food Lion", "Weis Markets", "El Supermarket"],
+    "PepsiCo Group": ["Pepsi", "Frito-Lay"],
 }
 
 LOCATION_GROUPS: dict[str, list[str]] = {

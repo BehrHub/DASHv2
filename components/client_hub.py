@@ -330,7 +330,7 @@ def render_client_standings(metrics: ExecutiveMetrics, timeline: pd.DataFrame, g
     # replaced by this group since PepsiCo's forced neighbor is now
     # Frito-Lay - WeWork reverts to its normal revenue-sorted position.
     FORCED_ADJACENT_GROUPS = [
-        ("PepsiCo", "Frito-Lay", "Walmart", "IKEA"),
+        ("Pepsi", "Frito-Lay", "Walmart", "IKEA"),
     ]
     _group_of: dict[str, tuple[int, int]] = {}
     for group_id, group in enumerate(FORCED_ADJACENT_GROUPS):
