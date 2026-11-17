@@ -44,8 +44,8 @@ LOCATION_GROUPS: dict[str, list[str]] = {
     # College Park is standalone until real neighboring cities of its
     # own get visited, and Lanham moved in from the now-deleted
     # Bowie-proper.
-    "Landover-proper": ["Landover, MD", "Hyattsville, MD", "Lanham, MD", "Cheverly, MD"],
-    "Glen Burnie-proper": ["Glen Burnie, MD", "Severna Park, MD", "Pasadena, MD", "Gambrills, MD"],
+    "Landover-proper": ["Landover, MD", "Hyattsville, MD", "Lanham, MD", "Cheverly, MD", "District Heights, MD"],
+    "Glen Burnie-proper": ["Glen Burnie, MD", "Pasadena, MD", "Severna Park, MD", "Gambrills, MD"],
     "Fairfax-proper": ["Fairfax, VA", "Herndon, VA"],
     "Eastern Shore-proper": ["Salisbury, MD", "Berlin, MD"],
     "Elkridge-proper": ["Elkridge, MD", "Columbia, MD", "Hanover, MD"],
