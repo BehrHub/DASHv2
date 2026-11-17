@@ -212,6 +212,11 @@
   .loc small { display:block; margin-top:2px; font-size:14px; color:var(--muted); letter-spacing:.06em; }
   .cities { margin-top:10px; font-family:var(--head); font-weight:600; font-size:17px; letter-spacing:.07em; text-transform:uppercase; line-height:1.5; }
   .cities span { white-space:nowrap; }
+  .loc h3 { padding-right:48px; }
+  .revtog { position:absolute; top:14px; right:14px; width:38px; height:38px; border-radius:50%; border:1px solid rgba(255,255,255,.28); background:rgba(15,26,56,.9); color:#fff; font:700 18px/1 var(--head); cursor:pointer; -webkit-tap-highlight-color:transparent; display:flex; align-items:center; justify-content:center; padding:0; }
+  .revtog:active { transform:scale(.93); }
+  .revtog[aria-pressed=true] { border-color:#f472b6; color:#ffe9f5; background:rgba(244,114,182,.18); box-shadow:0 0 10px rgba(244,114,182,.55); }
+  .revtog:focus-visible { outline:2px solid #fff; outline-offset:2px; }
   .cities s { text-decoration:none; color:rgba(255,255,255,.45); padding:0 6px; }
   .loc.solo { grid-column:1 / -1; }
   .chipset { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
@@ -984,12 +989,21 @@ setInterval(function () {
 
 /* location groups */
 var locHtml = D.locGroups.map(function (g) {
-  return '<article class="card loc"><h3>' + esc(g.name) + '</h3><small>' + plural(g.visits, "visit") + ' · ' + fmt0(g.rev) + '</small><div class="cities">' +
+  var lead = g.cities.reduce(function (a, c) { return !a || c.v > a.v ? c : a; }, null);
+  var leadTxt = lead && g.visits ? ' (' + esc(lead.n).toUpperCase() + ' leads with ' + Math.round(lead.v / g.visits * 100) + '%)' : '';
+  return '<article class="card loc"><button type="button" class="revtog" aria-pressed="false" aria-label="Show revenue and top city for ' + esc(g.name) + '">$</button><h3>' + esc(g.name) + '</h3><small data-v="' + esc(plural(g.visits, "visit")) + '" data-full="' + esc(plural(g.visits, "visit") + ' · ' + fmt0(g.rev) + leadTxt) + '">' + plural(g.visits, "visit") + '</small><div class="cities">' +
     g.cities.map(function (c, k) { return '<span style="color:' + kith(k) + '">' + esc(c.n) + '</span>'; }).join("<s>|</s>") + '</div></article>';
 }).join("");
 locHtml += '<article class="card loc solo"><h3>Standalone cities</h3><small>' + D.soloCities.length + ' cities, not in a group</small><div class="chipset">' +
   D.soloCities.map(function (c) { return '<span>' + esc(c.n) + '<em>' + c.v + '</em></span>'; }).join("") + '</div></article>';
 $("locs").innerHTML = locHtml;
+$("locs").addEventListener("click", function (e) {
+  var b = e.target.closest ? e.target.closest(".revtog") : null;
+  if (!b) return;
+  var on = b.getAttribute("aria-pressed") !== "true", sm = b.parentNode.querySelector("small");
+  b.setAttribute("aria-pressed", on ? "true" : "false");
+  sm.textContent = sm.getAttribute(on ? "data-full" : "data-v");
+});
 
 
 /* ===================== LEDGER ===================== */
